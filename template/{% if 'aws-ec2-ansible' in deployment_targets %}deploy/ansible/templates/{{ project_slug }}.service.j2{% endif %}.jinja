@@ -1,5 +1,5 @@
 [Unit]
-Description={{ project_name }} Gunicorn Service
+Description={{ project_name }} {% if use_channels %}Daphne{% else %}Gunicorn{% endif %} Service
 After=network.target
 
 [Service]
@@ -7,8 +7,21 @@ Type=notify
 User={{ app_user }}
 Group={{ app_user }}
 WorkingDirectory={{ app_dir }}
-Environment="PATH={{ app_dir }}/.venv/bin"
-ExecStart={{ app_dir }}/.venv/bin/gunicorn config.wsgi:application --bind 127.0.0.1:8000 --workers 4
+{% if dependency_manager == 'uv' -%}
+Environment="PATH={{ app_user_home }}/.cargo/bin:/usr/bin:/bin"
+{% if use_channels -%}
+ExecStart={{ app_user_home }}/.cargo/bin/uv run daphne -b 127.0.0.1 -p 8000 config.asgi:application
+{% else -%}
+ExecStart={{ app_user_home }}/.cargo/bin/uv run gunicorn config.wsgi:application --bind 127.0.0.1:8000 --workers 4
+{% endif -%}
+{% else -%}
+Environment="PATH={{ app_user_home }}/.local/bin:{{ app_dir }}/.venv/bin:/usr/bin:/bin"
+{% if use_channels -%}
+ExecStart={{ app_user_home }}/.local/bin/poetry run daphne -b 127.0.0.1 -p 8000 config.asgi:application
+{% else -%}
+ExecStart={{ app_user_home }}/.local/bin/poetry run gunicorn config.wsgi:application --bind 127.0.0.1:8000 --workers 4
+{% endif -%}
+{% endif -%}
 Restart=always
 RestartSec=10
 

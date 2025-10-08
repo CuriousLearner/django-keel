@@ -22,10 +22,11 @@ WORKDIR /app
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
 # Copy dependency files
-COPY pyproject.toml uv.lock ./
+COPY pyproject.toml ./
+COPY uv.lock* ./
 
 # Install dependencies
-RUN uv sync --frozen --no-dev
+RUN uv sync --no-dev
 
 # Copy application
 COPY . .
@@ -38,7 +39,8 @@ RUN uv run python manage.py collectstatic --noinput
 RUN pip install poetry==1.7.0
 
 # Copy dependency files
-COPY pyproject.toml poetry.lock ./
+COPY pyproject.toml ./
+COPY poetry.lock* ./
 
 # Install dependencies
 RUN poetry config virtualenvs.create false \
@@ -60,4 +62,8 @@ USER appuser
 EXPOSE 8000
 
 # Run application
+{% if use_channels -%}
+CMD ["{% if dependency_manager == 'uv' %}uv run {% endif %}daphne", "-b", "0.0.0.0", "-p", "8000", "config.asgi:application"]
+{% else -%}
 CMD ["{% if dependency_manager == 'uv' %}uv run {% endif %}gunicorn", "config.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "4"]
+{% endif -%}

@@ -1,0 +1,8 @@
+"""API URLs (GraphQL only)."""
+from django.urls import path, include
+
+app_name = "api"
+
+urlpatterns = [
+    path("", include("apps.api.graphql_urls")),
+]

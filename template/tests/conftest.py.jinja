@@ -10,11 +10,13 @@ def client():
     return Client()
 
 
+{% if api_style in ['drf', 'both'] -%}
 @pytest.fixture
 def api_client():
     """DRF API client."""
     from rest_framework.test import APIClient
     return APIClient()
+{% endif -%}
 
 
 @pytest.fixture

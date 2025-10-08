@@ -26,4 +26,7 @@ urlpatterns = [
 {% if auth_backend in ['jwt', 'both'] -%}
     path("auth/", include("apps.api.auth_urls")),
 {% endif -%}
+{% if api_style == 'both' -%}
+    path("", include("apps.api.graphql_urls")),
+{% endif -%}
 ]

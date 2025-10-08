@@ -20,7 +20,7 @@ spec:
       initContainers:
         - name: migrate
           image: {{ project_slug }}:latest
-          command: ["python", "manage.py", "migrate", "--noinput"]
+          command: [{% if dependency_manager == 'uv' %}"uv", "run", {% endif %}"python", "manage.py", "migrate", "--noinput"]
           envFrom:
             - configMapRef:
                 name: {{ project_slug }}-config
