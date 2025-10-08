@@ -1,0 +1,63 @@
+# syntax=docker/dockerfile:1
+FROM python:{{ python_version }}-slim as base
+
+# Set environment variables
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+# Create app user
+RUN groupadd -r appuser && useradd -r -g appuser appuser
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+{% if dependency_manager == 'uv' -%}
+# Install uv
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+
+# Copy dependency files
+COPY pyproject.toml uv.lock ./
+
+# Install dependencies
+RUN uv sync --frozen --no-dev
+
+# Copy application
+COPY . .
+
+# Collect static files
+RUN uv run python manage.py collectstatic --noinput
+
+{% else -%}
+# Install poetry
+RUN pip install poetry==1.7.0
+
+# Copy dependency files
+COPY pyproject.toml poetry.lock ./
+
+# Install dependencies
+RUN poetry config virtualenvs.create false \
+    && poetry install --no-dev --no-interaction --no-ansi
+
+# Copy application
+COPY . .
+
+# Collect static files
+RUN python manage.py collectstatic --noinput
+{% endif -%}
+
+# Change ownership
+RUN chown -R appuser:appuser /app
+
+USER appuser
+
+# Expose port
+EXPOSE 8000
+
+# Run application
+CMD ["{% if dependency_manager == 'uv' %}uv run {% endif %}gunicorn", "config.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "4"]

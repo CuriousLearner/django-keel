@@ -1,0 +1,150 @@
+"""Production settings."""
+from .base import *  # noqa: F403, F401
+
+DEBUG = False
+
+# Security settings
+SECURE_SSL_REDIRECT = env.bool("SECURE_SSL_REDIRECT", default=True)  # noqa: F405
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+SECURE_HSTS_SECONDS = env.int("SECURE_HSTS_SECONDS", default=31536000)  # noqa: F405
+SECURE_HSTS_INCLUDE_SUBDOMAINS = env.bool("SECURE_HSTS_INCLUDE_SUBDOMAINS", default=True)  # noqa: F405
+SECURE_HSTS_PRELOAD = env.bool("SECURE_HSTS_PRELOAD", default=True)  # noqa: F405
+SECURE_CONTENT_TYPE_NOSNIFF = True
+SECURE_BROWSER_XSS_FILTER = True
+X_FRAME_OPTIONS = "DENY"
+
+# Session security
+SESSION_COOKIE_SECURE = True
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = "Lax"
+
+# CSRF security
+CSRF_COOKIE_SECURE = True
+CSRF_COOKIE_HTTPONLY = True
+CSRF_COOKIE_SAMESITE = "Lax"
+
+{% if security_profile == 'strict' -%}
+# Content Security Policy
+CSP_DEFAULT_SRC = ("'self'",)
+CSP_SCRIPT_SRC = ("'self'",)
+CSP_STYLE_SRC = ("'self'", "'unsafe-inline'")
+CSP_IMG_SRC = ("'self'", "data:", "https:")
+CSP_FONT_SRC = ("'self'", "data:")
+CSP_CONNECT_SRC = ("'self'",)
+CSP_FRAME_ANCESTORS = ("'none'",)
+{% endif %}
+
+# Database connection pooling
+DATABASES["default"]["CONN_MAX_AGE"] = env.int("CONN_MAX_AGE", default=600)  # noqa: F405
+
+{% if observability_level != 'minimal' -%}
+# Logging - JSON format for production
+LOGGING = {  # noqa: F405
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "json": {
+            "()": "pythonjsonlogger.jsonlogger.JsonFormatter",
+            "format": "%(asctime)s %(name)s %(levelname)s %(message)s %(pathname)s %(lineno)d",
+        },
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "json",
+        },
+    },
+    "root": {
+        "level": env("LOG_LEVEL", default="INFO"),  # noqa: F405
+        "handlers": ["console"],
+    },
+    "loggers": {
+        "django": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        "django.request": {
+            "handlers": ["console"],
+            "level": "ERROR",
+            "propagate": False,
+        },
+{% if use_celery -%}
+        "celery": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+{% endif -%}
+    },
+}
+{% endif %}
+
+{% if use_sentry -%}
+# Sentry
+import sentry_sdk
+from sentry_sdk.integrations.django import DjangoIntegration
+{% if use_celery -%}
+from sentry_sdk.integrations.celery import CeleryIntegration
+{% endif -%}
+{% if observability_level == 'full' -%}
+from sentry_sdk.integrations.redis import RedisIntegration
+{% endif %}
+
+sentry_sdk.init(
+    dsn=env("SENTRY_DSN", default=""),  # noqa: F405
+    integrations=[
+        DjangoIntegration(),
+{% if use_celery -%}
+        CeleryIntegration(),
+{% endif -%}
+{% if observability_level == 'full' -%}
+        RedisIntegration(),
+{% endif -%}
+    ],
+    environment=env("SENTRY_ENVIRONMENT", default="production"),  # noqa: F405
+    traces_sample_rate=env.float("SENTRY_TRACES_SAMPLE_RATE", default=0.1),  # noqa: F405
+    send_default_pii=False,
+)
+{% endif %}
+
+{% if observability_level == 'full' -%}
+# OpenTelemetry
+from opentelemetry import trace
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+from opentelemetry.instrumentation.django import DjangoInstrumentor
+from opentelemetry.instrumentation.psycopg2 import Psycopg2Instrumentor
+{% if use_celery -%}
+from opentelemetry.instrumentation.celery import CeleryInstrumentor
+{% endif %}
+
+# Set up tracer provider
+trace.set_tracer_provider(TracerProvider())
+tracer = trace.get_tracer(__name__)
+
+# Configure OTLP exporter
+otlp_exporter = OTLPSpanExporter(
+    endpoint=env("OTEL_EXPORTER_OTLP_ENDPOINT", default="http://localhost:4317"),  # noqa: F405
+)
+span_processor = BatchSpanProcessor(otlp_exporter)
+trace.get_tracer_provider().add_span_processor(span_processor)
+
+# Auto-instrument
+DjangoInstrumentor().instrument()
+Psycopg2Instrumentor().instrument()
+{% if use_celery -%}
+CeleryInstrumentor().instrument()
+{% endif -%}
+{% endif %}
+
+# Email configuration for production
+if EMAIL_BACKEND == "django.core.mail.backends.console.EmailBackend":  # noqa: F405
+    EMAIL_BACKEND = "anymail.backends.mailgun.EmailBackend"  # noqa: F405
+
+# Admin
+ADMINS = [
+    ("{{ author_name }}", "{{ author_email }}"),
+]
+MANAGERS = ADMINS

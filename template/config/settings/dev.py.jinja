@@ -1,0 +1,34 @@
+"""Development settings."""
+from .base import *  # noqa: F403, F401
+
+DEBUG = True
+
+# Email - console backend for development
+EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+
+# Debug Toolbar
+if "django_debug_toolbar" in INSTALLED_APPS:  # noqa: F405
+    MIDDLEWARE.insert(0, "debug_toolbar.middleware.DebugToolbarMiddleware")  # noqa: F405
+    INTERNAL_IPS = ["127.0.0.1", "localhost"]
+
+# Allow all hosts in development
+if not ALLOWED_HOSTS:  # noqa: F405
+    ALLOWED_HOSTS = ["*"]  # noqa: F405
+
+# Disable HTTPS redirects in development
+SECURE_SSL_REDIRECT = False
+SESSION_COOKIE_SECURE = False
+CSRF_COOKIE_SECURE = False
+
+{% if api_style in ['drf', 'both'] -%}
+# Add browsable API renderer for development
+REST_FRAMEWORK["DEFAULT_RENDERER_CLASSES"].append(  # noqa: F405
+    "rest_framework.renderers.BrowsableAPIRenderer"
+)
+{% endif %}
+
+{% if use_celery -%}
+# Celery - eager mode for development
+CELERY_TASK_ALWAYS_EAGER = env.bool("CELERY_TASK_ALWAYS_EAGER", default=False)  # noqa: F405
+CELERY_TASK_EAGER_PROPAGATES = True
+{% endif %}

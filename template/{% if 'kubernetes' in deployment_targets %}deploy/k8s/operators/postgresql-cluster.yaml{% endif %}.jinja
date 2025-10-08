@@ -1,0 +1,38 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: {{ project_slug }}-pg
+spec:
+  instances: 3
+  imageName: ghcr.io/cloudnative-pg/postgresql:16
+
+  storage:
+    size: 10Gi
+    storageClass: standard
+
+  postgresql:
+    parameters:
+      max_connections: "100"
+      shared_buffers: "256MB"
+
+  bootstrap:
+    initdb:
+      database: {{ project_slug }}_db
+      owner: {{ project_slug }}_user
+      secret:
+        name: {{ project_slug }}-pg-credentials
+
+  backup:
+    barmanObjectStore:
+      destinationPath: s3://your-bucket/{{ project_slug }}/
+      s3Credentials:
+        accessKeyId:
+          name: {{ project_slug }}-s3-credentials
+          key: ACCESS_KEY_ID
+        secretAccessKey:
+          name: {{ project_slug }}-s3-credentials
+          key: SECRET_ACCESS_KEY
+    retentionPolicy: "30d"
+
+  monitoring:
+    enablePodMonitor: true

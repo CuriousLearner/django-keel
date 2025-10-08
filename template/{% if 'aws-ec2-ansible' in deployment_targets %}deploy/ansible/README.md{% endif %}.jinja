@@ -1,0 +1,34 @@
+# Ansible Deployment for EC2
+
+Deploy {{ project_name }} to AWS EC2 using Ansible.
+
+## Prerequisites
+
+- Ansible 2.15+
+- AWS CLI configured
+- SSH key for EC2 instances
+
+## Quick Start
+
+1. Update inventory:
+```bash
+cp inventory/hosts.example inventory/hosts
+# Edit with your EC2 instance details
+```
+
+2. Configure variables:
+```bash
+cp group_vars/all.yml.example group_vars/all.yml
+# Update with your settings
+```
+
+3. Deploy:
+```bash
+ansible-playbook -i inventory/hosts playbooks/deploy.yml
+```
+
+## Playbooks
+
+- `setup.yml`: Initial server setup
+- `deploy.yml`: Deploy/update application
+- `rollback.yml`: Rollback to previous version

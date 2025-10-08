@@ -1,0 +1,54 @@
+"""Billing models."""
+from django.conf import settings
+from django.db import models
+
+
+class StripeCustomer(models.Model):
+    """Stripe customer model."""
+
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="stripe_customer"
+    )
+    stripe_customer_id = models.CharField(max_length=255, unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Stripe Customer"
+        verbose_name_plural = "Stripe Customers"
+
+    def __str__(self):
+        return f"{self.user.email} - {self.stripe_customer_id}"
+
+
+class Subscription(models.Model):
+    """User subscription model."""
+
+    STATUS_CHOICES = [
+        ("active", "Active"),
+        ("canceled", "Canceled"),
+        ("past_due", "Past Due"),
+        ("trialing", "Trialing"),
+    ]
+
+    customer = models.ForeignKey(
+        StripeCustomer,
+        on_delete=models.CASCADE,
+        related_name="subscriptions"
+    )
+    stripe_subscription_id = models.CharField(max_length=255, unique=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES)
+    plan_name = models.CharField(max_length=100)
+    current_period_start = models.DateTimeField()
+    current_period_end = models.DateTimeField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Subscription"
+        verbose_name_plural = "Subscriptions"
+
+    def __str__(self):
+        return f"{self.customer.user.email} - {self.plan_name} ({self.status})"

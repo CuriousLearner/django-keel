@@ -1,0 +1,70 @@
+site_name: {{ project_name }}
+site_description: {{ project_description }}
+site_author: {{ author_name }}
+
+theme:
+  name: material
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+
+nav:
+  - Home: index.md
+  - Getting Started:
+      - Installation: getting-started/installation.md
+      - Configuration: getting-started/configuration.md
+      - Deployment: getting-started/deployment.md
+  - Architecture:
+      - Overview: architecture/overview.md
+      - Decisions: adr/
+  - API:
+      - Overview: api/overview.md
+{% if 'kubernetes' in deployment_targets -%}
+  - Kubernetes:
+      - Setup: kubernetes/setup.md
+      - Monitoring: kubernetes/monitoring.md
+{% endif -%}
+{% if 'aws-ec2-ansible' in deployment_targets -%}
+  - AWS EC2:
+      - Deployment: aws/ec2-deployment.md
+{% endif -%}
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.highlight
+  - pymdownx.inlinehilite
+  - toc:
+      permalink: true
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            docstring_style: google

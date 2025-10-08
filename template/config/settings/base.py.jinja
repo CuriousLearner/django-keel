@@ -1,0 +1,385 @@
+"""
+Base settings for {{ project_name }} project.
+"""
+import os
+from pathlib import Path
+
+import environ
+
+# Build paths
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
+
+# Environment variables
+env = environ.Env(
+    DEBUG=(bool, False),
+    ALLOWED_HOSTS=(list, []),
+)
+
+# Read .env file if it exists
+env_file = BASE_DIR / ".env"
+if env_file.exists():
+    environ.Env.read_env(str(env_file))
+
+# SECURITY WARNING: keep the secret key used in production secret!
+SECRET_KEY = env("DJANGO_SECRET_KEY")
+
+# SECURITY WARNING: don't run with debug turned on in production!
+DEBUG = env("DEBUG")
+
+ALLOWED_HOSTS = env.list("DJANGO_ALLOWED_HOSTS", default=[])
+
+# Application definition
+DJANGO_APPS = [
+    "django.contrib.admin",
+    "django.contrib.auth",
+    "django.contrib.contenttypes",
+    "django.contrib.sessions",
+    "django.contrib.messages",
+    "django.contrib.staticfiles",
+{% if use_i18n -%}
+    "django.contrib.sites",
+{% endif -%}
+]
+
+THIRD_PARTY_APPS = [
+{% if api_style in ['drf', 'both'] -%}
+    "rest_framework",
+    "drf_spectacular",
+    "django_filters",
+    "corsheaders",
+{% endif -%}
+{% if api_style in ['graphql-strawberry', 'both'] -%}
+    "strawberry.django",
+{% endif -%}
+{% if auth_backend in ['allauth', 'both'] -%}
+    "allauth",
+    "allauth.account",
+    "allauth.socialaccount",
+{% endif -%}
+{% if use_2fa -%}
+    "django_otp",
+    "django_otp.plugins.otp_totp",
+{% endif -%}
+{% if use_celery -%}
+    "django_celery_beat",
+    "django_celery_results",
+{% endif -%}
+{% if use_channels -%}
+    "channels",
+{% endif -%}
+{% if observability_level == 'full' -%}
+    "django_prometheus",
+{% endif -%}
+{% if use_search == 'opensearch' -%}
+    "django_opensearch_dsl",
+{% endif -%}
+{% if use_i18n -%}
+    "parler",
+{% endif -%}
+    "django_extensions",
+]
+
+LOCAL_APPS = [
+    "apps.core",
+    "apps.users",
+{% if api_style != 'none' -%}
+    "apps.api",
+{% endif -%}
+]
+
+INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
+
+MIDDLEWARE = [
+{% if observability_level == 'full' -%}
+    "django_prometheus.middleware.PrometheusBeforeMiddleware",
+{% endif -%}
+    "django.middleware.security.SecurityMiddleware",
+{% if media_storage == 'local-whitenoise' -%}
+    "whitenoise.middleware.WhiteNoiseMiddleware",
+{% endif -%}
+    "django.contrib.sessions.middleware.SessionMiddleware",
+{% if api_style in ['drf', 'both'] -%}
+    "corsheaders.middleware.CorsMiddleware",
+{% endif -%}
+    "django.middleware.common.CommonMiddleware",
+    "django.middleware.csrf.CsrfViewMiddleware",
+    "django.contrib.auth.middleware.AuthenticationMiddleware",
+{% if use_2fa -%}
+    "django_otp.middleware.OTPMiddleware",
+{% endif -%}
+    "django.contrib.messages.middleware.MessageMiddleware",
+    "django.middleware.clickjacking.XFrameOptionsMiddleware",
+{% if use_i18n -%}
+    "django.middleware.locale.LocaleMiddleware",
+{% endif -%}
+{% if observability_level == 'full' -%}
+    "django_prometheus.middleware.PrometheusAfterMiddleware",
+{% endif -%}
+]
+
+ROOT_URLCONF = "config.urls"
+
+TEMPLATES = [
+    {
+        "BACKEND": "django.template.backends.django.DjangoTemplates",
+        "DIRS": [BASE_DIR / "templates"],
+        "APP_DIRS": True,
+        "OPTIONS": {
+            "context_processors": [
+                "django.template.context_processors.debug",
+                "django.template.context_processors.request",
+                "django.contrib.auth.context_processors.auth",
+                "django.contrib.messages.context_processors.messages",
+{% if use_i18n -%}
+                "django.template.context_processors.i18n",
+{% endif -%}
+            ],
+        },
+    },
+]
+
+{% if use_channels -%}
+ASGI_APPLICATION = "config.asgi.application"
+{% else -%}
+WSGI_APPLICATION = "config.wsgi.application"
+{% endif %}
+
+# Database
+DATABASES = {
+    "default": env.db("DATABASE_URL"),
+}
+DATABASES["default"]["ATOMIC_REQUESTS"] = True
+DATABASES["default"]["CONN_MAX_AGE"] = env.int("CONN_MAX_AGE", default=60)
+
+# Custom user model
+AUTH_USER_MODEL = "users.User"
+
+# Password validation
+AUTH_PASSWORD_VALIDATORS = [
+    {
+        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
+    },
+    {
+        "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
+        "OPTIONS": {"min_length": 8},
+    },
+    {
+        "NAME": "django.contrib.auth.password_validation.CommonPasswordValidator",
+    },
+    {
+        "NAME": "django.contrib.auth.password_validation.NumericPasswordValidator",
+    },
+]
+
+{% if cache == 'redis' -%}
+# Cache
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.redis.RedisCache",
+        "LOCATION": env("REDIS_URL", default="redis://127.0.0.1:6379/0"),
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+        },
+        "KEY_PREFIX": "{{ project_slug }}",
+    }
+}
+
+# Session
+SESSION_ENGINE = "django.contrib.sessions.backends.cache"
+SESSION_CACHE_ALIAS = "default"
+{% endif %}
+
+# Internationalization
+LANGUAGE_CODE = "en-us"
+TIME_ZONE = "UTC"
+USE_I18N = {% if use_i18n %}True{% else %}False{% endif %}
+USE_TZ = True
+
+{% if use_i18n -%}
+LANGUAGES = [
+    ("en", "English"),
+    # Add more languages as needed
+]
+
+LOCALE_PATHS = [BASE_DIR / "locale"]
+{% endif %}
+
+# Static files (CSS, JavaScript, Images)
+STATIC_URL = "/static/"
+STATIC_ROOT = BASE_DIR / "staticfiles"
+STATICFILES_DIRS = [BASE_DIR / "static"]
+
+{% if media_storage == 'local-whitenoise' -%}
+STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+{% endif %}
+
+# Media files
+MEDIA_URL = "/media/"
+MEDIA_ROOT = BASE_DIR / "media"
+
+{% if media_storage == 'aws-s3' -%}
+# AWS S3 Storage
+AWS_ACCESS_KEY_ID = env("AWS_ACCESS_KEY_ID", default="")
+AWS_SECRET_ACCESS_KEY = env("AWS_SECRET_ACCESS_KEY", default="")
+AWS_STORAGE_BUCKET_NAME = env("AWS_STORAGE_BUCKET_NAME", default="")
+AWS_S3_REGION_NAME = env("AWS_S3_REGION_NAME", default="us-east-1")
+AWS_S3_CUSTOM_DOMAIN = f"{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com"
+AWS_S3_OBJECT_PARAMETERS = {"CacheControl": "max-age=86400"}
+AWS_DEFAULT_ACL = "public-read"
+AWS_QUERYSTRING_AUTH = False
+
+# Use S3 for media files
+DEFAULT_FILE_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
+{% elif media_storage == 'gcp-gcs' -%}
+# Google Cloud Storage
+GS_BUCKET_NAME = env("GS_BUCKET_NAME", default="")
+GS_PROJECT_ID = env("GS_PROJECT_ID", default="")
+GS_DEFAULT_ACL = "publicRead"
+GS_AUTO_CREATE_BUCKET = True
+
+DEFAULT_FILE_STORAGE = "storages.backends.gcloud.GoogleCloudStorage"
+{% elif media_storage == 'azure-storage' -%}
+# Azure Storage
+AZURE_ACCOUNT_NAME = env("AZURE_ACCOUNT_NAME", default="")
+AZURE_ACCOUNT_KEY = env("AZURE_ACCOUNT_KEY", default="")
+AZURE_CONTAINER = env("AZURE_CONTAINER", default="media")
+
+DEFAULT_FILE_STORAGE = "storages.backends.azure_storage.AzureStorage"
+{% endif %}
+
+# Default primary key field type
+DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+{% if auth_backend in ['allauth', 'both'] -%}
+# django-allauth
+SITE_ID = 1
+ACCOUNT_AUTHENTICATION_METHOD = "email"
+ACCOUNT_EMAIL_REQUIRED = True
+ACCOUNT_EMAIL_VERIFICATION = "mandatory"
+ACCOUNT_USERNAME_REQUIRED = False
+ACCOUNT_USER_MODEL_USERNAME_FIELD = None
+{% endif %}
+
+{% if api_style in ['drf', 'both'] -%}
+# Django REST Framework
+REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+{% if auth_backend in ['allauth', 'both'] -%}
+        "rest_framework.authentication.SessionAuthentication",
+{% endif -%}
+{% if auth_backend in ['jwt', 'both'] -%}
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
+{% endif -%}
+    ],
+    "DEFAULT_PERMISSION_CLASSES": [
+        "rest_framework.permissions.IsAuthenticatedOrReadOnly",
+    ],
+    "DEFAULT_FILTER_BACKENDS": [
+        "django_filters.rest_framework.DjangoFilterBackend",
+        "rest_framework.filters.SearchFilter",
+        "rest_framework.filters.OrderingFilter",
+    ],
+    "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
+    "PAGE_SIZE": 25,
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    "DEFAULT_RENDERER_CLASSES": [
+        "rest_framework.renderers.JSONRenderer",
+    ],
+    "DEFAULT_THROTTLE_CLASSES": [
+        "rest_framework.throttling.AnonRateThrottle",
+        "rest_framework.throttling.UserRateThrottle",
+    ],
+    "DEFAULT_THROTTLE_RATES": {
+        "anon": "100/hour",
+        "user": "1000/hour",
+    },
+}
+
+# drf-spectacular
+SPECTACULAR_SETTINGS = {
+    "TITLE": "{{ project_name }} API",
+    "DESCRIPTION": "{{ project_description }}",
+    "VERSION": "1.0.0",
+    "SERVE_INCLUDE_SCHEMA": False,
+    "SCHEMA_PATH_PREFIX": "/api/",
+}
+
+# CORS
+CORS_ALLOWED_ORIGINS = env.list(
+    "CORS_ALLOWED_ORIGINS",
+    default=["http://localhost:3000", "http://127.0.0.1:3000"],
+)
+CORS_ALLOW_CREDENTIALS = True
+{% endif %}
+
+{% if auth_backend in ['jwt', 'both'] -%}
+# Simple JWT
+from datetime import timedelta
+
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=env.int("JWT_ACCESS_TOKEN_LIFETIME", default=5)),
+    "REFRESH_TOKEN_LIFETIME": timedelta(minutes=env.int("JWT_REFRESH_TOKEN_LIFETIME", default=1440)),
+    "ROTATE_REFRESH_TOKENS": True,
+    "BLACKLIST_AFTER_ROTATION": True,
+    "ALGORITHM": "HS256",
+    "SIGNING_KEY": SECRET_KEY,
+}
+{% endif %}
+
+{% if use_celery -%}
+# Celery
+CELERY_BROKER_URL = env("CELERY_BROKER_URL", default="redis://localhost:6379/1")
+CELERY_RESULT_BACKEND = "django-db"
+CELERY_CACHE_BACKEND = "django-cache"
+CELERY_TASK_TRACK_STARTED = True
+CELERY_TASK_TIME_LIMIT = 30 * 60  # 30 minutes
+CELERY_ACCEPT_CONTENT = ["json"]
+CELERY_TASK_SERIALIZER = "json"
+CELERY_RESULT_SERIALIZER = "json"
+CELERY_TIMEZONE = TIME_ZONE
+{% endif %}
+
+# Email
+EMAIL_BACKEND = env("EMAIL_BACKEND", default="django.core.mail.backends.console.EmailBackend")
+DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="{{ project_slug }}@example.com")
+SERVER_EMAIL = env("SERVER_EMAIL", default=DEFAULT_FROM_EMAIL)
+
+# Logging
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "verbose": {
+            "format": "{levelname} {asctime} {module} {process:d} {thread:d} {message}",
+            "style": "{",
+        },
+        "json": {
+            "()": "pythonjsonlogger.jsonlogger.JsonFormatter",
+            "format": "%(asctime)s %(name)s %(levelname)s %(message)s",
+        },
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "verbose" if DEBUG else "json",
+        },
+    },
+    "root": {
+        "level": env("LOG_LEVEL", default="INFO"),
+        "handlers": ["console"],
+    },
+    "loggers": {
+        "django": {
+            "handlers": ["console"],
+            "level": env("DJANGO_LOG_LEVEL", default="INFO"),
+            "propagate": False,
+        },
+{% if use_celery -%}
+        "celery": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+{% endif -%}
+    },
+}

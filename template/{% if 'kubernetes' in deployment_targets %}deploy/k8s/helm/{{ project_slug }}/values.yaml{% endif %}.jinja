@@ -1,0 +1,78 @@
+# Default values for {{ project_slug }}
+
+replicaCount: 2
+
+image:
+  repository: {{ project_slug }}
+  pullPolicy: IfNotPresent
+  tag: "latest"
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8000
+
+ingress:
+  enabled: true
+  className: "traefik"
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+  hosts:
+    - host: {{ project_slug }}.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: {{ project_slug }}-tls
+      hosts:
+        - {{ project_slug }}.example.com
+
+resources:
+  limits:
+    cpu: 1000m
+    memory: 512Mi
+  requests:
+    cpu: 250m
+    memory: 256Mi
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 80
+
+postgresql:
+  enabled: true
+  auth:
+    database: {{ project_slug }}_db
+    username: {{ project_slug }}_user
+    password: changeme
+
+{% if cache == 'redis' -%}
+redis:
+  enabled: true
+  architecture: standalone
+{% endif %}
+
+{% if use_celery -%}
+celery:
+  worker:
+    replicaCount: 2
+    resources:
+      limits:
+        cpu: 500m
+        memory: 512Mi
+      requests:
+        cpu: 100m
+        memory: 256Mi
+
+  beat:
+    enabled: true
+    resources:
+      limits:
+        cpu: 100m
+        memory: 128Mi
+      requests:
+        cpu: 50m
+        memory: 64Mi
+{% endif %}

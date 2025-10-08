@@ -1,0 +1,22 @@
+"""Test core functionality."""
+import pytest
+from django.urls import reverse
+
+
+@pytest.mark.django_db
+class TestHealthChecks:
+    """Test health check endpoints."""
+
+    def test_health_check(self, client):
+        """Test health endpoint."""
+        response = client.get(reverse("core:health"))
+        assert response.status_code == 200
+        assert response.json()["status"] == "healthy"
+
+    def test_readiness_check(self, client):
+        """Test readiness endpoint."""
+        response = client.get(reverse("core:ready"))
+        assert response.status_code == 200
+        data = response.json()
+        assert "ready" in data
+        assert "checks" in data

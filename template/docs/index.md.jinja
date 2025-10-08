@@ -1,0 +1,44 @@
+# {{ project_name }}
+
+Welcome to the {{ project_name }} documentation!
+
+## Overview
+
+{{ project_description }}
+
+## Features
+
+{% if api_style != 'none' -%}
+- **RESTful API**: Built with Django REST Framework
+{% endif -%}
+{% if use_celery -%}
+- **Background Tasks**: Celery with Redis broker
+{% endif -%}
+- **Production Ready**: Docker, {% if 'kubernetes' in deployment_targets %}Kubernetes, {% endif %}{% if 'aws-ec2-ansible' in deployment_targets %}AWS EC2 {% endif %}deployment support
+- **Developer Friendly**: Pre-configured linting, testing, and type checking
+
+## Quick Start
+
+```bash
+# Clone the repository
+git clone https://github.com/CuriousLearner/django-keel
+cd {{ project_slug }}
+
+# Install dependencies
+{% if dependency_manager == 'uv' -%}
+uv sync
+{% else -%}
+poetry install
+{% endif %}
+
+# Start development services
+docker compose up -d
+
+# Run migrations
+just migrate
+
+# Start development server
+just dev
+```
+
+Visit [Getting Started](getting-started/installation.md) for detailed instructions.

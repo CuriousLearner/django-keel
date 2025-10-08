@@ -1,0 +1,21 @@
+"""Example Celery tasks."""
+from celery import shared_task
+from django.core.mail import send_mail
+
+
+@shared_task
+def send_email_task(subject: str, message: str, recipient_list: list):
+    """Send email asynchronously."""
+    send_mail(
+        subject=subject,
+        message=message,
+        from_email=None,  # Uses DEFAULT_FROM_EMAIL
+        recipient_list=recipient_list,
+        fail_silently=False,
+    )
+
+
+@shared_task
+def example_periodic_task():
+    """Example periodic task (configure in Celery Beat)."""
+    print("Running periodic task...")

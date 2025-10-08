@@ -1,0 +1,55 @@
+# Architecture Overview
+
+{{ project_name }} follows a modern Django architecture with clean separation of concerns.
+
+## Project Structure
+
+```
+{{ project_slug }}/
+├── apps/              # Django applications
+├── config/            # Project configuration
+├── deploy/            # Deployment configs
+├── docs/              # Documentation
+├── static/            # Static files
+├── media/             # User uploads
+└── tests/             # Test suite
+```
+
+## Key Components
+
+### Django Apps
+
+- **core**: Core functionality, health checks, utilities
+- **users**: Custom user model and authentication
+{% if api_style != 'none' -%}
+- **api**: API endpoints and serializers
+{% endif -%}
+
+### Settings
+
+Settings are split into:
+- `base.py`: Common settings
+- `dev.py`: Development overrides
+- `test.py`: Test configuration
+- `prod.py`: Production settings with security hardening
+
+### Deployment
+
+{% if 'kubernetes' in deployment_targets -%}
+#### Kubernetes
+- Helm charts for easy deployment
+- Kustomize overlays for environment-specific configs
+- Horizontal Pod Autoscaling
+- CloudNativePG for PostgreSQL
+{% endif -%}
+
+{% if 'aws-ec2-ansible' in deployment_targets -%}
+#### AWS EC2
+- Ansible playbooks for provisioning
+- Caddy for reverse proxy with auto-HTTPS
+- Systemd for service management
+{% endif %}
+
+## Design Decisions
+
+See [Architecture Decision Records](../adr/) for detailed explanations of key architectural choices.

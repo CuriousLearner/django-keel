@@ -1,0 +1,16 @@
+[Unit]
+Description={{ project_name }} Gunicorn Service
+After=network.target
+
+[Service]
+Type=notify
+User={{ app_user }}
+Group={{ app_user }}
+WorkingDirectory={{ app_dir }}
+Environment="PATH={{ app_dir }}/.venv/bin"
+ExecStart={{ app_dir }}/.venv/bin/gunicorn config.wsgi:application --bind 127.0.0.1:8000 --workers 4
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

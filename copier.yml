@@ -1,0 +1,203 @@
+_templates_suffix: .jinja
+_subdirectory: template
+_min_copier_version: "9.0.0"
+
+# Metadata
+_metadata:
+  version: "0.1.0"
+  license: "MIT"
+  author: "Django Keel Contributors"
+
+# Project Basics
+project_name:
+  type: str
+  help: What is your project name?
+  default: "My Django Project"
+
+project_slug:
+  type: str
+  help: Python package name (slug)?
+  default: "{{ project_name.lower().replace(' ', '_').replace('-', '_') }}"
+  validator: "{% if not project_slug.isidentifier() %}Must be valid Python identifier{% endif %}"
+
+project_description:
+  type: str
+  help: Brief project description
+  default: "A Django project built with django-keel"
+
+author_name:
+  type: str
+  help: Your name
+  default: "Your Name"
+
+author_email:
+  type: str
+  help: Your email
+  default: "your.email@example.com"
+
+# Tech Stack
+python_version:
+  type: str
+  help: Python version
+  choices:
+    - "3.12"
+    - "3.13"
+  default: "3.13"
+
+dependency_manager:
+  type: str
+  help: Package manager
+  choices:
+    - "uv"
+    - "poetry"
+  default: "uv"
+
+database:
+  type: str
+  help: Database
+  choices:
+    - "postgresql"
+    - "sqlite-dev-postgres-prod"
+  default: "postgresql"
+
+cache:
+  type: str
+  help: Cache backend
+  choices:
+    - "redis"
+    - "none"
+  default: "redis"
+
+# API & Frontend
+api_style:
+  type: str
+  help: API framework
+  choices:
+    - "drf"
+    - "graphql-strawberry"
+    - "both"
+    - "none"
+  default: "drf"
+
+frontend:
+  type: str
+  help: Frontend approach
+  choices:
+    - "none"
+    - "htmx-tailwind"
+    - "nextjs"
+  default: "none"
+
+# Async & Tasks
+use_celery:
+  type: bool
+  help: Include Celery for background tasks?
+  default: true
+
+use_channels:
+  type: bool
+  help: Include Django Channels for WebSockets?
+  default: false
+
+# Auth
+auth_backend:
+  type: str
+  help: Authentication
+  choices:
+    - "allauth"
+    - "jwt"
+    - "both"
+  default: "allauth"
+
+use_2fa:
+  type: bool
+  help: Include 2FA (TOTP)?
+  default: false
+
+# Observability
+observability_level:
+  type: str
+  help: Observability features
+  choices:
+    - "minimal"
+    - "standard"
+    - "full"
+  default: "standard"
+
+use_sentry:
+  type: bool
+  help: Include Sentry error tracking?
+  default: true
+
+# Deployment
+deployment_targets:
+  type: str
+  help: "Deployment targets (e.g., 'kubernetes,aws-ec2-ansible')"
+  default: "kubernetes"
+
+# Storage
+media_storage:
+  type: str
+  help: Media file storage
+  choices:
+    - "local-whitenoise"
+    - "aws-s3"
+    - "gcp-gcs"
+    - "azure-storage"
+  default: "aws-s3"
+
+# Security
+security_profile:
+  type: str
+  help: Security level
+  choices:
+    - "standard"
+    - "strict"
+  default: "standard"
+
+use_sops:
+  type: bool
+  help: Use SOPS for encrypted secrets?
+  default: false
+
+# Optional Features
+use_stripe:
+  type: bool
+  help: Include Stripe payment integration?
+  default: false
+
+use_search:
+  type: str
+  help: Search backend
+  choices:
+    - "none"
+    - "postgres-fts"
+    - "opensearch"
+  default: "none"
+
+use_i18n:
+  type: bool
+  help: Enable internationalization?
+  default: false
+
+# CI/CD
+ci_provider:
+  type: str
+  help: CI/CD provider
+  choices:
+    - "github-actions"
+    - "gitlab-ci"
+    - "both"
+  default: "github-actions"
+
+# License
+license:
+  type: str
+  help: Project license
+  choices:
+    - "MIT"
+    - "Apache-2.0"
+    - "GPL-3.0"
+    - "BSD-3-Clause"
+    - "Proprietary"
+  default: "MIT"

@@ -1,0 +1,98 @@
+# Justfile for {{ project_name }}
+
+# List all available commands
+default:
+    @just --list
+
+# Development server
+dev:
+    {% if dependency_manager == 'uv' -%}uv run {% endif %}python manage.py runserver
+
+# Run tests
+test:
+    {% if dependency_manager == 'uv' -%}uv run {% endif %}pytest
+
+# Run tests with coverage
+test-cov:
+    {% if dependency_manager == 'uv' -%}uv run {% endif %}pytest --cov --cov-report=html --cov-report=term
+
+# Format code
+format:
+    {% if dependency_manager == 'uv' -%}uv run {% endif %}ruff format .
+
+# Lint code
+lint:
+    {% if dependency_manager == 'uv' -%}uv run {% endif %}ruff check .
+
+# Type check
+typecheck:
+    {% if dependency_manager == 'uv' -%}uv run {% endif %}mypy .
+
+# Run all quality checks
+check: lint typecheck test
+
+# Django shell
+shell:
+    {% if dependency_manager == 'uv' -%}uv run {% endif %}python manage.py shell_plus
+
+# Make migrations
+makemigrations:
+    {% if dependency_manager == 'uv' -%}uv run {% endif %}python manage.py makemigrations
+
+# Run migrations
+migrate:
+    {% if dependency_manager == 'uv' -%}uv run {% endif %}python manage.py migrate
+
+# Create superuser
+createsuperuser:
+    {% if dependency_manager == 'uv' -%}uv run {% endif %}python manage.py createsuperuser
+
+# Docker compose up
+up:
+    docker compose up -d
+
+# Docker compose down
+down:
+    docker compose down
+
+# Docker compose logs
+logs:
+    docker compose logs -f
+
+{% if use_celery -%}
+# Run Celery worker
+celery-worker:
+    {% if dependency_manager == 'uv' -%}uv run {% endif %}celery -A config worker -l info
+
+# Run Celery beat
+celery-beat:
+    {% if dependency_manager == 'uv' -%}uv run {% endif %}celery -A config beat -l info
+
+# Run Flower
+celery-flower:
+    {% if dependency_manager == 'uv' -%}uv run {% endif %}celery -A config flower
+{% endif %}
+
+# Serve documentation
+docs-serve:
+    {% if dependency_manager == 'uv' -%}uv run {% endif %}mkdocs serve
+
+# Build documentation
+docs-build:
+    {% if dependency_manager == 'uv' -%}uv run {% endif %}mkdocs build
+
+# Install dependencies
+install:
+{% if dependency_manager == 'uv' -%}
+    uv sync
+{% else -%}
+    poetry install
+{% endif %}
+
+# Update dependencies
+update:
+{% if dependency_manager == 'uv' -%}
+    uv lock --upgrade
+{% else -%}
+    poetry update
+{% endif %}

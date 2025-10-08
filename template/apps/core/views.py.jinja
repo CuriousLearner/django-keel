@@ -1,0 +1,53 @@
+"""Core views."""
+from django.conf import settings
+from django.db import connection
+from django.http import JsonResponse{% if frontend == 'htmx-tailwind' %}, HttpResponse
+from django.shortcuts import render{% endif %}
+{% if cache == 'redis' %}
+from django.core.cache import cache{% endif %}
+
+
+def index(request):
+    """Home page."""
+{% if frontend == 'htmx-tailwind' -%}
+    return render(request, "core/index.html", {
+        "project_name": "{{ project_name }}",
+    })
+{% else -%}
+    return JsonResponse({
+        "message": "Welcome to {{ project_name }}",
+        "version": "1.0.0",
+    })
+{% endif -%}
+
+
+def health_check(request):
+    """Health check endpoint."""
+    return JsonResponse({"status": "healthy"})
+
+
+def readiness_check(request):
+    """Readiness check with database and cache verification."""
+    checks = {"database": False{% if cache == 'redis' %}, "cache": False{% endif %}}
+
+    try:
+        # Check database
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT 1")
+        checks["database"] = True
+    except Exception:
+        pass
+
+{% if cache == 'redis' -%}
+    try:
+        # Check cache
+        cache.set("health_check", "ok", 10)
+        checks["cache"] = cache.get("health_check") == "ok"
+    except Exception:
+        pass
+{% endif %}
+
+    all_ready = all(checks.values())
+    status_code = 200 if all_ready else 503
+
+    return JsonResponse({"ready": all_ready, "checks": checks}, status=status_code)

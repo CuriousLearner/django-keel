@@ -1,0 +1,39 @@
+"""Pytest configuration."""
+import pytest
+from django.conf import settings
+from django.test import Client
+
+
+@pytest.fixture
+def client():
+    """Django test client."""
+    return Client()
+
+
+@pytest.fixture
+def api_client():
+    """DRF API client."""
+    from rest_framework.test import APIClient
+    return APIClient()
+
+
+@pytest.fixture
+def user(db):
+    """Create a test user."""
+    from apps.users.models import User
+    return User.objects.create_user(
+        email="test@example.com",
+        password="testpass123",
+        first_name="Test",
+        last_name="User"
+    )
+
+
+@pytest.fixture
+def admin_user(db):
+    """Create an admin user."""
+    from apps.users.models import User
+    return User.objects.create_superuser(
+        email="admin@example.com",
+        password="adminpass123"
+    )

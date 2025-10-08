@@ -1,0 +1,120 @@
+---
+- name: Deploy {{ project_name }} to EC2
+  hosts: webservers
+  become: yes
+
+  vars:
+    app_name: {{ project_slug }}
+    app_user: {{ project_slug }}
+    app_dir: /opt/{{ project_slug }}
+    python_version: "{{ python_version }}"
+
+  tasks:
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    - name: Install system dependencies
+      apt:
+        name:
+          - python{{ python_version }}
+          - python{{ python_version }}-venv
+          - python3-pip
+          - postgresql-client
+          - caddy
+          - git
+        state: present
+
+    - name: Create application user
+      user:
+        name: "{{ app_user }}"
+        system: yes
+        shell: /bin/bash
+        home: "{{ app_dir }}"
+
+    - name: Create application directory
+      file:
+        path: "{{ app_dir }}"
+        state: directory
+        owner: "{{ app_user }}"
+        group: "{{ app_user }}"
+
+    - name: Clone/update repository
+      git:
+        repo: "{{ git_repo }}"
+        dest: "{{ app_dir }}"
+        version: "{{ git_branch | default('main') }}"
+      become_user: "{{ app_user }}"
+      notify: restart application
+
+{% if dependency_manager == 'uv' -%}
+    - name: Install uv
+      shell: curl -LsSf https://astral.sh/uv/install.sh | sh
+      args:
+        creates: ~/.cargo/bin/uv
+      become_user: "{{ app_user }}"
+
+    - name: Install Python dependencies
+      shell: ~/.cargo/bin/uv sync
+      args:
+        chdir: "{{ app_dir }}"
+      become_user: "{{ app_user }}"
+{% else -%}
+    - name: Install Poetry
+      shell: curl -sSL https://install.python-poetry.org | python3 -
+      args:
+        creates: ~/.local/bin/poetry
+      become_user: "{{ app_user }}"
+
+    - name: Install Python dependencies
+      shell: ~/.local/bin/poetry install --no-dev
+      args:
+        chdir: "{{ app_dir }}"
+      become_user: "{{ app_user }}"
+{% endif -%}
+
+    - name: Run database migrations
+      shell: {% if dependency_manager == 'uv' %}~/.cargo/bin/uv run {% else %}~/.local/bin/poetry run {% endif %}python manage.py migrate --noinput
+      args:
+        chdir: "{{ app_dir }}"
+      become_user: "{{ app_user }}"
+
+    - name: Collect static files
+      shell: {% if dependency_manager == 'uv' %}~/.cargo/bin/uv run {% else %}~/.local/bin/poetry run {% endif %}python manage.py collectstatic --noinput
+      args:
+        chdir: "{{ app_dir }}"
+      become_user: "{{ app_user }}"
+
+    - name: Configure Caddyfile
+      template:
+        src: templates/Caddyfile.j2
+        dest: /etc/caddy/Caddyfile
+      notify: reload caddy
+
+    - name: Configure systemd service
+      template:
+        src: templates/{{ app_name }}.service.j2
+        dest: /etc/systemd/system/{{ app_name }}.service
+      notify: restart application
+
+    - name: Start and enable services
+      systemd:
+        name: "{{ item }}"
+        state: started
+        enabled: yes
+        daemon_reload: yes
+      loop:
+        - caddy
+        - "{{ app_name }}"
+
+  handlers:
+    - name: restart application
+      systemd:
+        name: "{{ app_name }}"
+        state: restarted
+
+    - name: reload caddy
+      systemd:
+        name: caddy
+        state: reloaded

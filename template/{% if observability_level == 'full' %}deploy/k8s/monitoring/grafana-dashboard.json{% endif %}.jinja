@@ -1,0 +1,23 @@
+{
+  "dashboard": {
+    "title": "{{ project_name }} Metrics",
+    "panels": [
+      {
+        "title": "Request Rate",
+        "targets": [
+          {
+            "expr": "rate(django_http_requests_total[5m])"
+          }
+        ]
+      },
+      {
+        "title": "Response Time (p95)",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, django_http_request_duration_seconds_bucket)"
+          }
+        ]
+      }
+    ]
+  }
+}

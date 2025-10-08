@@ -1,0 +1,100 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Django
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+/media
+/staticfiles
+/static_root
+
+# Environment
+.env
+.env.*
+!.env.example
+{% if dependency_manager == 'uv' -%}
+.venv/
+{% else -%}
+.venv/
+poetry.lock
+{% endif -%}
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Testing
+.coverage
+htmlcov/
+.pytest_cache/
+.tox/
+.hypothesis/
+
+# Type checking
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Documentation
+site/
+docs/_build/
+
+# Docker
+.dockerignore
+
+# Temporary files
+*.bak
+*.tmp
+
+# Security
+{% if use_sops -%}
+secrets.*.yaml
+!secrets.*.enc.yaml
+{% endif %}
+
+# OS
+Thumbs.db
+*.DS_Store
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Celery
+celerybeat-schedule
+celerybeat.pid
+
+# Logs
+*.log
+logs/
+
+# Database backups
+*.dump
+*.sql.gz

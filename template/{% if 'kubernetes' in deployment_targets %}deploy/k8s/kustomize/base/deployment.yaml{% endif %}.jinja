@@ -1,0 +1,58 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ project_slug }}-web
+  labels:
+    app: {{ project_slug }}
+    component: web
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: {{ project_slug }}
+      component: web
+  template:
+    metadata:
+      labels:
+        app: {{ project_slug }}
+        component: web
+    spec:
+      initContainers:
+        - name: migrate
+          image: {{ project_slug }}:latest
+          command: ["python", "manage.py", "migrate", "--noinput"]
+          envFrom:
+            - configMapRef:
+                name: {{ project_slug }}-config
+            - secretRef:
+                name: {{ project_slug }}-secrets
+      containers:
+        - name: web
+          image: {{ project_slug }}:latest
+          ports:
+            - containerPort: 8000
+              name: http
+          envFrom:
+            - configMapRef:
+                name: {{ project_slug }}-config
+            - secretRef:
+                name: {{ project_slug }}-secrets
+          livenessProbe:
+            httpGet:
+              path: /health/
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /ready/
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          resources:
+            limits:
+              cpu: 1000m
+              memory: 512Mi
+            requests:
+              cpu: 250m
+              memory: 256Mi

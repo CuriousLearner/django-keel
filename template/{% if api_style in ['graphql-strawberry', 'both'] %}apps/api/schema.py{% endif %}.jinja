@@ -1,0 +1,40 @@
+"""GraphQL schema."""
+import strawberry
+from strawberry.django import auto
+from typing import List
+
+from apps.users.models import User
+
+
+@strawberry.django.type(User)
+class UserType:
+    id: auto
+    email: auto
+    first_name: auto
+    last_name: auto
+    is_active: auto
+
+
+@strawberry.type
+class Query:
+    @strawberry.field
+    def users(self) -> List[UserType]:
+        return User.objects.all()
+
+    @strawberry.field
+    def user(self, id: int) -> UserType:
+        return User.objects.get(pk=id)
+
+
+@strawberry.type
+class Mutation:
+    @strawberry.mutation
+    def update_user_name(self, id: int, first_name: str, last_name: str) -> UserType:
+        user = User.objects.get(pk=id)
+        user.first_name = first_name
+        user.last_name = last_name
+        user.save()
+        return user
+
+
+schema = strawberry.Schema(query=Query, mutation=Mutation)

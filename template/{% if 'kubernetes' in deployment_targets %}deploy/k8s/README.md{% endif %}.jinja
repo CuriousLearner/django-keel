@@ -1,0 +1,22 @@
+# Kubernetes Deployment
+
+This directory contains Kubernetes manifests for deploying {{ project_name }}.
+
+## Structure
+
+- `helm/`: Helm chart for the application
+- `kustomize/`: Kustomize overlays for different environments
+- `manifests/`: Raw Kubernetes manifests
+- `operators/`: PostgreSQL operator configuration
+
+## Quick Deploy
+
+```bash
+# Using Helm
+helm install {{ project_slug }} ./helm/{{ project_slug }}
+
+# Using Kustomize
+kubectl apply -k kustomize/overlays/dev
+```
+
+See individual directories for detailed documentation.

@@ -1,0 +1,231 @@
+[project]
+name = "{{ project_slug }}"
+version = "0.1.0"
+description = "{{ project_description }}"
+authors = [
+    {name = "{{ author_name }}", email = "{{ author_email }}"}
+]
+readme = "README.md"
+requires-python = ">={{ python_version }}"
+license = {text = "{{ license }}"}
+
+dependencies = [
+    "django>=5.2,<5.3",
+    "django-environ>=0.11.2",
+    "psycopg[binary]>=3.2.0",
+{% if cache == 'redis' -%}
+    "redis>=5.0.0",
+    "hiredis>=2.3.0",
+{% endif -%}
+    "gunicorn>=22.0.0",
+{% if api_style in ['drf', 'both'] -%}
+    "djangorestframework>=3.15.0",
+    "drf-spectacular>=0.27.0",
+    "django-filter>=24.0",
+    "django-cors-headers>=4.3.0",
+{% endif -%}
+{% if api_style in ['graphql-strawberry', 'both'] -%}
+    "strawberry-graphql-django>=0.45.0",
+{% endif -%}
+{% if auth_backend in ['allauth', 'both'] -%}
+    "django-allauth[socialaccount]>=0.63.0",
+{% endif -%}
+{% if auth_backend in ['jwt', 'both'] -%}
+    "djangorestframework-simplejwt>=5.3.0",
+{% endif -%}
+{% if use_2fa -%}
+    "django-otp>=1.4.0",
+    "qrcode>=7.4.0",
+{% endif -%}
+{% if use_celery -%}
+    "celery[redis]>=5.4.0",
+    "django-celery-beat>=2.6.0",
+    "django-celery-results>=2.5.0",
+    "flower>=2.0.0",
+{% endif -%}
+{% if use_channels -%}
+    "channels[daphne]>=4.1.0",
+    "channels-redis>=4.2.0",
+{% endif -%}
+{% if media_storage == 'aws-s3' -%}
+    "django-storages[s3]>=1.14.0",
+    "boto3>=1.34.0",
+{% elif media_storage == 'gcp-gcs' -%}
+    "django-storages[google]>=1.14.0",
+{% elif media_storage == 'azure-storage' -%}
+    "django-storages[azure]>=1.14.0",
+{% else -%}
+    "whitenoise[brotli]>=6.6.0",
+{% endif -%}
+{% if use_sentry -%}
+    "sentry-sdk[django]>=2.0.0",
+{% endif -%}
+{% if observability_level == 'full' -%}
+    "opentelemetry-api>=1.24.0",
+    "opentelemetry-sdk>=1.24.0",
+    "opentelemetry-instrumentation-django>=0.45b0",
+    "opentelemetry-instrumentation-psycopg2>=0.45b0",
+{% if use_celery -%}
+    "opentelemetry-instrumentation-celery>=0.45b0",
+{% endif -%}
+    "opentelemetry-exporter-otlp>=1.24.0",
+    "django-prometheus>=2.3.0",
+{% endif -%}
+{% if use_stripe -%}
+    "stripe>=9.0.0",
+{% endif -%}
+{% if use_search == 'postgres-fts' -%}
+    "django-postgres-extra>=2.0.0",
+{% elif use_search == 'opensearch' -%}
+    "opensearch-py>=2.5.0",
+    "django-opensearch-dsl>=0.6.0",
+{% endif -%}
+{% if use_i18n -%}
+    "django-parler>=2.3.0",
+{% endif -%}
+    "django-extensions>=3.2.0",
+    "python-dotenv>=1.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    # Testing
+    "pytest>=8.0.0",
+    "pytest-django>=4.8.0",
+    "pytest-cov>=5.0.0",
+    "pytest-xdist>=3.5.0",
+    "faker>=24.0.0",
+    "model-bakery>=1.17.0",
+    "hypothesis>=6.100.0",
+
+    # Code Quality
+    "ruff>=0.4.0",
+    "mypy>=1.10.0",
+    "django-stubs[compatible-mypy]>=5.0.0",
+{% if api_style in ['drf', 'both'] -%}
+    "djangorestframework-stubs[compatible-mypy]>=3.15.0",
+{% endif -%}
+
+    # Tools
+    "django-debug-toolbar>=4.3.0",
+    "ipython>=8.23.0",
+    "ipdb>=0.13.13",
+    "pre-commit>=3.7.0",
+
+    # Security
+    "pip-audit>=2.7.0",
+    "safety>=3.1.0",
+
+    # Docs
+    "mkdocs>=1.5.0",
+    "mkdocs-material>=9.5.0",
+    "mkdocstrings[python]>=0.24.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.uv]
+dev-dependencies = []
+
+[tool.ruff]
+line-length = 100
+target-version = "py{{ python_version.replace('.', '') }}"
+
+[tool.ruff.lint]
+select = [
+    "E",      # pycodestyle errors
+    "W",      # pycodestyle warnings
+    "F",      # pyflakes
+    "I",      # isort
+    "B",      # flake8-bugbear
+    "C4",     # flake8-comprehensions
+    "UP",     # pyupgrade
+    "ARG",    # flake8-unused-arguments
+    "SIM",    # flake8-simplify
+    "DJ",     # flake8-django
+]
+ignore = [
+    "E501",   # line too long (handled by formatter)
+    "B008",   # do not perform function calls in argument defaults
+    "DJ001",  # avoid using null=True on string-based fields
+]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]  # unused imports
+"*/migrations/*" = ["E501", "DJ"]  # ignore in migrations
+"*/tests/*" = ["ARG", "S"]  # ignore in tests
+"config/settings/*.py" = ["F405", "F403"]  # allow star imports in settings
+
+[tool.ruff.lint.isort]
+known-first-party = ["{{ project_slug }}", "apps", "config"]
+section-order = [
+    "future",
+    "standard-library",
+    "third-party",
+    "first-party",
+    "local-folder",
+]
+
+[tool.mypy]
+python_version = "{{ python_version }}"
+check_untyped_defs = true
+ignore_missing_imports = false
+warn_unused_ignores = true
+warn_redundant_casts = true
+warn_unused_configs = true
+plugins = ["mypy_django_plugin.main"{% if api_style in ['drf', 'both'] %}, "mypy_drf_plugin.main"{% endif %}]
+
+[[tool.mypy.overrides]]
+module = "*.migrations.*"
+ignore_errors = true
+
+[[tool.mypy.overrides]]
+module = [
+{% if use_celery -%}
+    "celery.*",
+    "flower.*",
+{% endif -%}
+{% if use_channels -%}
+    "channels.*",
+{% endif -%}
+    "environ.*",
+]
+ignore_missing_imports = true
+
+[tool.django-stubs]
+django_settings_module = "config.settings.dev"
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "config.settings.test"
+python_files = ["test_*.py", "*_test.py", "tests.py"]
+addopts = [
+    "--reuse-db",
+    "--cov={{ project_slug }}",
+    "--cov-report=html",
+    "--cov-report=term-missing",
+    "--cov-fail-under=80",
+]
+testpaths = ["tests"]
+
+[tool.coverage.run]
+source = ["{{ project_slug }}"]
+omit = [
+    "*/migrations/*",
+    "*/tests/*",
+    "*/__pycache__/*",
+    "*/venv/*",
+    "*/.venv/*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+    "@abstractmethod",
+]

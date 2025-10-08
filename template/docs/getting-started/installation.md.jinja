@@ -1,0 +1,85 @@
+# Installation
+
+This guide will help you get {{ project_name }} up and running.
+
+## Prerequisites
+
+- Python {{ python_version }}+
+{% if dependency_manager == 'uv' -%}
+- [uv](https://docs.astral.sh/uv/)
+{% else -%}
+- [Poetry](https://python-poetry.org/)
+{% endif -%}
+- Docker & Docker Compose
+- PostgreSQL (for production)
+{% if cache == 'redis' -%}
+- Redis
+{% endif %}
+
+## Installation Steps
+
+### 1. Clone the Repository
+
+```bash
+git clone https://github.com/CuriousLearner/django-keel
+cd {{ project_slug }}
+```
+
+### 2. Install Dependencies
+
+{% if dependency_manager == 'uv' -%}
+```bash
+uv sync
+```
+{% else -%}
+```bash
+poetry install
+```
+{% endif %}
+
+### 3. Environment Configuration
+
+```bash
+cp .env.example .env
+# Edit .env with your settings
+```
+
+### 4. Start Services
+
+```bash
+docker compose up -d
+```
+
+This starts:
+- PostgreSQL
+{% if cache == 'redis' -%}
+- Redis
+{% endif -%}
+- Mailpit (email testing)
+
+### 5. Database Setup
+
+```bash
+just migrate
+just createsuperuser
+```
+
+### 6. Start Development Server
+
+```bash
+just dev
+```
+
+Visit:
+- Application: http://localhost:8000
+- Admin: http://localhost:8000/admin/
+{% if api_style != 'none' -%}
+- API Docs: http://localhost:8000/api/schema/swagger/
+{% endif -%}
+- Mailpit: http://localhost:8025
+
+## Next Steps
+
+- [Configuration Guide](configuration.md)
+- [API Documentation](../api/overview.md)
+- [Deployment Guide](deployment.md)

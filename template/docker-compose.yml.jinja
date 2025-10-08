@@ -1,0 +1,54 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: {{ project_slug }}_db
+      POSTGRES_USER: {{ project_slug }}_user
+      POSTGRES_PASSWORD: {{ project_slug }}_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U {{ project_slug }}_user"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+{% if cache == 'redis' -%}
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+{% endif %}
+
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+
+{% if observability_level == 'full' -%}
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    ports:
+      - "16686:16686"  # UI
+      - "4318:4318"    # OTLP gRPC
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+{% endif %}
+
+volumes:
+  postgres_data:
+{% if cache == 'redis' -%}
+  redis_data:
+{% endif %}

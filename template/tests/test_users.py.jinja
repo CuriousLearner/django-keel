@@ -1,0 +1,33 @@
+"""Test user functionality."""
+import pytest
+from apps.users.models import User
+
+
+@pytest.mark.django_db
+class TestUserModel:
+    """Test User model."""
+
+    def test_create_user(self):
+        """Test creating a regular user."""
+        user = User.objects.create_user(
+            email="newuser@example.com",
+            password="testpass123"
+        )
+        assert user.email == "newuser@example.com"
+        assert user.is_active
+        assert not user.is_staff
+        assert not user.is_superuser
+
+    def test_create_superuser(self):
+        """Test creating a superuser."""
+        admin = User.objects.create_superuser(
+            email="admin@example.com",
+            password="adminpass123"
+        )
+        assert admin.is_active
+        assert admin.is_staff
+        assert admin.is_superuser
+
+    def test_user_str(self, user):
+        """Test user string representation."""
+        assert str(user) == user.email
