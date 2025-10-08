@@ -147,19 +147,19 @@ jobs:
         with:
           context: .
           push: false
-          tags: {{ project_slug }}:${{ github.sha }}
+          tags: {{ project_slug }}:{% raw %}${{ github.sha }}{% endraw %}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
       - name: Generate SBOM
         uses: anchore/sbom-action@v0
         with:
-          image: {{ project_slug }}:${{ github.sha }}
+          image: {{ project_slug }}:{% raw %}${{ github.sha }}{% endraw %}
 
       - name: Scan image with Trivy
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: {{ project_slug }}:${{ github.sha }}
+          image-ref: {{ project_slug }}:{% raw %}${{ github.sha }}{% endraw %}
           format: "sarif"
           output: "trivy-results.sarif"
 
