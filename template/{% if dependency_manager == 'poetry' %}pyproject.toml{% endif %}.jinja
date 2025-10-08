@@ -1,134 +1,117 @@
-[project]
+[tool.poetry]
 name = "{{ project_slug }}"
 version = "0.1.0"
 description = "{{ project_description }}"
-authors = [
-    {name = "{{ author_name }}", email = "{{ author_email }}"}
-]
+authors = ["{{ author_name }} <{{ author_email }}>"]
 readme = "README.md"
-requires-python = ">={{ python_version }}"
-license = {text = "{{ license }}"}
+license = "{{ license }}"
 
-dependencies = [
-    "django>=5.2,<5.3",
-    "django-environ>=0.11.2",
-    "psycopg[binary]>=3.2.0",
+[tool.poetry.dependencies]
+python = "^{{ python_version }}"
+django = "^5.2"
+django-environ = "^0.11.2"
+psycopg = {extras = ["binary"], version = "^3.2.0"}
 {% if cache == 'redis' -%}
-    "redis>=5.0.0",
-    "django-redis>=5.4.0",
+redis = "^5.0.0"
+django-redis = "^5.4.0"
 {% endif -%}
-    "gunicorn>=22.0.0",
-    "python-json-logger>=2.0.7",
+gunicorn = "^22.0.0"
+python-json-logger = "^2.0.7"
 {% if api_style in ['drf', 'both'] -%}
-    "djangorestframework>=3.15.0",
-    "drf-spectacular>=0.27.0",
-    "django-filter>=24.0",
-    "django-cors-headers>=4.3.0",
+djangorestframework = "^3.15.0"
+drf-spectacular = "^0.27.0"
+django-filter = "^24.0"
+django-cors-headers = "^4.3.0"
 {% endif -%}
 {% if api_style in ['graphql-strawberry', 'both'] -%}
-    "strawberry-graphql-django>=0.45.0",
+strawberry-graphql-django = "^0.45.0"
 {% endif -%}
 {% if auth_backend in ['allauth', 'both'] -%}
-    "django-allauth[socialaccount]>=0.63.0",
+django-allauth = {extras = ["socialaccount"], version = "^0.63.0"}
 {% endif -%}
 {% if auth_backend in ['jwt', 'both'] -%}
-    "djangorestframework-simplejwt>=5.3.0",
+djangorestframework-simplejwt = "^5.3.0"
 {% endif -%}
 {% if use_2fa -%}
-    "django-otp>=1.4.0",
-    "qrcode>=7.4.0",
+django-otp = "^1.4.0"
+qrcode = "^7.4.0"
 {% endif -%}
 {% if use_celery -%}
-    "celery[redis]>=5.4.0",
-    "django-celery-beat>=2.6.0",
-    "django-celery-results>=2.5.0",
-    "flower>=2.0.0",
+celery = {extras = ["redis"], version = "^5.4.0"}
+django-celery-beat = "^2.6.0"
+django-celery-results = "^2.5.0"
+flower = "^2.0.0"
 {% endif -%}
 {% if use_channels -%}
-    "channels[daphne]>=4.1.0",
-    "channels-redis>=4.2.0",
+channels = {extras = ["daphne"], version = "^4.1.0"}
+channels-redis = "^4.2.0"
 {% endif -%}
 {% if media_storage == 'aws-s3' -%}
-    "django-storages[s3]>=1.14.0",
-    "boto3>=1.34.0",
+django-storages = {extras = ["s3"], version = "^1.14.0"}
+boto3 = "^1.34.0"
 {% elif media_storage == 'gcp-gcs' -%}
-    "django-storages[google]>=1.14.0",
+django-storages = {extras = ["google"], version = "^1.14.0"}
 {% elif media_storage == 'azure-storage' -%}
-    "django-storages[azure]>=1.14.0",
+django-storages = {extras = ["azure"], version = "^1.14.0"}
 {% else -%}
-    "whitenoise[brotli]>=6.6.0",
+whitenoise = {extras = ["brotli"], version = "^6.6.0"}
 {% endif -%}
 {% if use_sentry -%}
-    "sentry-sdk[django]>=2.0.0",
+sentry-sdk = {extras = ["django"], version = "^2.0.0"}
 {% endif -%}
 {% if observability_level == 'full' -%}
-    "opentelemetry-api>=1.24.0",
-    "opentelemetry-sdk>=1.24.0",
-    "opentelemetry-instrumentation-django>=0.45b0",
-    "opentelemetry-instrumentation-psycopg2>=0.45b0",
+opentelemetry-api = "^1.24.0"
+opentelemetry-sdk = "^1.24.0"
+opentelemetry-instrumentation-django = "^0.45b0"
+opentelemetry-instrumentation-psycopg2 = "^0.45b0"
 {% if use_celery -%}
-    "opentelemetry-instrumentation-celery>=0.45b0",
+opentelemetry-instrumentation-celery = "^0.45b0"
 {% endif -%}
-    "opentelemetry-exporter-otlp>=1.24.0",
-    "django-prometheus>=2.3.0",
+opentelemetry-exporter-otlp = "^1.24.0"
+django-prometheus = "^2.3.0"
 {% endif -%}
 {% if use_stripe -%}
-    "stripe>=9.0.0",
+stripe = "^9.0.0"
 {% endif -%}
 {% if use_search == 'postgres-fts' -%}
-    "django-postgres-extra>=2.0.0",
+django-postgres-extra = "^2.0.0"
 {% elif use_search == 'opensearch' -%}
-    "opensearch-py>=2.5.0",
-    "django-opensearch-dsl>=0.6.0",
+opensearch-py = "^2.5.0"
+django-opensearch-dsl = "^0.6.0"
 {% endif -%}
 {% if use_i18n -%}
-    "django-parler>=2.3.0",
+django-parler = "^2.3.0"
 {% endif -%}
-    "django-extensions>=3.2.0",
-    "python-dotenv>=1.0.0",
-]
+django-extensions = "^3.2.0"
+python-dotenv = "^1.0.0"
 
-[project.optional-dependencies]
-dev = [
-    # Testing
-    "pytest>=8.0.0",
-    "pytest-django>=4.8.0",
-    "pytest-cov>=5.0.0",
-    "pytest-xdist>=3.5.0",
-    "faker>=24.0.0",
-    "model-bakery>=1.17.0",
-    "hypothesis>=6.100.0",
-
-    # Code Quality
-    "ruff>=0.4.0",
-    "mypy>=1.10.0",
-    "django-stubs[compatible-mypy]>=5.0.0",
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.0.0"
+pytest-django = "^4.8.0"
+pytest-cov = "^5.0.0"
+pytest-xdist = "^3.5.0"
+faker = "^24.0.0"
+model-bakery = "^1.17.0"
+hypothesis = "^6.100.0"
+ruff = "^0.4.0"
+mypy = "^1.10.0"
+django-stubs = {extras = ["compatible-mypy"], version = "^5.0.0"}
 {% if api_style in ['drf', 'both'] -%}
-    "djangorestframework-stubs[compatible-mypy]>=3.15.0",
+djangorestframework-stubs = {extras = ["compatible-mypy"], version = "^3.15.0"}
 {% endif -%}
-
-    # Tools
-    "django-debug-toolbar>=4.3.0",
-    "ipython>=8.23.0",
-    "ipdb>=0.13.13",
-    "pre-commit>=3.7.0",
-
-    # Security
-    "pip-audit>=2.7.0",
-    "safety>=3.1.0",
-
-    # Docs
-    "mkdocs>=1.5.0",
-    "mkdocs-material>=9.5.0",
-    "mkdocstrings[python]>=0.24.0",
-]
+django-debug-toolbar = "^4.3.0"
+ipython = "^8.23.0"
+ipdb = "^0.13.13"
+pre-commit = "^3.7.0"
+pip-audit = "^2.7.0"
+safety = "^3.1.0"
+mkdocs = "^1.5.0"
+mkdocs-material = "^9.5.0"
+mkdocstrings = {extras = ["python"], version = "^0.24.0"}
 
 [build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
-
-[tool.uv]
-dev-dependencies = []
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
 
 [tool.ruff]
 line-length = 100
@@ -154,10 +137,10 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"__init__.py" = ["F401"]  # unused imports
-"*/migrations/*" = ["E501", "DJ"]  # ignore in migrations
-"*/tests/*" = ["ARG", "S"]  # ignore in tests
-"config/settings/*.py" = ["F405", "F403"]  # allow star imports in settings
+"__init__.py" = ["F401"]
+"*/migrations/*" = ["E501", "DJ"]
+"*/tests/*" = ["ARG", "S"]
+"config/settings/*.py" = ["F405", "F403"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["{{ project_slug }}", "apps", "config"]

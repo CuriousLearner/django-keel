@@ -85,6 +85,9 @@ LOCAL_APPS = [
 {% if api_style != 'none' -%}
     "apps.api",
 {% endif -%}
+{% if use_stripe -%}
+    "apps.billing",
+{% endif -%}
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -175,7 +178,7 @@ AUTH_PASSWORD_VALIDATORS = [
 # Cache
 CACHES = {
     "default": {
-        "BACKEND": "django.core.cache.backends.redis.RedisCache",
+        "BACKEND": "django_redis.cache.RedisCache",
         "LOCATION": env("REDIS_URL", default="redis://127.0.0.1:6379/0"),
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",

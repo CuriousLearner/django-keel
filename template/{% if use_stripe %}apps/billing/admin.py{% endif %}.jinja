@@ -1,0 +1,23 @@
+"""Billing admin."""
+from django.contrib import admin
+
+from .models import StripeCustomer, Subscription
+
+
+@admin.register(StripeCustomer)
+class StripeCustomerAdmin(admin.ModelAdmin):
+    """Stripe customer admin."""
+
+    list_display = ["user", "stripe_customer_id", "created_at"]
+    search_fields = ["user__email", "stripe_customer_id"]
+    readonly_fields = ["created_at", "updated_at"]
+
+
+@admin.register(Subscription)
+class SubscriptionAdmin(admin.ModelAdmin):
+    """Subscription admin."""
+
+    list_display = ["customer", "plan_name", "status", "current_period_end"]
+    list_filter = ["status"]
+    search_fields = ["customer__user__email", "stripe_subscription_id", "plan_name"]
+    readonly_fields = ["created_at", "updated_at"]
