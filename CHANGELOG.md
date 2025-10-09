@@ -8,61 +8,85 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- Comprehensive pytest test suite for template generation
-  - 49 functional and behavioral tests covering all features
-  - Tests for Django integration, features, and project generation
-  - All tests are function-based following pytest best practices
+
+#### Core Template Features
+- Copier-based template for modern Django projects
+- Django 5.2 with Python 3.12/3.13 support
+- Multiple package managers (uv, Poetry)
+- Multiple API frameworks (DRF, Strawberry GraphQL, both, or none)
+- Multiple frontend options (HTMX + Tailwind, Next.js, or none)
+- Multiple authentication backends (django-allauth, JWT, or both)
+- Split settings structure (base, dev, test, prod)
+
+#### Optional Features
+- Celery for background tasks with Redis broker
+- Django Channels for WebSockets
+- Stripe payment integration
+- Two-factor authentication (TOTP)
+- Internationalization (i18n) with django-parler
+- Search (PostgreSQL FTS, OpenSearch)
+
+#### Deployment
+- Kubernetes deployment with Helm charts and Kustomize
+- AWS EC2 deployment with Ansible playbooks
+- Docker and Docker Compose setup
+- Multiple storage backends (local + Whitenoise, AWS S3, GCP GCS, Azure)
+
+#### Observability
+- Three observability levels (minimal, standard, full)
+- Structured logging with python-json-logger
+- Sentry error tracking integration
+- OpenTelemetry instrumentation
+- Prometheus metrics
+- django-alive for standardized health check endpoints (GET /health/)
+
+#### Security
+- SOPS for encrypted secrets
+- Security profiles (standard, strict)
+- django-csp for Content Security Policy
+- Rate limiting and brute-force protection
+
+#### Testing
+- Comprehensive pytest test suite for template (49 tests)
+  - Django integration tests
+  - Feature generation tests
+  - Project structure validation tests
 - Complete pytest test suite for generated projects
-  - Core functionality tests (health checks, URLs, settings, middleware)
+  - Core functionality tests
   - User authentication and permission tests
-  - API endpoint tests (DRF support)
+  - API endpoint tests (when DRF enabled)
   - Conditional feature tests (Celery, Stripe, Channels, 2FA)
-  - All tests are function-based with proper fixtures
 - Conditional test file generation based on project configuration
-  - test_api.py only when API framework enabled
-  - test_tasks.py only when Celery enabled
-  - test_billing.py only when Stripe enabled
-  - test_websockets.py only when Channels enabled
-  - test_2fa.py only when 2FA enabled
-- pytest-asyncio conditionally added for Channels WebSocket testing
+- pytest-asyncio for Channels WebSocket testing
 - Enhanced conftest.py with comprehensive fixtures
-- pytest.ini configuration for generated projects
-- GitLab CI workflow template (.gitlab-ci.yml)
-- Infrastructure validation commands in Justfile
-  - validate-yaml: Validate all YAML files
-  - validate-compose: Validate docker-compose.yml
-  - lint-docker: Lint Dockerfile with hadolint
-  - validate-k8s: Validate Kubernetes manifests (when enabled)
-  - lint-helm: Lint Helm charts (when enabled)
-  - validate-ansible: Validate Ansible playbooks (when enabled)
-  - validate-infra: Run all infrastructure validations
-- Comprehensive documentation for generated projects
-  - CONTRIBUTING.md with development workflow
-  - CHANGELOG.md template
-  - Testing guide in docs/development/testing.md
-- Code quality tooling for django-keel template
-  - pyproject.toml with comprehensive ruff configuration
-  - Pre-commit hooks for automated quality checks
-  - Enhanced CONTRIBUTING.md with code quality guidelines
-- ReadTheDocs documentation site
-  - Complete MkDocs documentation structure
-  - Getting Started guides (Quick Start, Installation, First Project)
-  - Features documentation (API options, Authentication, Background Tasks, etc.)
-  - Deployment guides (Kubernetes, AWS EC2, Docker)
-  - Contributing guides (Development, Testing, Documentation)
-  - .readthedocs.yaml configuration for automatic builds
-- Best practices from django-layout integrated
-  - django-alive for standardized health check endpoints (GET /health/)
-  - Already included: python-json-logger, gunicorn, whitenoise, structured logging
-  - Note: Using Justfile instead of Makefile (just is better: simpler syntax, better errors, more intuitive)
+- pytest.ini configuration
+
+#### Development Tools
+- Ruff for linting and formatting with comprehensive rule set
+- mypy for type checking with django-stubs
+- pre-commit hooks for automated quality checks
+- pyproject.toml with extensive configuration
+- Justfile for common tasks (50+ commands)
+- Infrastructure validation commands (YAML, Docker, Helm, Ansible)
+
+#### CI/CD
+- GitHub Actions workflow template
+- GitLab CI workflow template
+- Support for both or either CI provider
+
+#### Documentation
+- ReadTheDocs integration with .readthedocs.yaml
+- Complete MkDocs documentation structure
+- Getting Started guides (Quick Start, Installation, First Project)
+- Features documentation (API options, Authentication, Background Tasks, Frontend, Deployment, Observability)
+- Deployment guides (Kubernetes, AWS EC2, Docker)
+- Contributing guides (Development, Testing, Documentation)
+- CONTRIBUTING.md for template contributors
+- CONTRIBUTING.md template for generated projects
+- CHANGELOG.md template for generated projects
+- Testing guide in generated project docs
 
 ### Fixed
-- All linting issues in test files (14 issues)
-  - Removed unused imports
-  - Fixed import ordering with isort
-  - Fixed type hints to use modern Python 3.12 syntax
-  - Removed unused variables
-- Template rendering issues with Django template tags
 - Jinja2 whitespace control in GitHub Actions CI workflow
 - Jinja2 whitespace control in docker-compose.yml breaking YAML indentation
 - Jinja2 whitespace control in mkdocs.yml breaking YAML structure
@@ -70,56 +94,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - YAML indentation in CI workflow templates
 - Settings import tests with proper .env file setup
 - Justfile syntax for install/update commands
+- All linting issues in test files (14 issues):
+  - Removed unused imports
+  - Fixed import ordering with isort
+  - Fixed type hints to use modern Python 3.12 syntax
+  - Removed unused variables
 
 ### Changed
 - Converted all tests from class-based to function-based
 - Updated test organization with comment headers instead of classes
-- Improved test documentation in tests/README.md
 
-## [0.1.0] - 2025-01-XX
-
-### Added
-- Initial release of Django Keel template
-- Copier-based template for modern Django projects
-- Django 5.2 with Python 3.12/3.13 support
-- Multiple package managers (uv, Poetry)
-- Multiple API frameworks (DRF, Strawberry GraphQL, both, or none)
-- Multiple frontend options (HTMX + Tailwind, Next.js, or none)
-- Multiple authentication backends (django-allauth, JWT, or both)
-- Optional features:
-  - Celery for background tasks
-  - Django Channels for WebSockets
-  - Stripe payment integration
-  - Two-factor authentication (TOTP)
-  - Internationalization (i18n)
-  - Search (PostgreSQL FTS, OpenSearch)
-- Multiple deployment targets:
-  - Kubernetes with Helm charts and Kustomize
-  - AWS EC2 with Ansible playbooks
-- Observability options (minimal, standard, full)
-  - Structured logging
-  - Sentry error tracking
-  - OpenTelemetry instrumentation
-  - Prometheus metrics
-- Multiple storage backends (local + Whitenoise, AWS S3, GCP GCS, Azure)
-- Modern development tooling:
-  - Ruff for linting and formatting
-  - mypy for type checking
-  - pre-commit hooks
-  - GitHub Actions / GitLab CI workflows
-- Security features:
-  - SOPS for encrypted secrets
-  - Security profiles (standard, strict)
-  - Vulnerability scanning with Trivy
-- Comprehensive documentation:
-  - MkDocs-based documentation
-  - Architecture Decision Records (ADRs)
-  - Getting started guides
-- Developer experience:
-  - Justfile for common tasks
-  - Docker Compose for development
-  - Split settings (dev, test, prod)
-  - .env.example template
-
-[Unreleased]: https://github.com/CuriousLearner/django-keel/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/CuriousLearner/django-keel/releases/tag/v0.1.0
+[Unreleased]: https://github.com/CuriousLearner/django-keel/compare/HEAD...HEAD
