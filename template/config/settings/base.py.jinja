@@ -60,7 +60,7 @@ THIRD_PARTY_APPS = [
     "django_otp",
     "django_otp.plugins.otp_totp",
 {% endif -%}
-{% if use_celery -%}
+{% if background_tasks in ['celery', 'both'] -%}
     "django_celery_beat",
     "django_celery_results",
 {% endif -%}
@@ -88,6 +88,9 @@ LOCAL_APPS = [
 {% endif -%}
 {% if use_stripe -%}
     "apps.billing",
+{% endif -%}
+{% if background_tasks in ['temporal', 'both'] -%}
+    "temporal_app",
 {% endif -%}
 ]
 
@@ -332,7 +335,7 @@ SIMPLE_JWT = {
 }
 {% endif %}
 
-{% if use_celery -%}
+{% if background_tasks in ['celery', 'both'] -%}
 # Celery
 CELERY_BROKER_URL = env("CELERY_BROKER_URL", default="redis://localhost:6379/1")
 CELERY_RESULT_BACKEND = "django-db"
@@ -343,6 +346,13 @@ CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
 CELERY_TIMEZONE = TIME_ZONE
+{% endif %}
+
+{% if background_tasks in ['temporal', 'both'] -%}
+# Temporal
+TEMPORAL_ADDRESS = env("TEMPORAL_ADDRESS", default="localhost:7233")
+TEMPORAL_NAMESPACE = env("TEMPORAL_NAMESPACE", default="default")
+TEMPORAL_TASK_QUEUE = env("TEMPORAL_TASK_QUEUE", default="{{ project_slug }}-tasks")
 {% endif %}
 
 # Email
@@ -380,8 +390,15 @@ LOGGING = {
             "level": env("DJANGO_LOG_LEVEL", default="INFO"),
             "propagate": False,
         },
-{% if use_celery -%}
+{% if background_tasks in ['celery', 'both'] -%}
         "celery": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+{% endif -%}
+{% if background_tasks in ['temporal', 'both'] -%}
+        "temporalio": {
             "handlers": ["console"],
             "level": "INFO",
             "propagate": False,

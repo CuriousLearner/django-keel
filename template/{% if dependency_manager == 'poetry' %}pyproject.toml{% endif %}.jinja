@@ -36,11 +36,15 @@ djangorestframework-simplejwt = "^5.3.0"
 django-otp = "^1.4.0"
 qrcode = "^7.4.0"
 {% endif -%}
-{% if use_celery -%}
+{% if background_tasks in ['celery', 'both'] -%}
 celery = {extras = ["redis"], version = "^5.4.0"}
 django-celery-beat = "^2.6.0"
 django-celery-results = "^2.5.0"
 flower = "^2.0.0"
+{% endif -%}
+{% if background_tasks in ['temporal', 'both'] -%}
+temporalio = "^1.6.0"
+django-temporalio = "^0.3.0"
 {% endif -%}
 {% if use_channels -%}
 channels = {extras = ["daphne"], version = "^4.1.0"}
@@ -64,7 +68,7 @@ opentelemetry-api = "^1.24.0"
 opentelemetry-sdk = "^1.24.0"
 opentelemetry-instrumentation-django = "^0.45b0"
 opentelemetry-instrumentation-psycopg2 = "^0.45b0"
-{% if use_celery -%}
+{% if background_tasks in ['celery', 'both'] -%}
 opentelemetry-instrumentation-celery = "^0.45b0"
 {% endif -%}
 opentelemetry-exporter-otlp = "^1.24.0"
@@ -170,9 +174,13 @@ ignore_errors = true
 
 [[tool.mypy.overrides]]
 module = [
-{% if use_celery -%}
+{% if background_tasks in ['celery', 'both'] -%}
     "celery.*",
     "flower.*",
+{% endif -%}
+{% if background_tasks in ['temporal', 'both'] -%}
+    "temporalio.*",
+    "django_temporalio.*",
 {% endif -%}
 {% if use_channels -%}
     "channels.*",

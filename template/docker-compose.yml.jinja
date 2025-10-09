@@ -36,6 +36,57 @@ services:
     ports:
       - "1025:1025"
       - "8025:8025"
+{% if background_tasks in ['temporal', 'both'] %}
+
+  temporal:
+    image: temporalio/auto-setup:latest
+    depends_on:
+      - db
+    environment:
+      - DB=postgresql
+      - DB_PORT=5432
+      - POSTGRES_USER={{ project_slug }}_user
+      - POSTGRES_PWD={{ project_slug }}_password
+      - POSTGRES_SEEDS=db
+      - DYNAMIC_CONFIG_FILE_PATH=config/dynamicconfig/development-sql.yaml
+    ports:
+      - "7233:7233"
+    volumes:
+      - ./temporal/dynamicconfig:/etc/temporal/config/dynamicconfig
+    healthcheck:
+      test: ["CMD", "temporal", "workflow", "list", "--address", "temporal:7233"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  temporal-ui:
+    image: temporalio/ui:latest
+    depends_on:
+      - temporal
+    environment:
+      - TEMPORAL_ADDRESS=temporal:7233
+      - TEMPORAL_CORS_ORIGINS=http://localhost:3000
+    ports:
+      - "8080:8080"
+
+  temporal-worker:
+    build: .
+    command: python manage.py run_temporal_worker
+    depends_on:
+      - temporal
+      - db
+{% if cache == 'redis' %}
+      - redis
+{% endif %}
+    environment:
+      - TEMPORAL_ADDRESS=temporal:7233
+      - DATABASE_URL=postgresql://{{ project_slug }}_user:{{ project_slug }}_password@db:5432/{{ project_slug }}_db
+{% if cache == 'redis' %}
+      - REDIS_URL=redis://redis:6379/0
+{% endif %}
+    volumes:
+      - .:/app
+{% endif -%}
 {% if observability_level == 'full' %}
 
   jaeger:

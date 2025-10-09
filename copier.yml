@@ -89,10 +89,15 @@ frontend:
   default: "none"
 
 # Async & Tasks
-use_celery:
-  type: bool
-  help: Include Celery for background tasks?
-  default: true
+background_tasks:
+  type: str
+  help: Background task processing
+  choices:
+    - "celery"
+    - "temporal"
+    - "both"
+    - "none"
+  default: "celery"
 
 use_channels:
   type: bool

@@ -1,0 +1,258 @@
+# Temporal Workflows and Activities
+
+This directory contains all Temporal workflow and activity definitions for {{ project_name }}.
+
+## Overview
+
+Temporal is a durable execution platform that provides:
+- Reliable workflow orchestration
+- Automatic retries and error handling
+- Long-running workflows (days, weeks, months)
+- Distributed tracing and observability
+- Built-in version management
+
+## Directory Structure
+
+```
+temporal_app/
+├── __init__.py          # Module initialization
+├── activities.py        # Activity definitions
+├── workflows.py         # Workflow definitions
+├── management/
+│   └── commands/
+│       └── run_temporal_worker.py  # Worker management command
+└── README.md           # This file
+```
+
+## Quick Start
+
+### 1. Start Temporal Server
+
+Using Docker Compose:
+```bash
+docker compose up temporal temporal-ui
+```
+
+Access Temporal UI at: http://localhost:8080
+
+### 2. Start Worker
+
+```bash
+python manage.py run_temporal_worker
+```
+
+Or using Docker Compose:
+```bash
+docker compose up temporal-worker
+```
+
+### 3. Execute a Workflow
+
+```python
+from temporalio.client import Client
+from temporal_app.workflows import OnboardingWorkflowInput
+
+# Connect to Temporal
+client = await Client.connect("localhost:7233")
+
+# Start workflow
+result = await client.execute_workflow(
+    "user_onboarding",
+    OnboardingWorkflowInput(
+        user_id=1,
+        email="user@example.com",
+        name="John Doe",
+    ),
+    id=f"onboarding-{user_id}",
+    task_queue="{{ project_slug }}-tasks",
+)
+```
+
+## Workflows
+
+### UserOnboardingWorkflow
+
+Orchestrates the user onboarding process:
+1. Processes user record
+2. Sends welcome email
+3. Waits 24 hours
+4. Sends follow-up email
+
+**Input:** `OnboardingWorkflowInput`
+- `user_id`: int
+- `email`: str
+- `name`: str
+
+**Usage:**
+```python
+await client.execute_workflow(
+    "user_onboarding",
+    OnboardingWorkflowInput(user_id=1, email="user@example.com", name="John"),
+    id="onboarding-1",
+    task_queue="{{ project_slug }}-tasks",
+)
+```
+
+### BatchProcessingWorkflow
+
+Processes multiple users in parallel.
+
+**Input:** `BatchProcessingWorkflowInput`
+- `batch_id`: str
+- `user_ids`: list[int]
+
+## Activities
+
+### send_email_activity
+
+Sends email using Django's email backend.
+
+**Payload:** `EmailPayload`
+- `to`: str
+- `subject`: str
+- `body`: str
+- `from_email`: str | None
+
+### process_user_activity
+
+Processes a user record with Django ORM.
+
+**Payload:** `UserProcessingPayload`
+- `user_id`: int
+- `action`: str
+
+## Best Practices
+
+### Workflows
+
+1. **Determinism**: Workflows must be deterministic
+   - Don't use random(), datetime.now(), or UUID generation directly
+   - Use `workflow.now()`, `workflow.uuid4()` instead
+
+2. **External Calls**: Never call external services directly from workflows
+   - Use activities for all external interactions
+   - Activities can fail and retry independently
+
+3. **Sleep**: Use `workflow.sleep()` instead of `asyncio.sleep()`
+
+4. **Input Pattern**: Use single dataclass argument for backwards compatibility
+
+### Activities
+
+1. **Async Safe**: For async activities, use async-safe libraries
+   - Use `httpx` or `aiohttp` instead of `requests`
+   - Use `sync_to_async()` for Django ORM
+
+2. **Idempotency**: Make activities idempotent when possible
+   - Same input should produce same result
+   - Handle duplicate execution gracefully
+
+3. **Error Handling**: Let exceptions propagate
+   - Temporal handles retries automatically
+   - Only catch exceptions you can handle
+
+4. **Timeout**: Set appropriate timeouts in workflow
+
+## Django ORM Usage
+
+**Important**: Django ORM is not async-safe. Use `sync_to_async()`:
+
+```python
+from asgiref.sync import sync_to_async
+from apps.users.models import User
+
+@activity.defn
+async def my_activity(user_id: int):
+    @sync_to_async
+    def get_user():
+        return User.objects.get(pk=user_id)
+
+    user = await get_user()
+    return user.email
+```
+
+## Configuration
+
+Environment variables (`.env`):
+
+```bash
+TEMPORAL_ADDRESS=localhost:7233
+TEMPORAL_NAMESPACE=default
+TEMPORAL_TASK_QUEUE={{ project_slug }}-tasks
+```
+
+Django settings (`config/settings/base.py`):
+
+```python
+TEMPORAL_ADDRESS = env("TEMPORAL_ADDRESS", default="localhost:7233")
+TEMPORAL_NAMESPACE = env("TEMPORAL_NAMESPACE", default="default")
+TEMPORAL_TASK_QUEUE = env("TEMPORAL_TASK_QUEUE", default="{{ project_slug }}-tasks")
+```
+
+## Testing
+
+### Unit Testing Activities
+
+```python
+import pytest
+from temporal_app.activities import send_email_activity, EmailPayload
+
+@pytest.mark.asyncio
+async def test_send_email():
+    result = await send_email_activity(
+        EmailPayload(
+            to="test@example.com",
+            subject="Test",
+            body="Test message",
+        )
+    )
+    assert result["status"] == "sent"
+```
+
+### Testing Workflows
+
+```python
+from temporalio.testing import WorkflowEnvironment
+from temporal_app.workflows import UserOnboardingWorkflow
+
+async def test_user_onboarding_workflow():
+    async with await WorkflowEnvironment.start_local() as env:
+        result = await env.client.execute_workflow(
+            UserOnboardingWorkflow.run,
+            OnboardingWorkflowInput(
+                user_id=1,
+                email="test@example.com",
+                name="Test User",
+            ),
+            id="test-onboarding",
+            task_queue="test",
+        )
+        assert result["status"] == "completed"
+```
+
+## Monitoring
+
+### Temporal UI
+
+Access the Temporal UI at http://localhost:8080 to:
+- View running workflows
+- Inspect workflow history
+- Retry failed workflows
+- Search workflows by ID or status
+
+### Logs
+
+Temporal logs are configured in Django settings and output to:
+- Console (development)
+- JSON (production)
+
+## Resources
+
+- [Temporal Documentation](https://docs.temporal.io/)
+- [Temporal Python SDK](https://docs.temporal.io/develop/python)
+- [django-temporalio](https://github.com/RegioHelden/django-temporalio)
+- [Temporal Samples](https://github.com/temporalio/samples-python)
+
+## Support
+
+For issues specific to this implementation, please refer to the main project documentation or contact the development team.

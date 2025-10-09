@@ -1,0 +1,122 @@
+"""
+Temporal Activities for {{ project_name }}.
+
+Activities are the building blocks of Temporal workflows. They encapsulate
+business logic that can interact with external systems, databases, and APIs.
+
+Best Practices:
+- Use async def for I/O-bound activities
+- Use sync_to_async() for Django ORM operations
+- Keep activities idempotent when possible
+- Use proper error handling and retries
+"""
+
+from dataclasses import dataclass
+from typing import Any
+
+import structlog
+from asgiref.sync import sync_to_async
+from temporalio import activity
+
+logger = structlog.get_logger(__name__)
+
+
+@dataclass
+class EmailPayload:
+    """Payload for sending emails."""
+
+    to: str
+    subject: str
+    body: str
+    from_email: str | None = None
+
+
+@activity.defn(name="send_email")
+async def send_email_activity(payload: EmailPayload) -> dict[str, Any]:
+    """
+    Send an email asynchronously.
+
+    This activity demonstrates:
+    - Using dataclass for structured input
+    - Async activity implementation
+    - Proper logging
+    - Integration with Django's email system
+    """
+    logger.info(
+        "Sending email",
+        to=payload.to,
+        subject=payload.subject,
+    )
+
+    # Import Django's send_mail here to avoid import issues
+    from django.core.mail import send_mail
+
+    # Use sync_to_async to call Django's synchronous send_mail
+    @sync_to_async
+    def _send_mail():
+        return send_mail(
+            subject=payload.subject,
+            message=payload.body,
+            from_email=payload.from_email,
+            recipient_list=[payload.to],
+            fail_silently=False,
+        )
+
+    try:
+        await _send_mail()
+        logger.info("Email sent successfully", to=payload.to)
+        return {"status": "sent", "to": payload.to}
+    except Exception as e:
+        logger.error("Failed to send email", to=payload.to, error=str(e))
+        raise
+
+
+@dataclass
+class UserProcessingPayload:
+    """Payload for user processing."""
+
+    user_id: int
+    action: str
+
+
+@activity.defn(name="process_user")
+async def process_user_activity(payload: UserProcessingPayload) -> dict[str, Any]:
+    """
+    Process a user record.
+
+    Demonstrates safe Django ORM usage in async activities.
+    """
+    from apps.users.models import User
+
+    logger.info(
+        "Processing user",
+        user_id=payload.user_id,
+        action=payload.action,
+    )
+
+    @sync_to_async
+    def _get_user():
+        return User.objects.get(pk=payload.user_id)
+
+    try:
+        user = await _get_user()
+        logger.info(
+            "User processed",
+            user_id=payload.user_id,
+            username=user.email,
+        )
+        return {
+            "status": "processed",
+            "user_id": payload.user_id,
+            "action": payload.action,
+        }
+    except User.DoesNotExist:
+        logger.error("User not found", user_id=payload.user_id)
+        raise
+    except Exception as e:
+        logger.error(
+            "Failed to process user",
+            user_id=payload.user_id,
+            error=str(e),
+        )
+        raise

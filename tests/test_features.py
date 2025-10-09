@@ -6,7 +6,7 @@
 
 def test_celery_files_generated_when_enabled(generate):
     """Test that Celery configuration is generated when enabled."""
-    project = generate(use_celery=True)
+    project = generate(background_tasks="celery")
 
     # Celery file should exist
     celery_file = project / "config/celery.py"
@@ -26,7 +26,7 @@ def test_celery_files_generated_when_enabled(generate):
 
 def test_celery_not_generated_when_disabled(generate):
     """Test that Celery is excluded when disabled."""
-    project = generate(use_celery=False)
+    project = generate(background_tasks="none")
 
     # Celery file should not exist
     celery_file = project / "config/celery.py"
@@ -246,7 +246,7 @@ def test_all_features_enabled_generates_successfully(generate):
         dependency_manager="uv",
         api_style="both",
         frontend="htmx-tailwind",
-        use_celery=True,
+        background_tasks="celery",
         use_channels=True,
         auth_backend="both",
         use_2fa=True,

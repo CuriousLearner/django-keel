@@ -19,7 +19,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Split settings structure (base, dev, test, prod)
 
 #### Optional Features
-- Celery for background tasks with Redis broker
+- Background task processing with multiple options:
+  - Celery for traditional async tasks with Redis broker
+  - Temporal for durable workflows and complex orchestration
+  - Support for using both Celery and Temporal together
 - Django Channels for WebSockets
 - Stripe payment integration
 - Two-factor authentication (TOTP)

@@ -34,7 +34,7 @@ def copier_answers():
         "cache": "redis",
         "api_style": "drf",
         "frontend": "none",
-        "use_celery": False,
+        "background_tasks": "none",
         "use_channels": False,
         "auth_backend": "allauth",
         "use_2fa": False,
