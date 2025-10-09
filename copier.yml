@@ -8,6 +8,18 @@ _metadata:
   license: "MIT"
   author: "Django Keel Contributors"
 
+# Project Type (determines smart defaults)
+project_type:
+  type: str
+  help: What type of project are you building?
+  choices:
+    - "saas"           # Multi-tenant SaaS with billing
+    - "api"            # API-only backend
+    - "web-app"        # Traditional web application
+    - "internal-tool"  # Corporate internal tool
+    - "custom"         # I'll choose everything myself
+  default: "custom"
+
 # Project Basics
 project_name:
   type: str
@@ -77,7 +89,12 @@ api_style:
     - "graphql-strawberry"
     - "both"
     - "none"
-  default: "drf"
+  default: >-
+    {%- if project_type == 'api' -%}drf
+    {%- elif project_type == 'saas' -%}drf
+    {%- elif project_type == 'web-app' -%}none
+    {%- elif project_type == 'internal-tool' -%}drf
+    {%- else -%}drf{%- endif -%}
 
 frontend:
   type: str
@@ -86,7 +103,12 @@ frontend:
     - "none"
     - "htmx-tailwind"
     - "nextjs"
-  default: "none"
+  default: >-
+    {%- if project_type == 'api' -%}none
+    {%- elif project_type == 'saas' -%}nextjs
+    {%- elif project_type == 'web-app' -%}htmx-tailwind
+    {%- elif project_type == 'internal-tool' -%}htmx-tailwind
+    {%- else -%}none{%- endif -%}
 
 # Async & Tasks
 background_tasks:
@@ -97,7 +119,12 @@ background_tasks:
     - "temporal"
     - "both"
     - "none"
-  default: "celery"
+  default: >-
+    {%- if project_type == 'saas' -%}celery
+    {%- elif project_type == 'api' -%}celery
+    {%- elif project_type == 'web-app' -%}celery
+    {%- elif project_type == 'internal-tool' -%}celery
+    {%- else -%}celery{%- endif -%}
 
 use_channels:
   type: bool
@@ -138,7 +165,12 @@ use_sentry:
 deployment_targets:
   type: str
   help: "Deployment targets (e.g., 'kubernetes,aws-ec2-ansible')"
-  default: "kubernetes"
+  default: >-
+    {%- if project_type == 'saas' -%}kubernetes
+    {%- elif project_type == 'api' -%}render
+    {%- elif project_type == 'web-app' -%}flyio
+    {%- elif project_type == 'internal-tool' -%}aws-ec2-ansible
+    {%- else -%}kubernetes{%- endif -%}
 
 # Storage
 media_storage:
@@ -169,12 +201,17 @@ use_sops:
 use_teams:
   type: bool
   help: Include Teams/Organizations (multi-tenancy)?
-  default: false
+  default: >-
+    {%- if project_type == 'saas' -%}true
+    {%- elif project_type == 'internal-tool' -%}true
+    {%- else -%}false{%- endif -%}
 
 use_stripe:
   type: bool
   help: Include Stripe payment integration?
-  default: false
+  default: >-
+    {%- if project_type == 'saas' -%}true
+    {%- else -%}false{%- endif -%}
 
 stripe_mode:
   type: str

@@ -1,13 +1,17 @@
 # 🚢 Django Keel
 
-**A modern, production-ready Django project template with Copier**
+**A versatile, production-ready Django project template for any use case**
+
+Build **SaaS applications**, **API backends**, **web apps**, or **internal tools** with one template.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
 [![Django 5.2](https://img.shields.io/badge/django-5.2-green.svg)](https://www.djangoproject.com/)
 [![Documentation](https://readthedocs.org/projects/django-keel/badge/?version=latest)](https://django-keel.readthedocs.io/en/latest/?badge=latest)
 
-Django Keel is a comprehensive Copier template for Django projects that combines the best practices from over a decade of production Django development with modern tooling and deployment strategies.
+Django Keel is a comprehensive Copier template that adapts to your needs—whether you're building a multi-tenant SaaS with billing, a simple API backend, a traditional web app, or an internal corporate tool. One template, infinite possibilities.
+
+**Choose your project type and get smart defaults. Or customize everything yourself.**
 
 ## ✨ Features
 
@@ -114,12 +118,34 @@ Django Keel is a comprehensive Copier template for Django projects that combines
 - **MkDocs Material** documentation
 - **Infrastructure validation** (YAML, Docker Compose, Helm, Ansible)
 
-### 📦 Optional Features
-- Stripe payment integration
+### 💼 SaaS Features (Optional)
+- **Teams/Organizations** - Full multi-tenancy with RBAC
+  - Owner/Admin/Member roles
+  - Team invitations with email tokens
+  - Per-seat billing integration
+- **Advanced Stripe Integration** - Production-ready billing
+  - Basic mode (stripe API) or Advanced mode (dj-stripe)
+  - Subscription management with metadata
+  - Per-seat and usage-based billing
+  - Webhook handlers for all events
+  - Customer portal integration
+- **Feature Gating** - Subscription-based access control
+  - `@subscription_required`, `@feature_required`, `@plan_required` decorators
+  - Usage limit checking
+  - Class-based view mixins
+- **User Impersonation** - Admin support tools
+  - Staff can impersonate users for debugging
+  - Full audit logging
+  - Security checks built-in
+- **Feature Flags** - A/B testing with django-waffle
+  - Flags, switches, and samples
+  - User/group-based targeting
+  - Gradual rollouts
+
+### 📦 Additional Features
 - PostgreSQL Full-Text Search or OpenSearch
 - Internationalization (i18n/l10n)
-- Multi-tenancy (planned)
-- Feature flags with django-waffle
+- Professional email template system
 
 ### 🔄 Template Updates
 - Built-in **Copier update mechanism**
@@ -262,44 +288,109 @@ Each generated project includes its own comprehensive documentation in the `docs
 - Architecture Overview
 - Monitoring & Observability
 
-## 🎨 Example Configurations
+## 🎨 Project Types & Examples
 
-### Minimal API Project
+Django Keel adapts to your project needs with smart defaults based on project type:
+
+### 🚀 SaaS Application
+**Perfect for:** Multi-tenant SaaS products with billing
 ```yaml
-# Example answers
-api_style: drf
-frontend: none
-background_tasks: none
-observability_level: minimal
+project_type: saas
+
+# Smart defaults:
+# - API: DRF for backend
+# - Frontend: Next.js for modern SPA
+# - Teams: Enabled (multi-tenancy)
+# - Stripe: Advanced mode with dj-stripe
+# - Background: Celery for emails/async tasks
+# - Deployment: Kubernetes for scale
+```
+
+### 🔌 API Backend
+**Perfect for:** Mobile apps, microservices, headless backends
+```yaml
+project_type: api
+
+# Smart defaults:
+# - API: DRF only
+# - Frontend: None
+# - Teams: Disabled
+# - Stripe: Disabled
+# - Background: Celery for async processing
+# - Deployment: Render for easy hosting
+```
+
+### 🌐 Web Application
+**Perfect for:** Traditional Django web apps, MVPs, content sites
+```yaml
+project_type: web-app
+
+# Smart defaults:
+# - API: None (traditional Django views)
+# - Frontend: HTMX + Tailwind CSS
+# - Teams: Disabled
+# - Stripe: Disabled
+# - Background: Celery for emails
+# - Deployment: Fly.io for global edge
+```
+
+### 🏢 Internal Tool
+**Perfect for:** Corporate dashboards, admin panels, internal systems
+```yaml
+project_type: internal-tool
+
+# Smart defaults:
+# - API: DRF for flexibility
+# - Frontend: HTMX + Tailwind CSS
+# - Teams: Enabled (departments/groups)
+# - Stripe: Disabled (no billing)
+# - Background: Celery for reports
+# - Deployment: AWS EC2 (on-premise friendly)
+```
+
+### ⚙️ Custom Configuration
+**Perfect for:** Unique requirements, maximum control
+```yaml
+project_type: custom
+
+# You choose everything yourself!
+# All options will be presented with sensible defaults
+```
+
+### 📝 Real-World Examples
+
+**Startup SaaS:**
+```yaml
+project_type: saas
+use_stripe: true
+stripe_mode: advanced
+use_teams: true
+frontend: nextjs
+deployment_targets: kubernetes
+```
+
+**Mobile App Backend:**
+```yaml
+project_type: api
+auth_backend: jwt
+use_channels: true  # WebSockets
 deployment_targets: render
 ```
 
-### Full-Stack SaaS
+**Company Blog:**
 ```yaml
-api_style: both  # DRF + GraphQL
-frontend: nextjs
-background_tasks: both  # Celery + Temporal
-use_stripe: true
-observability_level: full
-deployment_targets: kubernetes,ecs
-```
-
-### HTMX Monolith
-```yaml
-api_style: drf
+project_type: web-app
 frontend: htmx-tailwind
-background_tasks: celery
-observability_level: standard
+use_search: postgres-fts
 deployment_targets: flyio
 ```
 
-### Hobby Project
+**Enterprise Dashboard:**
 ```yaml
-api_style: drf
-frontend: htmx-tailwind
-background_tasks: celery
-observability_level: minimal
-deployment_targets: render
+project_type: internal-tool
+use_teams: true  # Departments
+security_profile: strict
+deployment_targets: aws-ec2-ansible
 ```
 
 ## 🔄 Updating Your Project
