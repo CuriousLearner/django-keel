@@ -171,15 +171,14 @@ def handle_subscription_updated(sender, event, **kwargs):
             # Update features based on plan
             # This is where you'd sync plan features from PlanConfiguration
             metadata.save()
+        {% if use_teams %}
 
-        {% if use_teams -%}
         # Update team subscription status
         if hasattr(djstripe_subscription, "metadata") and djstripe_subscription.metadata.team:
             team = djstripe_subscription.metadata.team
             team.subscription_status = subscription["status"]
             team.save()
-        {% endif -%}
-
+{% endif %}
     except Subscription.DoesNotExist:
         logger.error(f"Subscription not found: {subscription['id']}")
 
@@ -190,7 +189,7 @@ def handle_subscription_deleted(sender, event, **kwargs):
     subscription = event.data["object"]
     logger.info(f"Subscription deleted: {subscription['id']}")
 
-    {% if use_teams -%}
+{% if use_teams %}
     # Deactivate team if subscription is deleted
     try:
         djstripe_subscription = Subscription.objects.get(id=subscription["id"])
@@ -202,7 +201,7 @@ def handle_subscription_deleted(sender, event, **kwargs):
             logger.info(f"Deactivated team: {team.name}")
     except Subscription.DoesNotExist:
         logger.error(f"Subscription not found: {subscription['id']}")
-    {% endif -%}
+{% endif %}
 
 
 @receiver(webhooks.WEBHOOK_SIGNALS["invoice.payment_succeeded"])
@@ -254,7 +253,7 @@ def handle_checkout_session_completed(sender, event, **kwargs):
     logger.info(f"Checkout session completed: {session['id']}")
 
     # Link subscription to user/team
-    {% if use_teams -%}
+{% if use_teams %}
     if session.get("metadata", {}).get("team_id"):
         try:
             team = Team.objects.get(id=session["metadata"]["team_id"])
@@ -275,5 +274,5 @@ def handle_checkout_session_completed(sender, event, **kwargs):
             logger.info(f"Linked subscription to team: {team.name}")
         except (Team.DoesNotExist, Subscription.DoesNotExist) as e:
             logger.error(f"Error linking subscription to team: {e}")
-    {% endif -%}
+{% endif %}
 {% endif -%}

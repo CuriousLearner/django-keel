@@ -75,7 +75,7 @@ class TestTeamSubscriptionIntegration:
         team.save()
 
         assert team.stripe_customer_id == stripe_customer.stripe_customer_id
-        {% endif -%}
+        {% endif %}
 
     def test_per_seat_billing(self, user, team):
         """Test per-seat billing when adding team members."""
@@ -95,11 +95,11 @@ class TestTeamSubscriptionIntegration:
         {% if stripe_mode == 'advanced' -%}
         # Note: In production, signal would update Stripe quantity
         # This is tested in signal tests
-        {% endif -%}
+        {% endif %}
 
+    {% if stripe_mode == 'advanced' -%}
     def test_team_invitation_with_subscription_check(self, user, team):
         """Test team invitation respects subscription limits."""
-        {% if stripe_mode == 'advanced' -%}
         # Create subscription with team member limit
         customer = Customer.objects.create(
             subscriber=user,
@@ -127,8 +127,8 @@ class TestTeamSubscriptionIntegration:
         )
 
         assert invitation.is_valid()
-        {% endif -%}
-{% endif -%}
+    {% endif %}
+{% endif %}
 
 
 {% if use_teams -%}
@@ -202,16 +202,15 @@ class TestTeamWorkflow:
         team.save()
 
         assert not team.is_active
-{% endif -%}
+{% endif %}
 
 
-{% if use_stripe -%}
+{% if use_stripe and stripe_mode == 'advanced' -%}
 @pytest.mark.django_db
 @pytest.mark.integration
 class TestBillingWorkflow:
     """Test complete billing workflow."""
 
-    {% if stripe_mode == 'advanced' -%}
     def test_subscription_with_feature_gating(self, user):
         """Test subscription creation and feature access."""
         # Create product and plan
@@ -280,8 +279,7 @@ class TestBillingWorkflow:
         metadata.save()
 
         assert metadata.is_over_limit("api_calls")
-    {% endif -%}
-{% endif -%}
+{% endif %}
 
 
 @pytest.mark.django_db

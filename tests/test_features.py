@@ -69,18 +69,35 @@ def test_wsgi_when_channels_disabled(generate):
 
 
 def test_billing_app_generated_when_stripe_enabled(generate):
-    """Test that billing app is generated with Stripe."""
-    project = generate(use_stripe=True)
+    """Test that billing app is generated with Stripe (basic mode)."""
+    project = generate(use_stripe=True, stripe_mode="basic")
 
     # Billing app should exist
     billing_app = project / "apps/billing"
     assert billing_app.exists()
     assert (billing_app / "models.py").exists()
 
-    # Check for Stripe models
+    # Check for Stripe models (basic mode)
     models = (billing_app / "models.py").read_text()
     assert "StripeCustomer" in models
     assert "stripe_customer_id" in models
+
+
+def test_billing_app_generated_when_stripe_advanced(generate):
+    """Test that billing app is generated with Stripe (advanced mode with dj-stripe)."""
+    project = generate(use_stripe=True, stripe_mode="advanced")
+
+    # Billing app should exist
+    billing_app = project / "apps/billing"
+    assert billing_app.exists()
+    assert (billing_app / "models.py").exists()
+
+    # Check for dj-stripe advanced models
+    models = (billing_app / "models.py").read_text()
+    assert "SubscriptionMetadata" in models
+    assert "PlanConfiguration" in models
+    assert "UsageRecord" in models
+    assert "djstripe" in models
 
 
 def test_billing_app_not_generated_when_stripe_disabled(generate):
@@ -197,6 +214,130 @@ def test_kubernetes_deployment_generated(generate):
         assert len(list(helm_dir.iterdir())) > 0
 
 
+def test_render_deployment_generated(generate):
+    """Test that Render deployment files are generated."""
+    project = generate(deployment_targets="render")
+
+    # Check render.yaml exists in root
+    render_yaml = project / "render.yaml"
+    assert render_yaml.exists()
+
+    # Validate YAML content
+    content = render_yaml.read_text()
+    assert "services:" in content
+    assert "databases:" in content or "name:" in content
+
+    # Check deploy/render directory
+    render_dir = project / "deploy/render"
+    assert render_dir.exists()
+    assert (render_dir / "build.sh").exists()
+
+    # Verify build script is executable content
+    build_script = (render_dir / "build.sh").read_text()
+    assert "#!/bin/bash" in build_script or "pip install" in build_script
+
+
+def test_flyio_deployment_generated(generate):
+    """Test that Fly.io deployment files are generated."""
+    project = generate(deployment_targets="flyio")
+
+    # Check fly.toml exists in root
+    fly_toml = project / "fly.toml"
+    assert fly_toml.exists()
+
+    # Validate TOML content
+    content = fly_toml.read_text()
+    assert "app =" in content or "[app]" in content
+    assert "[[services]]" in content or "[http_service]" in content
+
+    # Check deploy/flyio directory
+    flyio_dir = project / "deploy/flyio"
+    assert flyio_dir.exists()
+
+
+def test_ecs_deployment_generated(generate):
+    """Test that AWS ECS deployment files are generated."""
+    project = generate(deployment_targets="aws-ecs-fargate")
+
+    # Check deploy/ecs directory
+    ecs_dir = project / "deploy/ecs"
+    assert ecs_dir.exists()
+
+    # Currently ECS only has README (deployment configs are WIP)
+    readme = ecs_dir / "README.md"
+    assert readme.exists()
+
+    # Verify README has ECS content
+    content = readme.read_text()
+    assert "ECS" in content or "Fargate" in content or "AWS" in content
+
+
+def test_docker_deployment_generated(generate):
+    """Test that Docker deployment files are generated."""
+    project = generate(deployment_targets="docker")
+
+    # Check Dockerfile exists
+    dockerfile = project / "Dockerfile"
+    assert dockerfile.exists()
+
+    # Validate Dockerfile content
+    content = dockerfile.read_text()
+    assert "FROM python:" in content
+    assert "WORKDIR" in content
+    assert "COPY" in content
+
+    # Check docker-compose files
+    docker_compose = project / "docker-compose.yml"
+    assert docker_compose.exists()
+
+    # Production compose file
+    docker_compose_prod = project / "docker-compose.prod.yml"
+    # May or may not exist depending on configuration
+
+
+def test_ec2_ansible_deployment_generated(generate):
+    """Test that AWS EC2 Ansible playbooks are generated."""
+    project = generate(deployment_targets="aws-ec2-ansible")
+
+    # Check deploy/ansible directory
+    ansible_dir = project / "deploy/ansible"
+    assert ansible_dir.exists()
+
+    # Check README
+    readme = ansible_dir / "README.md"
+    assert readme.exists()
+
+    # Check playbooks directory
+    playbooks_dir = ansible_dir / "playbooks"
+    assert playbooks_dir.exists()
+
+    # Check for deploy playbook
+    deploy_yml = playbooks_dir / "deploy.yml"
+    assert deploy_yml.exists()
+
+    # Validate YAML syntax (basic check)
+    deploy_content = deploy_yml.read_text()
+    assert "hosts:" in deploy_content or "- name:" in deploy_content or "tasks:" in deploy_content
+
+    # Check templates directory
+    templates_dir = ansible_dir / "templates"
+    assert templates_dir.exists()
+
+
+def test_multiple_deployment_targets(generate):
+    """Test that multiple deployment targets can be specified."""
+    project = generate(deployment_targets="render,flyio,docker")
+
+    # All selected platforms should have their files
+    assert (project / "render.yaml").exists()
+    assert (project / "fly.toml").exists()
+    assert (project / "Dockerfile").exists()
+
+    # Deploy directories
+    assert (project / "deploy/render").exists()
+    assert (project / "deploy/flyio").exists()
+
+
 def test_no_deployment_excludes_deploy_configs(generate):
     """Test that deployment configs are minimal when not specified."""
     project = generate(deployment_targets="none")
@@ -251,6 +392,8 @@ def test_all_features_enabled_generates_successfully(generate):
         auth_backend="both",
         use_2fa=True,
         use_stripe=True,
+        stripe_mode="advanced",
+        use_teams=True,
         use_i18n=True,
         cache="redis",
         deployment_targets="kubernetes",

@@ -246,7 +246,7 @@ def get_active_subscription(user):
         return subscription
     except Customer.DoesNotExist:
         return None
-    {% endif -%}
+    {% endif %}
 
 
 def has_active_subscription(user):
