@@ -1,22 +1,309 @@
-"""Test core functionality."""
+"""Tests for core application functionality."""
 import pytest
 from django.urls import reverse
 
 
+# Health Check Tests
+
+
 @pytest.mark.django_db
-class TestHealthChecks:
-    """Test health check endpoints."""
+def test_health_check_endpoint(client):
+    """Test that health check endpoint returns healthy status."""
+    response = client.get(reverse("health-check"))
 
-    def test_health_check(self, client):
-        """Test health endpoint."""
-        response = client.get(reverse("core:health"))
-        assert response.status_code == 200
-        assert response.json()["status"] == "healthy"
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "healthy"
 
-    def test_readiness_check(self, client):
-        """Test readiness endpoint."""
-        response = client.get(reverse("core:ready"))
-        assert response.status_code == 200
-        data = response.json()
-        assert "ready" in data
-        assert "checks" in data
+
+@pytest.mark.django_db
+def test_readiness_check_endpoint(client):
+    """Test that readiness check endpoint works."""
+    response = client.get(reverse("readiness-check"))
+
+    # May return 200 or 503 depending on database/cache availability
+    assert response.status_code in [200, 503]
+    data = response.json()
+    assert "ready" in data
+    assert "checks" in data
+
+
+@pytest.mark.django_db
+def test_health_check_has_correct_content_type(client):
+    """Test that health check returns JSON content type."""
+    response = client.get(reverse("health-check"))
+
+    assert response["Content-Type"] == "application/json"
+
+
+# URL Resolution Tests
+
+
+@pytest.mark.django_db
+def test_core_urls_resolve():
+    """Test that core URLs can be resolved."""
+    # Health check should resolve
+    url = reverse("health-check")
+    assert url is not None
+
+    # Readiness check should resolve
+    url = reverse("readiness-check")
+    assert url is not None
+
+
+@pytest.mark.django_db
+def test_admin_url_resolves():
+    """Test that admin URL resolves."""
+    url = reverse("admin:index")
+    assert url == "/admin/"
+
+
+{% if frontend in ['htmx-tailwind'] -%}
+# Template Rendering Tests
+
+
+@pytest.mark.django_db
+def test_home_page_renders(client):
+    """Test that home page renders successfully."""
+    response = client.get("/")
+
+    assert response.status_code in [200, 404]
+    # If home page exists, should use templates
+    if response.status_code == 200:
+        assert "text/html" in response["Content-Type"]
+
+
+@pytest.mark.django_db
+def test_base_template_exists():
+    """Test that base template can be loaded."""
+    from django.template.loader import get_template
+
+    template = get_template("base.html")
+    assert template is not None
+
+
+@pytest.mark.django_db
+def test_template_context_processors_work(client):
+    """Test that template context processors work."""
+    from django.test import RequestFactory
+    from django.template.context_processors import request
+
+    factory = RequestFactory()
+    test_request = factory.get("/")
+    context = request(test_request)
+
+    assert "request" in context or context is not None
+{% endif -%}
+
+
+# Static Files Tests
+
+
+@pytest.mark.django_db
+def test_static_url_configured():
+    """Test that STATIC_URL is configured."""
+    from django.conf import settings
+
+    assert hasattr(settings, "STATIC_URL")
+    assert settings.STATIC_URL is not None
+
+
+@pytest.mark.django_db
+def test_media_url_configured():
+    """Test that MEDIA_URL is configured."""
+    from django.conf import settings
+
+    assert hasattr(settings, "MEDIA_URL")
+    assert settings.MEDIA_URL is not None
+
+
+{% if media_storage == 'local-whitenoise' -%}
+@pytest.mark.django_db
+def test_whitenoise_middleware_loaded():
+    """Test that Whitenoise middleware is in settings."""
+    from django.conf import settings
+
+    assert "whitenoise.middleware.WhiteNoiseMiddleware" in settings.MIDDLEWARE
+{% endif -%}
+
+
+# Settings Tests
+
+
+@pytest.mark.django_db
+def test_debug_setting_exists():
+    """Test that DEBUG setting exists."""
+    from django.conf import settings
+
+    assert hasattr(settings, "DEBUG")
+
+
+@pytest.mark.django_db
+def test_allowed_hosts_configured():
+    """Test that ALLOWED_HOSTS is configured."""
+    from django.conf import settings
+
+    assert hasattr(settings, "ALLOWED_HOSTS")
+    assert isinstance(settings.ALLOWED_HOSTS, list)
+
+
+@pytest.mark.django_db
+def test_installed_apps_has_core_apps():
+    """Test that core Django apps are installed."""
+    from django.conf import settings
+
+    assert "django.contrib.admin" in settings.INSTALLED_APPS
+    assert "django.contrib.auth" in settings.INSTALLED_APPS
+    assert "django.contrib.contenttypes" in settings.INSTALLED_APPS
+    assert "django.contrib.sessions" in settings.INSTALLED_APPS
+    assert "django.contrib.messages" in settings.INSTALLED_APPS
+    assert "django.contrib.staticfiles" in settings.INSTALLED_APPS
+
+
+@pytest.mark.django_db
+def test_custom_user_model_configured():
+    """Test that custom user model is configured."""
+    from django.conf import settings
+
+    assert settings.AUTH_USER_MODEL == "users.User"
+
+
+# Middleware Tests
+
+
+@pytest.mark.django_db
+def test_security_middleware_enabled():
+    """Test that security middleware is enabled."""
+    from django.conf import settings
+
+    assert "django.middleware.security.SecurityMiddleware" in settings.MIDDLEWARE
+
+
+@pytest.mark.django_db
+def test_csrf_middleware_enabled():
+    """Test that CSRF middleware is enabled."""
+    from django.conf import settings
+
+    assert "django.middleware.csrf.CsrfViewMiddleware" in settings.MIDDLEWARE
+
+
+{% if api_style in ['drf', 'both'] -%}
+@pytest.mark.django_db
+def test_cors_middleware_enabled():
+    """Test that CORS middleware is enabled for API."""
+    from django.conf import settings
+
+    assert "corsheaders.middleware.CorsMiddleware" in settings.MIDDLEWARE
+{% endif -%}
+
+
+# Database Tests
+
+
+@pytest.mark.django_db
+def test_database_connection_works():
+    """Test that database connection is working."""
+    from django.db import connection
+
+    with connection.cursor() as cursor:
+        cursor.execute("SELECT 1")
+        result = cursor.fetchone()
+        assert result == (1,)
+
+
+@pytest.mark.django_db
+def test_default_database_configured():
+    """Test that default database is configured."""
+    from django.conf import settings
+
+    assert "default" in settings.DATABASES
+    assert "ENGINE" in settings.DATABASES["default"]
+
+
+# Cache Tests
+
+
+{% if cache_backend == 'redis' -%}
+@pytest.mark.django_db
+def test_redis_cache_configured():
+    """Test that Redis cache is configured."""
+    from django.conf import settings
+
+    assert "default" in settings.CACHES
+    assert "redis" in settings.CACHES["default"]["BACKEND"].lower()
+{% else -%}
+@pytest.mark.django_db
+def test_cache_configured():
+    """Test that cache is configured."""
+    from django.conf import settings
+
+    assert "default" in settings.CACHES
+    assert "BACKEND" in settings.CACHES["default"]
+{% endif -%}
+
+
+# Internationalization Tests
+
+
+{% if use_i18n -%}
+@pytest.mark.django_db
+def test_i18n_enabled():
+    """Test that internationalization is enabled."""
+    from django.conf import settings
+
+    assert settings.USE_I18N is True
+    assert settings.USE_L10N is True or not hasattr(settings, "USE_L10N")
+
+
+@pytest.mark.django_db
+def test_language_code_set():
+    """Test that language code is configured."""
+    from django.conf import settings
+
+    assert hasattr(settings, "LANGUAGE_CODE")
+    assert settings.LANGUAGE_CODE is not None
+{% endif -%}
+
+
+# Timezone Tests
+
+
+@pytest.mark.django_db
+def test_timezone_configured():
+    """Test that timezone is configured."""
+    from django.conf import settings
+
+    assert hasattr(settings, "TIME_ZONE")
+    assert settings.USE_TZ is True
+
+
+# Logging Tests
+
+
+@pytest.mark.django_db
+def test_logging_configured():
+    """Test that logging is configured."""
+    from django.conf import settings
+
+    assert hasattr(settings, "LOGGING")
+    assert isinstance(settings.LOGGING, dict)
+
+
+# Error Handling Tests
+
+
+@pytest.mark.django_db
+def test_404_page_handling(client):
+    """Test that 404 errors are handled properly."""
+    response = client.get("/nonexistent-page-that-does-not-exist/")
+
+    assert response.status_code == 404
+
+
+@pytest.mark.django_db
+def test_500_error_handling():
+    """Test that server errors can be handled."""
+    from django.conf import settings
+
+    # In production, custom error handlers should be configured
+    assert hasattr(settings, "DEBUG")

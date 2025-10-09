@@ -1,33 +1,164 @@
-"""Test user functionality."""
+"""Tests for user model and authentication."""
 import pytest
-from apps.users.models import User
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
+
+
+# User Model Tests
 
 
 @pytest.mark.django_db
-class TestUserModel:
-    """Test User model."""
+def test_create_user():
+    """Test creating a regular user."""
+    user = User.objects.create_user(
+        email="newuser@example.com",
+        password="testpass123"
+    )
+    assert user.email == "newuser@example.com"
+    assert user.is_active
+    assert not user.is_staff
+    assert not user.is_superuser
+    assert user.check_password("testpass123")
 
-    def test_create_user(self):
-        """Test creating a regular user."""
-        user = User.objects.create_user(
-            email="newuser@example.com",
-            password="testpass123"
-        )
-        assert user.email == "newuser@example.com"
-        assert user.is_active
-        assert not user.is_staff
-        assert not user.is_superuser
 
-    def test_create_superuser(self):
-        """Test creating a superuser."""
-        admin = User.objects.create_superuser(
-            email="admin@example.com",
-            password="adminpass123"
-        )
-        assert admin.is_active
-        assert admin.is_staff
-        assert admin.is_superuser
+@pytest.mark.django_db
+def test_create_superuser():
+    """Test creating a superuser."""
+    admin = User.objects.create_superuser(
+        email="admin@example.com",
+        password="adminpass123"
+    )
+    assert admin.is_active
+    assert admin.is_staff
+    assert admin.is_superuser
 
-    def test_user_str(self, user):
-        """Test user string representation."""
-        assert str(user) == user.email
+
+@pytest.mark.django_db
+def test_user_str_representation(user):
+    """Test user string representation."""
+    assert str(user) == user.email
+
+
+@pytest.mark.django_db
+def test_user_email_is_normalized():
+    """Test that email addresses are normalized."""
+    email = "test@EXAMPLE.COM"
+    user = User.objects.create_user(email=email, password="test123")
+    assert user.email == email.lower()
+
+
+@pytest.mark.django_db
+def test_create_user_without_email_raises_error():
+    """Test that creating user without email raises ValueError."""
+    with pytest.raises(ValueError):
+        User.objects.create_user(email="", password="test123")
+
+
+# Authentication Tests
+
+
+@pytest.mark.django_db
+def test_user_can_login(client, user):
+    """Test that a user can log in."""
+    response = client.post("/admin/login/", {
+        "username": user.email,
+        "password": "testpass123"
+    })
+    # Check if login attempt was made (might redirect)
+    assert response.status_code in [200, 302]
+
+
+@pytest.mark.django_db
+def test_user_login_with_wrong_password_fails(client, user):
+    """Test that login fails with wrong password."""
+    logged_in = client.login(
+        username=user.email,
+        password="wrongpassword"
+    )
+    assert not logged_in
+
+
+{% if auth_backend in ['allauth', 'both'] -%}
+# Allauth Tests
+
+
+@pytest.mark.django_db
+def test_email_address_created_for_verified_user(verified_user):
+    """Test that EmailAddress is created for verified users."""
+    from allauth.account.models import EmailAddress
+
+    email_address = EmailAddress.objects.get(user=verified_user)
+    assert email_address.verified
+    assert email_address.primary
+    assert email_address.email == verified_user.email
+
+
+@pytest.mark.django_db
+def test_user_email_verification_status(user):
+    """Test user email verification status."""
+    from allauth.account.models import EmailAddress
+
+    # New user should not have verified email
+    assert not EmailAddress.objects.filter(
+        user=user,
+        verified=True
+    ).exists()
+{% endif -%}
+
+
+# User Permissions Tests
+
+
+@pytest.mark.django_db
+def test_regular_user_has_no_admin_access(client, user):
+    """Test that regular users cannot access admin."""
+    client.force_login(user)
+    response = client.get("/admin/")
+    # Should redirect to login or show forbidden
+    assert response.status_code in [302, 403]
+
+
+@pytest.mark.django_db
+def test_admin_user_can_access_admin(client, admin_user):
+    """Test that admin users can access admin."""
+    client.force_login(admin_user)
+    response = client.get("/admin/")
+    assert response.status_code == 200
+
+
+@pytest.mark.django_db
+def test_user_can_update_own_profile(user):
+    """Test that users can update their own profile."""
+    user.first_name = "Updated"
+    user.save()
+
+    updated_user = User.objects.get(pk=user.pk)
+    assert updated_user.first_name == "Updated"
+
+
+# User Query Tests
+
+
+@pytest.mark.django_db
+def test_get_user_by_email(user):
+    """Test retrieving user by email."""
+    retrieved_user = User.objects.get(email=user.email)
+    assert retrieved_user == user
+
+
+@pytest.mark.django_db
+def test_filter_active_users(multiple_users):
+    """Test filtering active users."""
+    # Deactivate one user
+    multiple_users[0].is_active = False
+    multiple_users[0].save()
+
+    active_users = User.objects.filter(is_active=True)
+    assert active_users.count() == 2
+
+
+@pytest.mark.django_db
+def test_user_count(multiple_users):
+    """Test counting users."""
+    assert User.objects.count() >= 3

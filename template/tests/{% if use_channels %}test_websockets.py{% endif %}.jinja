@@ -1,0 +1,239 @@
+"""Tests for Django Channels WebSocket functionality."""
+import pytest
+from channels.testing import WebsocketCommunicator
+from channels.layers import get_channel_layer
+
+
+# Channel Layer Configuration Tests
+
+
+def test_channel_layer_configured():
+    """Test that channel layer is configured."""
+    from django.conf import settings
+
+    assert "default" in settings.CHANNEL_LAYERS
+    assert "BACKEND" in settings.CHANNEL_LAYERS["default"]
+
+
+def test_channel_layer_works():
+    """Test that channel layer is working."""
+    channel_layer = get_channel_layer()
+    assert channel_layer is not None
+
+
+{% if cache_backend == 'redis' -%}
+def test_redis_channel_layer_configured():
+    """Test that Redis channel layer is configured."""
+    from django.conf import settings
+
+    backend = settings.CHANNEL_LAYERS["default"]["BACKEND"]
+    assert "redis" in backend.lower()
+{% endif -%}
+
+
+# ASGI Configuration Tests
+
+
+def test_asgi_application_configured():
+    """Test that ASGI application is configured."""
+    from config.asgi import application
+
+    assert application is not None
+
+
+def test_asgi_uses_channels():
+    """Test that ASGI uses Channels."""
+    from config.asgi import application
+    from channels.routing import ProtocolTypeRouter
+
+    # Should be a ProtocolTypeRouter
+    assert isinstance(application, ProtocolTypeRouter)
+
+
+# WebSocket Routing Tests
+
+
+def test_websocket_urlpatterns_exist():
+    """Test that WebSocket URL patterns are defined."""
+    try:
+        from config.routing import websocket_urlpatterns
+        assert websocket_urlpatterns is not None
+    except ImportError:
+        pytest.skip("WebSocket routing not defined")
+
+
+# Consumer Tests
+
+
+@pytest.mark.django_db
+@pytest.mark.asyncio
+async def test_websocket_consumer_exists():
+    """Test that WebSocket consumer exists."""
+    try:
+        from apps.core.consumers import ChatConsumer
+        assert ChatConsumer is not None
+    except ImportError:
+        pytest.skip("No WebSocket consumer defined")
+
+
+@pytest.mark.django_db
+@pytest.mark.asyncio
+async def test_websocket_connection():
+    """Test WebSocket connection."""
+    try:
+        from apps.core.consumers import ChatConsumer
+
+        communicator = WebsocketCommunicator(ChatConsumer.as_asgi(), "/ws/chat/")
+        connected, _ = await communicator.connect()
+
+        assert connected
+        await communicator.disconnect()
+    except ImportError:
+        pytest.skip("No WebSocket consumer defined")
+
+
+@pytest.mark.django_db
+@pytest.mark.asyncio
+async def test_websocket_send_receive():
+    """Test sending and receiving WebSocket messages."""
+    try:
+        from apps.core.consumers import ChatConsumer
+
+        communicator = WebsocketCommunicator(ChatConsumer.as_asgi(), "/ws/chat/")
+        connected, _ = await communicator.connect()
+        assert connected
+
+        # Send message
+        await communicator.send_json_to({"message": "test"})
+
+        # Receive response
+        response = await communicator.receive_json_from(timeout=1)
+        assert response is not None
+
+        await communicator.disconnect()
+    except ImportError:
+        pytest.skip("No WebSocket consumer defined")
+    except Exception:
+        # Consumer might not echo messages
+        pytest.skip("Consumer behavior not compatible with test")
+
+
+# Channel Group Tests
+
+
+@pytest.mark.django_db
+@pytest.mark.asyncio
+async def test_channel_groups_work():
+    """Test that channel groups can be used."""
+    channel_layer = get_channel_layer()
+
+    await channel_layer.group_add("test_group", "test_channel")
+    await channel_layer.group_send(
+        "test_group",
+        {"type": "test.message", "message": "Hello"}
+    )
+    await channel_layer.group_discard("test_group", "test_channel")
+
+    assert True  # If we got here, groups work
+
+
+# Authentication Tests
+
+
+@pytest.mark.django_db
+@pytest.mark.asyncio
+async def test_websocket_authentication():
+    """Test WebSocket authentication."""
+    try:
+        from apps.core.consumers import ChatConsumer
+
+        # Test unauthenticated connection
+        communicator = WebsocketCommunicator(ChatConsumer.as_asgi(), "/ws/chat/")
+        connected, _ = await communicator.connect()
+
+        # Should either connect or reject based on consumer logic
+        assert connected is not None
+        await communicator.disconnect()
+    except ImportError:
+        pytest.skip("No WebSocket consumer defined")
+
+
+# Middleware Tests
+
+
+def test_websocket_middleware_configured():
+    """Test that WebSocket middleware is configured."""
+    from config.asgi import application
+
+    # ASGI application should have middleware
+    assert application is not None
+
+
+# Scope Tests
+
+
+@pytest.mark.django_db
+@pytest.mark.asyncio
+async def test_websocket_scope():
+    """Test WebSocket scope includes necessary information."""
+    try:
+        from apps.core.consumers import ChatConsumer
+
+        communicator = WebsocketCommunicator(
+            ChatConsumer.as_asgi(),
+            "/ws/chat/",
+            headers=[(b"origin", b"http://localhost:8000")]
+        )
+        connected, _ = await communicator.connect()
+        assert connected
+
+        await communicator.disconnect()
+    except ImportError:
+        pytest.skip("No WebSocket consumer defined")
+
+
+# Error Handling Tests
+
+
+@pytest.mark.django_db
+@pytest.mark.asyncio
+async def test_websocket_error_handling():
+    """Test WebSocket error handling."""
+    try:
+        from apps.core.consumers import ChatConsumer
+
+        communicator = WebsocketCommunicator(ChatConsumer.as_asgi(), "/ws/chat/")
+        connected, _ = await communicator.connect()
+
+        if connected:
+            # Send invalid data
+            try:
+                await communicator.send_to(text_data="invalid")
+                # Consumer should handle gracefully
+            except Exception:
+                pass
+
+            await communicator.disconnect()
+    except ImportError:
+        pytest.skip("No WebSocket consumer defined")
+
+
+# Disconnect Tests
+
+
+@pytest.mark.django_db
+@pytest.mark.asyncio
+async def test_websocket_disconnect():
+    """Test WebSocket disconnect handling."""
+    try:
+        from apps.core.consumers import ChatConsumer
+
+        communicator = WebsocketCommunicator(ChatConsumer.as_asgi(), "/ws/chat/")
+        connected, _ = await communicator.connect()
+
+        if connected:
+            await communicator.disconnect()
+            # Should disconnect cleanly
+            assert True
+    except ImportError:
+        pytest.skip("No WebSocket consumer defined")

@@ -1,0 +1,14 @@
+[pytest]
+DJANGO_SETTINGS_MODULE = config.settings.dev
+python_files = tests.py test_*.py *_tests.py
+python_classes =
+python_functions = test_*
+addopts =
+    --verbose
+    --strict-markers
+    --tb=short
+    --reuse-db
+markers =
+    slow: marks tests as slow (deselect with '-m "not slow"')
+    integration: marks tests as integration tests
+testpaths = tests

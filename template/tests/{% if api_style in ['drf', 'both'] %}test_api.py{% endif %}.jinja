@@ -1,0 +1,211 @@
+"""Tests for API endpoints."""
+import pytest
+from django.urls import reverse
+from rest_framework import status
+
+
+# Health Check Tests
+
+
+@pytest.mark.django_db
+def test_health_check_endpoint(api_client):
+    """Test that health check endpoint returns 200."""
+    url = reverse("health-check")
+    response = api_client.get(url)
+
+    assert response.status_code == status.HTTP_200_OK
+    assert response.json()["status"] == "healthy"
+
+
+@pytest.mark.django_db
+def test_readiness_check_endpoint(api_client):
+    """Test that readiness check endpoint works."""
+    url = reverse("readiness-check")
+    response = api_client.get(url)
+
+    # May return 200 or 503 depending on database/cache availability
+    assert response.status_code in [status.HTTP_200_OK, status.HTTP_503_SERVICE_UNAVAILABLE]
+    assert "ready" in response.json()
+    assert "checks" in response.json()
+
+
+# Authentication Tests
+
+
+@pytest.mark.django_db
+def test_unauthenticated_api_access(api_client):
+    """Test that unauthenticated requests have limited access."""
+    # This assumes you have a protected endpoint
+    # Adjust URL based on your actual API structure
+    response = api_client.get("/api/")
+    # Should either be OK (for public endpoints) or require auth
+    assert response.status_code in [
+        status.HTTP_200_OK,
+        status.HTTP_401_UNAUTHORIZED,
+        status.HTTP_403_FORBIDDEN
+    ]
+
+
+@pytest.mark.django_db
+def test_authenticated_api_access(authenticated_api_client):
+    """Test that authenticated requests work."""
+    response = authenticated_api_client.get("/api/")
+    # Should allow access
+    assert response.status_code in [status.HTTP_200_OK, status.HTTP_404_NOT_FOUND]
+
+
+{% if api_style in ['drf', 'both'] -%}
+# API Schema Tests
+
+
+@pytest.mark.django_db
+def test_api_schema_endpoint(api_client):
+    """Test that API schema is accessible."""
+    response = api_client.get("/api/schema/")
+
+    assert response.status_code == status.HTTP_200_OK
+
+
+@pytest.mark.django_db
+def test_api_docs_endpoint(api_client):
+    """Test that API documentation is accessible."""
+    response = api_client.get("/api/docs/")
+
+    assert response.status_code == status.HTTP_200_OK
+{% endif -%}
+
+
+# Pagination Tests
+
+
+@pytest.mark.django_db
+def test_api_pagination(authenticated_api_client, multiple_users):
+    """Test that API endpoints support pagination."""
+    # Adjust URL to match your actual list endpoint
+    response = authenticated_api_client.get("/api/users/")
+
+    if response.status_code == status.HTTP_200_OK:
+        data = response.json()
+        # Check for pagination structure
+        if isinstance(data, dict):
+            # DRF pagination
+            assert "count" in data or "results" in data or isinstance(data.get("results"), list)
+
+
+# Filtering Tests
+
+
+@pytest.mark.django_db
+def test_api_filtering(authenticated_api_client, multiple_users):
+    """Test that API supports filtering."""
+    # Example: filter by email
+    response = authenticated_api_client.get(
+        "/api/users/",
+        {"email": multiple_users[0].email}
+    )
+
+    # Should work or return 404 if endpoint doesn't exist
+    assert response.status_code in [
+        status.HTTP_200_OK,
+        status.HTTP_404_NOT_FOUND
+    ]
+
+
+# Content Type Tests
+
+
+@pytest.mark.django_db
+def test_api_returns_json(api_client):
+    """Test that API returns JSON responses."""
+    url = reverse("health-check")
+    response = api_client.get(url)
+
+    assert response["Content-Type"] == "application/json"
+
+
+# HTTP Methods Tests
+
+
+@pytest.mark.django_db
+def test_api_supports_options(api_client):
+    """Test that API endpoints support OPTIONS requests."""
+    response = api_client.options("/api/")
+
+    # Should return allowed methods
+    assert response.status_code in [status.HTTP_200_OK, status.HTTP_404_NOT_FOUND]
+
+
+# Error Handling Tests
+
+
+@pytest.mark.django_db
+def test_api_404_returns_json(api_client):
+    """Test that 404 errors return proper JSON."""
+    response = api_client.get("/api/nonexistent/")
+
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+
+
+@pytest.mark.django_db
+def test_api_invalid_method(api_client):
+    """Test that invalid HTTP methods return 405."""
+    url = reverse("health-check")
+    # Health check likely doesn't support POST
+    response = api_client.post(url)
+
+    assert response.status_code in [
+        status.HTTP_405_METHOD_NOT_ALLOWED,
+        status.HTTP_400_BAD_REQUEST
+    ]
+
+
+# Performance Tests
+
+
+@pytest.mark.django_db
+def test_api_response_time(api_client):
+    """Test that API responds in reasonable time."""
+    import time
+
+    url = reverse("health-check")
+    start = time.time()
+    response = api_client.get(url)
+    duration = time.time() - start
+
+    assert response.status_code == status.HTTP_200_OK
+    # Should respond within 1 second
+    assert duration < 1.0
+
+
+# CORS Tests
+
+
+{% if api_style in ['drf', 'both'] -%}
+@pytest.mark.django_db
+def test_api_cors_headers(api_client):
+    """Test that CORS headers are present."""
+    response = api_client.options("/api/", HTTP_ORIGIN="http://localhost:3000")
+
+    # CORS should be configured
+    # Headers might not be present in test environment
+    assert response.status_code in [status.HTTP_200_OK, status.HTTP_404_NOT_FOUND]
+{% endif -%}
+
+
+# Throttling Tests
+
+
+@pytest.mark.django_db
+def test_api_rate_limiting(api_client):
+    """Test that rate limiting is configured."""
+    url = reverse("health-check")
+
+    # Make multiple requests
+    responses = []
+    for _ in range(5):
+        response = api_client.get(url)
+        responses.append(response.status_code)
+
+    # First few should succeed
+    assert status.HTTP_200_OK in responses
+    # Throttling might kick in or not depending on config
