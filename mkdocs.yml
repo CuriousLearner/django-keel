@@ -1,0 +1,94 @@
+site_name: Django Keel
+site_description: A modern, production-ready Django project template with Copier
+site_author: CuriousLearner
+site_url: https://django-keel.readthedocs.io/
+repo_url: https://github.com/CuriousLearner/django-keel
+repo_name: CuriousLearner/django-keel
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  palette:
+    # Palette toggle for light mode
+    - scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    # Palette toggle for dark mode
+    - scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.code.annotate
+    - navigation.footer
+
+nav:
+  - Home: index.md
+  - Getting Started:
+      - Quick Start: getting-started/quickstart.md
+      - Installation: getting-started/installation.md
+      - First Project: getting-started/first-project.md
+  - Features:
+      - Overview: features/overview.md
+      - API Options: features/api-options.md
+      - Authentication: features/authentication.md
+      - Background Tasks: features/background-tasks.md
+      - Frontend Options: features/frontend-options.md
+      - Deployment: features/deployment.md
+      - Observability: features/observability.md
+  - Deployment:
+      - Kubernetes: deployment/kubernetes.md
+      - AWS EC2: deployment/aws-ec2.md
+      - Docker: deployment/docker.md
+  - Contributing:
+      - Development: contributing/development.md
+      - Testing: contributing/testing.md
+      - Documentation: contributing/documentation.md
+  - Changelog: CHANGELOG.md
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - toc:
+      permalink: true
+  - attr_list
+  - md_in_html
+
+plugins:
+  - search
+  - git-revision-date-localized:
+      enable_creation_date: true
+      enable_git_follow: false
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/CuriousLearner/django-keel
+  version:
+    provider: mike
