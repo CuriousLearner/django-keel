@@ -29,7 +29,9 @@
 {% if observability_level != 'minimal' -%}
 - **Observability**: {% if observability_level == 'standard' %}Structured logging + Sentry{% else %}OpenTelemetry + Prometheus + Grafana + Sentry{% endif %}
 {% endif -%}
-- **Deployment**: {{ deployment_targets.replace(',', ', ').title() }}
+{% if 'render' in deployment_targets or 'flyio' in deployment_targets or 'aws-ecs-fargate' in deployment_targets or 'docker' in deployment_targets or 'aws-ec2-ansible' in deployment_targets or 'kubernetes' in deployment_targets -%}
+- **Deployment**: {% if 'render' in deployment_targets %}Render (PaaS){% endif %}{% if 'flyio' in deployment_targets %}{% if 'render' in deployment_targets %}, {% endif %}Fly.io (Global Edge){% endif %}{% if 'aws-ecs-fargate' in deployment_targets %}{% if 'render' in deployment_targets or 'flyio' in deployment_targets %}, {% endif %}AWS ECS Fargate{% endif %}{% if 'docker' in deployment_targets %}{% if 'render' in deployment_targets or 'flyio' in deployment_targets or 'aws-ecs-fargate' in deployment_targets %}, {% endif %}Docker{% endif %}{% if 'aws-ec2-ansible' in deployment_targets %}{% if 'render' in deployment_targets or 'flyio' in deployment_targets or 'aws-ecs-fargate' in deployment_targets or 'docker' in deployment_targets %}, {% endif %}AWS EC2 (Ansible){% endif %}{% if 'kubernetes' in deployment_targets %}{% if 'render' in deployment_targets or 'flyio' in deployment_targets or 'aws-ecs-fargate' in deployment_targets or 'docker' in deployment_targets or 'aws-ec2-ansible' in deployment_targets %}, {% endif %}Kubernetes{% endif %}
+{% endif -%}
 
 ## Quick Start
 
@@ -227,27 +229,28 @@ just celery-flower
 
 ## Deployment
 
+Detailed deployment guides are available in `docs/deployment/`:
+
+{% if 'render' in deployment_targets -%}
+- **[Render](docs/deployment/render.md)**: Zero-config PaaS with `render.yaml`
+{% endif -%}
+{% if 'flyio' in deployment_targets -%}
+- **[Fly.io](docs/deployment/flyio.md)**: Global edge deployment with `fly.toml`
+{% endif -%}
+{% if 'aws-ecs-fargate' in deployment_targets -%}
+- **[AWS ECS Fargate](docs/deployment/ecs.md)**: Serverless containers with Terraform
+{% endif -%}
+{% if 'docker' in deployment_targets -%}
+- **[Docker](docs/deployment/docker.md)**: Universal containerization
+{% endif -%}
+{% if 'aws-ec2-ansible' in deployment_targets -%}
+- **[AWS EC2](docs/deployment/aws-ec2.md)**: Ansible-automated with Caddy
+{% endif -%}
 {% if 'kubernetes' in deployment_targets -%}
-### Kubernetes
-
-See [deployment/k8s/README.md](deploy/k8s/README.md) for Kubernetes deployment instructions.
-
-Quick deploy:
-```bash
-just deploy-k8s
-```
+- **[Kubernetes](docs/deployment/kubernetes.md)**: Helm + Kustomize for GitOps
 {% endif -%}
 
-{% if 'aws-ec2-ansible' in deployment_targets -%}
-### AWS EC2 (Ansible)
-
-See [deployment/ansible/README.md](deploy/ansible/README.md) for Ansible deployment instructions.
-
-Quick deploy:
-```bash
-just deploy-ec2
-```
-{% endif %}
+See [Deployment Overview](docs/deployment/overview.md) for platform comparison and decision guide.
 
 ## Documentation
 
