@@ -9,6 +9,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+#### 12-Factor App Compliance
+- **Full 12-Factor App compliance** - Strictly follows all 12 factors from https://12factor.net/
+  - Factor I: Single codebase tracked in git with multiple deploys
+  - Factor II: Explicit dependencies with uv.lock or poetry.lock
+  - Factor III: Config in environment variables via django-environ
+  - Factor IV: Backing services as attached resources
+  - Factor V: Build/release/run separation with Procfile and release.sh
+  - Factor VI: Stateless processes (no local state)
+  - Factor VII: Port binding export (self-contained web server)
+  - Factor VIII: Concurrency via process model (Procfile)
+  - Factor IX: Disposability with fast startup and graceful shutdown
+  - Factor X: Dev/prod parity (same backing services, tools)
+  - Factor XI: Logs as event streams (stdout/stderr)
+  - Factor XII: Admin processes as one-off tasks (manage.py commands)
+- **Procfile.jinja** - Process type declarations for Heroku, Railway, Fly.io compatibility
+- **release.sh.jinja** - Release phase script for build/release/run separation
+- **signal_handlers.py.jinja** - Graceful shutdown handlers for SIGTERM/SIGINT
+- Comprehensive 12-Factor documentation (docs/12-factor.md, 450+ lines)
+- README section highlighting 12-Factor compliance
+
+#### Documentation Improvements
+- **"What is a Keel?" section** - Added nautical metaphor explanation in README
+  - Explains keel as structural backbone of a ship
+  - Draws parallels to Django Keel's role as project foundation
+  - Emphasizes stability, direction, and multi-platform portability
+
 #### Core Template Features
 - Copier-based template for modern Django projects
 - Django 5.2 with Python 3.12/3.13 support
@@ -186,6 +212,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Temporal app README with comprehensive examples
 
 ### Fixed
+- **Signal handlers integration** - Signal handlers now properly initialized in wsgi.py and asgi.py
+  - Added imports to wsgi.py.jinja for WSGI apps (Gunicorn)
+  - Added imports to asgi.py.jinja for ASGI apps (Daphne/Channels)
+  - Ensures graceful shutdown handlers are activated on application startup
 - Jinja2 whitespace control in GitHub Actions CI workflow
 - Jinja2 whitespace control in docker-compose.yml breaking YAML indentation
 - Jinja2 whitespace control in mkdocs.yml breaking YAML structure
@@ -198,6 +228,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Fixed import ordering with isort
   - Fixed type hints to use modern Python 3.12 syntax
   - Removed unused variables
+- Unused variable in test_docker_deployment_generated test
 
 ### Changed
 
