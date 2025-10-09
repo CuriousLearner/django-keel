@@ -9,16 +9,16 @@ from django.core.cache import cache{% endif %}
 
 def index(request):
     """Home page."""
-{% if frontend == 'htmx-tailwind' -%}
+{%- if frontend == 'htmx-tailwind' %}
     return render(request, "core/index.html", {
         "project_name": "{{ project_name }}",
     })
-{% else -%}
+{%- else %}
     return JsonResponse({
         "message": "Welcome to {{ project_name }}",
         "version": "1.0.0",
     })
-{% endif -%}
+{%- endif %}
 
 
 def health_check(request):
@@ -37,8 +37,8 @@ def readiness_check(request):
         checks["database"] = True
     except Exception:
         pass
+{% if cache == 'redis' %}
 
-{% if cache == 'redis' -%}
     try:
         # Check cache
         cache.set("health_check", "ok", 10)

@@ -24,6 +24,6 @@ repos:
       - id: mypy
         additional_dependencies:
           - django-stubs
-{% if api_style in ['drf', 'both'] -%}
+{%- if api_style in ['drf', 'both'] %}
           - djangorestframework-stubs
-{% endif -%}
+{%- endif %}

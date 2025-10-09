@@ -36,7 +36,7 @@ DJANGO_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-{% if use_i18n -%}
+{% if use_i18n or auth_backend in ['allauth', 'both'] -%}
     "django.contrib.sites",
 {% endif -%}
 ]
@@ -107,6 +107,9 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+{% if auth_backend in ['allauth', 'both'] -%}
+    "allauth.account.middleware.AccountMiddleware",
+{% endif -%}
 {% if use_2fa -%}
     "django_otp.middleware.OTPMiddleware",
 {% endif -%}
@@ -256,10 +259,9 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 {% if auth_backend in ['allauth', 'both'] -%}
 # django-allauth
 SITE_ID = 1
-ACCOUNT_AUTHENTICATION_METHOD = "email"
-ACCOUNT_EMAIL_REQUIRED = True
+ACCOUNT_LOGIN_METHODS = {"email"}
+ACCOUNT_SIGNUP_FIELDS = ["email*", "password1*", "password2*"]
 ACCOUNT_EMAIL_VERIFICATION = "mandatory"
-ACCOUNT_USERNAME_REQUIRED = False
 ACCOUNT_USER_MODEL_USERNAME_FIELD = None
 {% endif %}
 
