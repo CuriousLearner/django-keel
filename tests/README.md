@@ -28,7 +28,7 @@ tests/
 ### Install Dependencies
 
 ```bash
-pip install -r requirements-dev.txt
+pip install -e ".[dev]"
 ```
 
 ### Run All Tests
@@ -244,7 +244,7 @@ These tests are designed to run in CI/CD pipelines. Example GitHub Actions workf
 ```yaml
 - name: Run tests
   run: |
-    pip install -r requirements-dev.txt
+    pip install -e ".[dev]"
     pytest -v --cov=. --cov-report=xml
 
 - name: Upload coverage
@@ -264,7 +264,7 @@ pytest -n auto
 
 Ensure dependencies are installed:
 ```bash
-pip install -r requirements-dev.txt
+pip install -e ".[dev]"
 ```
 
 ### Generated projects have errors

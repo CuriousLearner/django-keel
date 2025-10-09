@@ -18,10 +18,9 @@ git clone https://github.com/CuriousLearner/django-keel.git
 cd django-keel
 
 # Install development dependencies
-pip install -r requirements-dev.txt
+pip install -e ".[dev]"
 
-# Install pre-commit hooks (optional but recommended)
-pip install pre-commit
+# Install pre-commit hooks (automatically included in dev dependencies)
 pre-commit install
 ```
 
@@ -122,8 +121,7 @@ django-keel/
 │   └── test_generation.py
 ├── template/           # Copier template files (80+ files)
 ├── CHANGELOG.md        # Version history
-├── pyproject.toml      # Ruff & pytest config
-├── requirements-dev.txt # Development dependencies
+├── pyproject.toml      # Dependencies, tool config (ruff, pytest)
 └── copier.yml         # Template configuration
 ```
 
