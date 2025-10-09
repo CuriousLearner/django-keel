@@ -101,13 +101,16 @@ just dev
 
 ### Deployment Targets
 
-- **`kubernetes`**: Full K8s setup with Helm + Kustomize
+- **`render`**: Zero-config PaaS deployment with render.yaml
+- **`flyio`**: Global edge deployment with fly.toml
+- **`aws-ecs-fargate`**: Serverless containers with Terraform
+- **`docker`**: Universal containerization
 - **`aws-ec2-ansible`**: EC2 deployment via Ansible
-- **`aws-ecs-fargate`**: (planned) ECS/Fargate
-- **`flyio`**: (planned) Fly.io
-- **`render`**: (planned) Render.com
+- **`kubernetes`**: Full K8s setup with Helm + Kustomize
 
-You can specify multiple targets separated by commas: `kubernetes,aws-ec2-ansible`
+You can specify multiple targets separated by commas: `render,flyio,docker`
+
+See [Deployment Overview](../deployment/overview.md) for detailed comparison and guides.
 
 ## Development Workflow
 
