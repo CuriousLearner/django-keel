@@ -1,0 +1,37 @@
+name: Feature request
+description: Suggest an enhancement or new option
+labels: [enhancement]
+body:
+  - type: input
+    attributes:
+      label: Title
+      description: Brief summary of the feature
+    validations: { required: true }
+  - type: textarea
+    attributes:
+      label: Problem / use case
+      description: What problem does this solve? Why would this be useful?
+    validations: { required: true }
+  - type: textarea
+    attributes:
+      label: Proposed solution
+      description: Describe the option(s), defaults, and docs changes you envision
+      placeholder: |
+        Example:
+        - Add `api: fastapi` option
+        - Default to `api: drf` for backward compatibility
+        - Update docs with FastAPI integration details
+  - type: dropdown
+    attributes:
+      label: Category
+      description: Which area does this relate to?
+      options:
+        - Core
+        - API
+        - Frontend
+        - Observability
+        - Security
+        - Deploy
+        - DX (Developer Experience)
+        - Documentation
+        - Other

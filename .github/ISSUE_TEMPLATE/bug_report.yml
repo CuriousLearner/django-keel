@@ -1,0 +1,34 @@
+name: Bug report
+description: Report a reproducible problem in the template or generated project
+labels: [bug]
+body:
+  - type: textarea
+    attributes:
+      label: Description
+      description: What happened? What did you expect?
+    validations: { required: true }
+  - type: input
+    attributes:
+      label: Keel version
+      placeholder: "e.g., 1.2.3"
+    validations: { required: true }
+  - type: textarea
+    attributes:
+      label: Copier answers
+      description: Paste relevant keys (api, frontend, background_tasks, deployment_targets, etc.)
+      placeholder: |
+        api: drf
+        frontend: nextjs
+        background_tasks: celery
+        deployment_targets: [kubernetes]
+  - type: textarea
+    attributes:
+      label: Steps to reproduce
+      value: |
+        1. copier copy gh:CuriousLearner/django-keel demo
+        2. ...
+    validations: { required: true }
+  - type: textarea
+    attributes:
+      label: Logs / screenshots
+      description: Paste error messages, tracebacks, or screenshots
