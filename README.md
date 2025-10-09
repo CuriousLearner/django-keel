@@ -5,6 +5,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
 [![Django 5.2](https://img.shields.io/badge/django-5.2-green.svg)](https://www.djangoproject.com/)
+[![Documentation](https://readthedocs.org/projects/django-keel/badge/?version=latest)](https://django-keel.readthedocs.io/en/latest/?badge=latest)
 
 Django Keel is a comprehensive Copier template for Django projects that combines the best practices from over a decade of production Django development with modern tooling and deployment strategies.
 
@@ -72,13 +73,24 @@ Django Keel is a comprehensive Copier template for Django projects that combines
 
 ### 🧪 Developer Experience
 - **ruff** for linting and formatting (10-100x faster)
+  - Comprehensive rule set (Pyflakes, pycodestyle, isort, pep8-naming, pyupgrade, flake8-bugbear, and more)
+  - 100-character line length
+  - Modern Python 3.12+ type hints
 - **mypy + django-stubs** for type checking
 - **pytest** with coverage reporting
-- **pre-commit** hooks
-- **Just** for task running
+  - Function-based tests following best practices
+  - Comprehensive fixtures
+  - Conditional test generation based on features
+- **pre-commit** hooks for automated quality checks
+  - Trailing whitespace removal
+  - YAML/JSON/TOML validation
+  - Automatic linting and formatting
+  - Type checking
+- **Just** for task running (50+ commands)
 - **Docker Compose** for local development
 - **VS Code Devcontainer** support
 - **MkDocs Material** documentation
+- **Infrastructure validation** (YAML, Docker Compose, Helm, Ansible)
 
 ### 📦 Optional Features
 - Stripe payment integration
@@ -160,17 +172,68 @@ Visit:
 - API Docs: http://localhost:8000/api/schema/swagger/
 - Mailpit: http://localhost:8025
 
+## 🧪 Testing
+
+The template includes comprehensive test suites for both the template itself and generated projects.
+
+### Template Tests
+
+```bash
+# Run all template tests
+pytest
+
+# Run with coverage
+pytest --cov
+
+# 49 tests covering:
+# - Django integration
+# - Feature generation
+# - Project structure validation
+# - Conditional file generation
+```
+
+### Generated Project Tests
+
+Each generated project includes a complete test suite with conditional test files:
+
+```bash
+cd your-project
+just test
+
+# Tests include:
+# - Core functionality (health checks, settings, middleware)
+# - User authentication and permissions
+# - API endpoints (when enabled)
+# - Celery tasks (when enabled)
+# - Stripe integration (when enabled)
+# - WebSocket functionality (when enabled)
+# - 2FA authentication (when enabled)
+```
+
 ## 📖 Documentation
 
-Full documentation is available in the generated project's `docs/` directory.
+**Full documentation**: [https://django-keel.readthedocs.io/](https://django-keel.readthedocs.io/)
 
-Key topics:
-- Getting Started
+### Template Documentation
+
+- [Quick Start](https://django-keel.readthedocs.io/en/latest/getting-started/quickstart/) - Get started in 5 minutes
+- [Installation Guide](https://django-keel.readthedocs.io/en/latest/getting-started/installation/) - Detailed setup instructions
+- [Features Overview](https://django-keel.readthedocs.io/en/latest/features/overview/) - All available features
+- [API Options](https://django-keel.readthedocs.io/en/latest/features/api-options/) - DRF, GraphQL, or both
+- [Deployment Guides](https://django-keel.readthedocs.io/en/latest/deployment/kubernetes/) - Kubernetes, AWS EC2, Docker
+- [Contributing](https://django-keel.readthedocs.io/en/latest/contributing/development/) - How to contribute
+
+### Generated Project Documentation
+
+Each generated project includes its own comprehensive documentation in the `docs/` directory:
+
+- Getting Started & Installation
 - Configuration
 - API Development
+- Testing Guide
 - Deployment (Kubernetes, EC2)
+- Architecture Overview
 - Monitoring & Observability
-- Architecture Decision Records
 
 ## 🎨 Example Configurations
 

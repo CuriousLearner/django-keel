@@ -40,8 +40,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - CONTRIBUTING.md with development workflow
   - CHANGELOG.md template
   - Testing guide in docs/development/testing.md
+- Code quality tooling for django-keel template
+  - pyproject.toml with comprehensive ruff configuration
+  - Pre-commit hooks for automated quality checks
+  - Enhanced CONTRIBUTING.md with code quality guidelines
+- ReadTheDocs documentation site
+  - Complete MkDocs documentation structure
+  - Getting Started guides (Quick Start, Installation, First Project)
+  - Features documentation (API options, Authentication, Background Tasks, etc.)
+  - Deployment guides (Kubernetes, AWS EC2, Docker)
+  - Contributing guides (Development, Testing, Documentation)
+  - .readthedocs.yaml configuration for automatic builds
+- Best practices from django-layout integrated
+  - django-alive for standardized health check endpoints (GET /health/)
+  - Already included: python-json-logger, gunicorn, whitenoise, structured logging
+  - Note: Using Justfile instead of Makefile (just is better: simpler syntax, better errors, more intuitive)
 
 ### Fixed
+- All linting issues in test files (14 issues)
+  - Removed unused imports
+  - Fixed import ordering with isort
+  - Fixed type hints to use modern Python 3.12 syntax
+  - Removed unused variables
 - Template rendering issues with Django template tags
 - Jinja2 whitespace control in GitHub Actions CI workflow
 - Jinja2 whitespace control in docker-compose.yml breaking YAML indentation
