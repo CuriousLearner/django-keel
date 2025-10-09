@@ -14,6 +14,22 @@ Django Keel is a comprehensive Copier template that adapts to your needs—wheth
 
 **Choose your project type and get smart defaults. Or customize everything yourself.**
 
+## 🚢 What is a "Keel"?
+
+In nautical terms, the **keel** is the structural backbone of a ship—running along the bottom from bow to stern. It provides:
+
+- **Stability** - Prevents the ship from capsizing in rough waters
+- **Direction** - Keeps the vessel on course, resisting sideways drift
+- **Foundation** - The first part built, upon which the entire ship is constructed
+
+Similarly, **Django Keel** provides the structural foundation for your Django projects:
+
+- **Stability** - Production-ready defaults and battle-tested patterns
+- **Direction** - Clear project structure and 12-Factor App compliance
+- **Foundation** - A solid base to build upon, whether you're sailing smooth seas or navigating stormy deployments
+
+Just as a ship's keel allows it to sail anywhere, Django Keel enables you to deploy your application to any platform—Kubernetes, AWS, Fly.io, Render, or traditional servers.
+
 ## 📋 Feature Availability
 
 Before diving in, here's what's **included by default**, **optional**, or **planned** (grouped by category):
