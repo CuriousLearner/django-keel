@@ -31,8 +31,7 @@
 {% endif -%}
 {% if 'render' in deployment_targets or 'flyio' in deployment_targets or 'aws-ecs-fargate' in deployment_targets or 'docker' in deployment_targets or 'aws-ec2-ansible' in deployment_targets or 'kubernetes' in deployment_targets -%}
 - **Deployment**: {% if 'render' in deployment_targets %}Render (PaaS){% endif %}{% if 'flyio' in deployment_targets %}{% if 'render' in deployment_targets %}, {% endif %}Fly.io (Global Edge){% endif %}{% if 'aws-ecs-fargate' in deployment_targets %}{% if 'render' in deployment_targets or 'flyio' in deployment_targets %}, {% endif %}AWS ECS Fargate{% endif %}{% if 'docker' in deployment_targets %}{% if 'render' in deployment_targets or 'flyio' in deployment_targets or 'aws-ecs-fargate' in deployment_targets %}, {% endif %}Docker{% endif %}{% if 'aws-ec2-ansible' in deployment_targets %}{% if 'render' in deployment_targets or 'flyio' in deployment_targets or 'aws-ecs-fargate' in deployment_targets or 'docker' in deployment_targets %}, {% endif %}AWS EC2 (Ansible){% endif %}{% if 'kubernetes' in deployment_targets %}{% if 'render' in deployment_targets or 'flyio' in deployment_targets or 'aws-ecs-fargate' in deployment_targets or 'docker' in deployment_targets or 'aws-ec2-ansible' in deployment_targets %}, {% endif %}Kubernetes{% endif %}
-{% endif -%}
-
+{% endif %}
 ## Quick Start
 
 ### Prerequisites
@@ -51,7 +50,7 @@
 {% endif -%}
 {% if 'aws-ec2-ansible' in deployment_targets -%}
 - Ansible (for EC2 deployment)
-{% endif %}
+{% endif -%}
 
 ### Development Setup
 
@@ -70,7 +69,7 @@
    ```bash
    poetry install
    ```
-   {% endif %}
+   {% endif -%}
 
 3. **Set up environment variables**
    ```bash
@@ -89,7 +88,7 @@
    uv run python manage.py migrate
    {% else -%}
    poetry run python manage.py migrate
-   {% endif %}
+   {% endif -%}
    ```
 
 6. **Create superuser**
@@ -98,7 +97,7 @@
    uv run python manage.py createsuperuser
    {% else -%}
    poetry run python manage.py createsuperuser
-   {% endif %}
+   {% endif -%}
    ```
 
 7. **Start development server**
@@ -107,7 +106,7 @@
    uv run python manage.py runserver
    {% else -%}
    poetry run python manage.py runserver
-   {% endif %}
+   {% endif -%}
    ```
 
 ### Using Justfile (Recommended)
@@ -179,7 +178,7 @@ just test
 uv run pytest
 {% else -%}
 poetry run pytest
-{% endif %}
+{% endif -%}
 ```
 
 ### Code Quality
@@ -207,8 +206,7 @@ just migrate
 # Check for migration issues
 just migrate-check
 ```
-
-{% if use_celery -%}
+{% if use_celery %}
 ### Background Tasks
 
 Start Celery worker:
@@ -248,8 +246,7 @@ Detailed deployment guides are available in `docs/deployment/`:
 {% endif -%}
 {% if 'kubernetes' in deployment_targets -%}
 - **[Kubernetes](docs/deployment/kubernetes.md)**: Helm + Kustomize for GitOps
-{% endif -%}
-
+{% endif %}
 See [Deployment Overview](docs/deployment/overview.md) for platform comparison and decision guide.
 
 ## Documentation
