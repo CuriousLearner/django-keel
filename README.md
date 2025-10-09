@@ -30,6 +30,25 @@ Similarly, **Django Keel** provides the structural foundation for your Django pr
 
 Just as a ship's keel allows it to sail anywhere, Django Keel enables you to deploy your application to any platform—Kubernetes, AWS, Fly.io, Render, or traditional servers.
 
+<details><summary><strong>Table of Contents</strong></summary>
+
+- [📋 Feature Availability](#-feature-availability)
+- [⚙️ Default Configuration](#️-default-configuration)
+- [🔒 Security Baseline](#-security-baseline)
+- [🔄 Template Updates & Versioning](#-template-updates--versioning)
+- [🧪 Compatibility & Support](#-compatibility--support)
+- [✨ Features](#-features)
+- [🚀 Quick Start](#-quick-start)
+- [🧪 Testing](#-testing)
+- [📖 Documentation](#-documentation)
+- [🎨 Project Types & Examples](#-project-types--examples)
+- [🔄 Updating Your Project](#-updating-your-project)
+- [🤝 Contributing](#-contributing)
+- [📜 License](#-license)
+- [🙏 Credits](#-credits)
+- [📞 Support](#-support)
+</details>
+
 ## 📋 Feature Availability
 
 Before diving in, here's what's **included by default**, **optional**, or **planned** (grouped by category):
@@ -48,10 +67,10 @@ Before diving in, here's what's **included by default**, **optional**, or **plan
 ### API & Frontend
 | Feature | Status | Notes |
 |---------|--------|-------|
-| **Django REST Framework** | 📦 Optional | Enable with `api: drf` |
-| **Strawberry GraphQL** | 📦 Optional | Enable with `api: graphql` |
+| **Django REST Framework** | 📦 Optional | Enable with `api: drf` (or `api: both` for DRF + GraphQL) |
+| **Strawberry GraphQL** | 📦 Optional | Enable with `api: graphql` (or `api: both` for DRF + GraphQL) |
 | **HTMX + Tailwind CSS** | 📦 Optional | Enable with `frontend: htmx-tailwind` |
-| **Next.js** | 📦 Optional | Enable with `frontend: nextjs` |
+| **Next.js** | 📦 Optional | Enable with `frontend: nextjs` (requires Node.js 20 LTS+) |
 
 ### Background Tasks & Async
 | Feature | Status | Notes |
@@ -305,7 +324,7 @@ Every commit is tested against:
 ### 🎯 Core
 - **Django 5.2** with Python 3.12/3.13
 - **uv** or **Poetry** for blazing-fast dependency management
-- **[12-Factor App](https://12factor.net/) compliant** - Fully adheres to all 12 factors ([docs](docs/12-factor.md))
+- **[12-Factor App](https://12factor.net/) aligned** - Implements all 12 factors in practice ([docs](docs/12-factor.md))
   - Single codebase with multiple deploys
   - Explicit dependencies with lock files
   - Config in environment variables
