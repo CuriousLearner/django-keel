@@ -1,6 +1,6 @@
 [build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "django-keel"
@@ -25,6 +25,7 @@ classifiers = [
     "Programming Language :: Python :: 3.13",
 ]
 
+# No runtime dependencies - this is a template repository
 dependencies = []
 
 [project.optional-dependencies]
@@ -46,6 +47,12 @@ Homepage = "https://github.com/CuriousLearner/django-keel"
 Documentation = "https://django-keel.readthedocs.io"
 Repository = "https://github.com/CuriousLearner/django-keel"
 Issues = "https://github.com/CuriousLearner/django-keel/issues"
+
+[tool.setuptools]
+# This is a template repository, not a Python package
+# We only need the tests/ directory for the test suite
+packages = []
+py-modules = []
 
 [tool.ruff]
 # Target Python 3.12+
@@ -86,5 +93,19 @@ lines-after-imports = 2
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
+python_classes = ["Test*"]
 python_functions = ["test_*"]
-addopts = "-v --strict-markers"
+addopts = [
+    "-v",
+    "--tb=short",
+    "--strict-markers",
+    "--disable-warnings",
+    "-p", "no:cacheprovider",
+]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests that require external dependencies",
+    "generation: marks tests that generate projects",
+    "feature: marks tests for specific features",
+    "django: marks tests that interact with Django",
+]
