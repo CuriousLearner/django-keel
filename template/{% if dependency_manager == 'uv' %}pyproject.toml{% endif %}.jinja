@@ -40,7 +40,7 @@ dependencies = [
 {% endif -%}
 {% if background_tasks in ['celery', 'both'] -%}
     "celery[redis]>=5.4.0",
-    "django-celery-beat>=2.6.0",
+    "django-celery-beat>=2.8.0",  # 2.8+ required for Django 5.2 + OpenTelemetry compatibility
     "django-celery-results>=2.5.0",
     "flower>=2.0.0",
 {% endif -%}
