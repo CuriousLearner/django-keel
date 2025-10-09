@@ -1,13 +1,10 @@
 """Pytest configuration and fixtures for django-keel template tests."""
 
-import shutil
-import tempfile
 from pathlib import Path
-from typing import Dict, Any
+from typing import Any
 
 import pytest
 import yaml
-from plumbum import local
 
 
 @pytest.fixture(scope="session")
@@ -58,7 +55,7 @@ def copier_answers():
 def generate_project(
     template_dir: Path,
     output_dir: Path,
-    answers: Dict[str, Any],
+    answers: dict[str, Any],
 ) -> Path:
     """
     Generate a project from the template.
@@ -96,7 +93,8 @@ def generate_project(
 @pytest.fixture
 def generate(template_dir, temp_dir, copier_answers):
     """Fixture that returns a function to generate projects."""
-    def _generate(answers: Dict[str, Any] = None, **kwargs) -> Path:
+
+    def _generate(answers: dict[str, Any] | None = None, **kwargs) -> Path:
         """
         Generate a project with custom answers.
 
@@ -120,6 +118,7 @@ def generate(template_dir, temp_dir, copier_answers):
 @pytest.fixture
 def project_with_config(generate, copier_answers):
     """Generate a project and return both the path and config."""
+
     def _project_with_config(**kwargs):
         answers = copier_answers.copy()
         answers.update(kwargs)

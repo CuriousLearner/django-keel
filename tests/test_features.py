@@ -1,7 +1,5 @@
 """Behavioral tests for optional features."""
 
-import pytest
-
 
 # Celery Feature Tests
 
@@ -211,9 +209,7 @@ def test_no_deployment_excludes_deploy_configs(generate):
         if k8s_dir.exists():
             # Should have minimal content
             files = list(k8s_dir.rglob("*.yaml"))
-            assert len(files) == 0 or all(
-                f.name in [".gitkeep", "README.md"] for f in files
-            )
+            assert len(files) == 0 or all(f.name in [".gitkeep", "README.md"] for f in files)
 
 
 # Media Storage Tests

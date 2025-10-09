@@ -1,7 +1,6 @@
 """Functional tests for template project generation."""
 
 import py_compile
-from pathlib import Path
 
 import pytest
 import yaml

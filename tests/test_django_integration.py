@@ -3,9 +3,6 @@
 import os
 import subprocess
 import sys
-from pathlib import Path
-
-import pytest
 
 
 # Django Command Tests
@@ -73,9 +70,6 @@ def test_manage_py_is_executable(generate):
 
     # Check it has execute permissions on Unix
     if sys.platform != "win32":
-        import stat
-
-        st = os.stat(manage_py)
         # Should be readable and have Python shebang
         content = manage_py.read_text()
         assert content.startswith("#!/usr/bin/env python")
