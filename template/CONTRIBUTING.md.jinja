@@ -1,0 +1,280 @@
+# Contributing to {{ project_name }}
+
+Thank you for your interest in contributing! This document provides guidelines and instructions for contributing to this project.
+
+## Getting Started
+
+### Prerequisites
+
+- Python {{ python_version }}+
+{% if dependency_manager == 'uv' -%}
+- [uv](https://docs.astral.sh/uv/) package manager
+{% else -%}
+- [Poetry](https://python-poetry.org/)
+{% endif -%}
+- Docker and Docker Compose
+- Git
+
+### Development Setup
+
+1. Fork and clone the repository
+   ```bash
+   git clone https://github.com/YOUR_USERNAME/{{ project_slug }}.git
+   cd {{ project_slug }}
+   ```
+
+2. Install dependencies
+   ```bash
+   {% if dependency_manager == 'uv' -%}
+   uv sync
+   {% else -%}
+   poetry install
+   {% endif %}
+   ```
+
+3. Set up pre-commit hooks
+   ```bash
+   {% if dependency_manager == 'uv' -%}
+   uv run pre-commit install
+   {% else -%}
+   poetry run pre-commit install
+   {% endif %}
+   ```
+
+4. Start development services
+   ```bash
+   docker compose up -d
+   ```
+
+5. Run migrations
+   ```bash
+   just migrate
+   ```
+
+## Development Workflow
+
+### 1. Create a Branch
+
+```bash
+git checkout -b feature/your-feature-name
+# or
+git checkout -b fix/your-bug-fix
+```
+
+Branch naming conventions:
+- `feature/` - New features
+- `fix/` - Bug fixes
+- `docs/` - Documentation changes
+- `refactor/` - Code refactoring
+- `test/` - Test additions or modifications
+
+### 2. Make Your Changes
+
+- Write clean, readable code
+- Follow the existing code style
+- Add tests for new functionality
+- Update documentation as needed
+
+### 3. Run Tests
+
+```bash
+# Run tests
+just test
+
+# Run with coverage
+{% if dependency_manager == 'uv' -%}
+uv run pytest --cov
+{% else -%}
+poetry run pytest --cov
+{% endif %}
+
+# Ensure coverage is above 80%
+```
+
+### 4. Code Quality Checks
+
+```bash
+# Format code
+just format
+
+# Lint code
+just lint
+
+# Type check
+just typecheck
+
+# Run all checks
+just check
+```
+
+### 5. Commit Your Changes
+
+We follow [Conventional Commits](https://www.conventionalcommits.org/):
+
+```bash
+git commit -m "feat: add user profile page"
+git commit -m "fix: resolve authentication bug"
+git commit -m "docs: update API documentation"
+git commit -m "test: add tests for user model"
+```
+
+Commit types:
+- `feat:` - New feature
+- `fix:` - Bug fix
+- `docs:` - Documentation changes
+- `style:` - Code style changes (formatting, etc.)
+- `refactor:` - Code refactoring
+- `test:` - Test additions or changes
+- `chore:` - Maintenance tasks
+
+### 6. Push and Create Pull Request
+
+```bash
+git push origin feature/your-feature-name
+```
+
+Then create a Pull Request on GitHub with:
+- Clear title describing the change
+- Description of what changed and why
+- Link to any related issues
+- Screenshots if applicable
+
+## Code Style Guidelines
+
+### Python Code
+
+- Follow [PEP 8](https://pep8.org/)
+- Use type hints where applicable
+- Maximum line length: 100 characters
+- Use meaningful variable and function names
+
+```python
+# Good
+def calculate_user_subscription_total(user_id: int) -> Decimal:
+    """Calculate the total subscription cost for a user."""
+    pass
+
+# Bad
+def calc(u: int) -> Decimal:
+    pass
+```
+
+### Django Specific
+
+- Follow [Django coding style](https://docs.djangoproject.com/en/dev/internals/contributing/writing-code/coding-style/)
+- Use Django's built-in utilities when possible
+- Keep views thin, move logic to models or services
+- Use class-based views appropriately
+
+### Testing
+
+- All tests must be function-based (no class-based tests)
+- Use descriptive test names
+- Test both success and failure cases
+- Use fixtures for common setup
+- Aim for 80%+ code coverage
+
+```python
+@pytest.mark.django_db
+def test_user_can_update_profile(user):
+    """Test that users can update their own profile."""
+    user.first_name = "Updated"
+    user.save()
+
+    updated_user = User.objects.get(pk=user.pk)
+    assert updated_user.first_name == "Updated"
+```
+
+## Documentation
+
+### Code Documentation
+
+- Add docstrings to all functions, classes, and modules
+- Use Google-style docstrings
+
+```python
+def calculate_total(items: list[Item]) -> Decimal:
+    """Calculate the total price of items.
+
+    Args:
+        items: List of items to calculate total for.
+
+    Returns:
+        Total price as Decimal.
+
+    Raises:
+        ValueError: If items list is empty.
+    """
+    pass
+```
+
+### Documentation Files
+
+- Update relevant documentation in `docs/`
+- Add examples where applicable
+- Update CHANGELOG.md for notable changes
+
+## Pull Request Process
+
+### Before Submitting
+
+- [ ] Tests pass (`just test`)
+- [ ] Code is formatted (`just format`)
+- [ ] Linting passes (`just lint`)
+- [ ] Type checking passes (`just typecheck`)
+- [ ] Documentation is updated
+- [ ] CHANGELOG.md is updated (if applicable)
+- [ ] Commit messages follow conventional commits
+
+### Review Process
+
+1. Maintainer reviews your PR
+2. Address any feedback
+3. Once approved, maintainer merges PR
+
+### After Merge
+
+- Delete your feature branch
+- Pull latest changes from main
+- Celebrate! 🎉
+
+## Reporting Issues
+
+### Bug Reports
+
+Include:
+- Clear title and description
+- Steps to reproduce
+- Expected vs actual behavior
+- Environment details (OS, Python version, etc.)
+- Error messages and stack traces
+- Screenshots if applicable
+
+### Feature Requests
+
+Include:
+- Clear title and description
+- Use case and motivation
+- Proposed solution (optional)
+- Alternative solutions considered
+
+## Questions?
+
+- Check the [documentation](docs/)
+- Search existing [issues](https://github.com/{{ author_name }}/{{ project_slug }}/issues)
+- Ask in [discussions](https://github.com/{{ author_name }}/{{ project_slug }}/discussions)
+
+## Code of Conduct
+
+- Be respectful and inclusive
+- Welcome newcomers
+- Focus on constructive feedback
+- Assume good intent
+
+## License
+
+By contributing, you agree that your contributions will be licensed under the {{ license }} License.
+
+---
+
+Thank you for contributing to {{ project_name }}! 🚀

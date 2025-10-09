@@ -1,0 +1,316 @@
+# Testing Guide
+
+This project uses pytest for testing with comprehensive test coverage.
+
+## Running Tests
+
+### Quick Start
+
+```bash
+# Run all tests
+just test
+
+# Run with coverage report
+{% if dependency_manager == 'uv' -%}
+uv run pytest --cov
+{% else -%}
+poetry run pytest --cov
+{% endif %}
+
+# Run specific test file
+{% if dependency_manager == 'uv' -%}
+uv run pytest tests/test_users.py
+{% else -%}
+poetry run pytest tests/test_users.py
+{% endif %}
+
+# Run specific test function
+{% if dependency_manager == 'uv' -%}
+uv run pytest tests/test_users.py::test_create_user
+{% else -%}
+poetry run pytest tests/test_users.py::test_create_user
+{% endif %}
+```
+
+### Test Options
+
+```bash
+# Run tests in parallel
+{% if dependency_manager == 'uv' -%}
+uv run pytest -n auto
+{% else -%}
+poetry run pytest -n auto
+{% endif %}
+
+# Run tests with verbose output
+{% if dependency_manager == 'uv' -%}
+uv run pytest -v
+{% else -%}
+poetry run pytest -v
+{% endif %}
+
+# Stop on first failure
+{% if dependency_manager == 'uv' -%}
+uv run pytest -x
+{% else -%}
+poetry run pytest -x
+{% endif %}
+
+# Run only failed tests from last run
+{% if dependency_manager == 'uv' -%}
+uv run pytest --lf
+{% else -%}
+poetry run pytest --lf
+{% endif %}
+```
+
+## Test Structure
+
+Tests are organized in the `tests/` directory:
+
+```
+tests/
+├── conftest.py              # Pytest fixtures and configuration
+├── test_core.py             # Core functionality tests
+├── test_users.py            # User model and authentication tests
+{% if api_style != 'none' -%}
+├── test_api.py              # API endpoint tests
+{% endif -%}
+{% if use_celery -%}
+├── test_tasks.py            # Celery task tests
+{% endif -%}
+{% if use_stripe -%}
+├── test_billing.py          # Stripe integration tests
+{% endif -%}
+{% if use_channels -%}
+├── test_websockets.py       # WebSocket tests
+{% endif -%}
+{% if use_2fa -%}
+├── test_2fa.py              # Two-factor authentication tests
+{% endif -%}
+└── __init__.py
+```
+
+## Available Fixtures
+
+### Common Fixtures
+
+- `client` - Django test client
+- `user` - Standard test user
+- `admin_user` - Admin/superuser for testing
+- `multiple_users` - List of test users
+
+{% if api_style != 'none' -%}
+### API Fixtures
+
+- `api_client` - DRF API client (unauthenticated)
+- `authenticated_api_client` - API client with authenticated user
+- `admin_api_client` - API client with admin user
+
+{% endif -%}
+{% if auth_backend in ['allauth', 'both'] -%}
+### Authentication Fixtures
+
+- `verified_user` - User with verified email address
+
+{% endif -%}
+{% if use_stripe -%}
+### Billing Fixtures
+
+- `stripe_customer` - Test Stripe customer
+
+{% endif -%}
+## Writing Tests
+
+All tests are function-based and use pytest markers:
+
+```python
+import pytest
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
+
+
+@pytest.mark.django_db
+def test_create_user():
+    """Test creating a user."""
+    user = User.objects.create_user(
+        email="test@example.com",
+        password="testpass123"
+    )
+    assert user.email == "test@example.com"
+    assert user.is_active
+    assert not user.is_staff
+```
+
+### Test Naming Convention
+
+- Test files: `test_*.py`
+- Test functions: `test_*`
+- Use descriptive names that explain what is being tested
+
+### Using Fixtures
+
+```python
+@pytest.mark.django_db
+def test_user_can_login(client, user):
+    """Test that a user can log in."""
+    logged_in = client.login(
+        username=user.email,
+        password="testpass123"
+    )
+    assert logged_in
+```
+
+{% if api_style != 'none' -%}
+### API Testing
+
+```python
+from django.urls import reverse
+from rest_framework import status
+
+
+@pytest.mark.django_db
+def test_api_endpoint(authenticated_api_client):
+    """Test API endpoint."""
+    url = reverse("api-endpoint-name")
+    response = authenticated_api_client.get(url)
+
+    assert response.status_code == status.HTTP_200_OK
+    assert "expected_field" in response.json()
+```
+
+{% endif -%}
+{% if use_celery -%}
+### Testing Celery Tasks
+
+```python
+from apps.core.tasks import example_task
+
+
+@pytest.mark.django_db
+def test_celery_task():
+    """Test Celery task execution."""
+    result = example_task.delay()
+    assert result is not None
+```
+
+{% endif -%}
+{% if use_channels -%}
+### Testing WebSockets
+
+```python
+import pytest
+from channels.testing import WebsocketCommunicator
+
+
+@pytest.mark.django_db
+@pytest.mark.asyncio
+async def test_websocket_connection():
+    """Test WebSocket connection."""
+    from apps.core.consumers import ChatConsumer
+
+    communicator = WebsocketCommunicator(
+        ChatConsumer.as_asgi(),
+        "/ws/chat/"
+    )
+    connected, _ = await communicator.connect()
+
+    assert connected
+    await communicator.disconnect()
+```
+
+{% endif -%}
+## Test Coverage
+
+### Generating Coverage Reports
+
+```bash
+# HTML coverage report
+{% if dependency_manager == 'uv' -%}
+uv run pytest --cov --cov-report=html
+{% else -%}
+poetry run pytest --cov --cov-report=html
+{% endif %}
+
+# Open coverage report
+open htmlcov/index.html
+```
+
+### Coverage Targets
+
+- Overall coverage: 80%+
+- Critical paths: 90%+
+- New code: 100%
+
+## Continuous Integration
+
+Tests run automatically on every push via {% if ci_provider in ['github-actions', 'both'] %}GitHub Actions{% endif %}{% if ci_provider == 'both' %} and {% endif %}{% if ci_provider in ['gitlab-ci', 'both'] %}GitLab CI{% endif %}.
+
+### CI Workflow
+
+1. Lint and format checks
+2. Type checking with mypy
+3. Test execution with coverage
+4. Coverage report upload
+
+## Best Practices
+
+### DO
+
+- ✅ Write tests for all new features
+- ✅ Test both success and failure cases
+- ✅ Use descriptive test names
+- ✅ Keep tests independent
+- ✅ Use fixtures for common setup
+- ✅ Test edge cases
+
+### DON'T
+
+- ❌ Write class-based tests (use functions)
+- ❌ Test implementation details
+- ❌ Depend on test execution order
+- ❌ Use real external services (use mocks)
+- ❌ Skip writing tests for "simple" code
+
+## Debugging Tests
+
+### Using pdb
+
+```python
+@pytest.mark.django_db
+def test_something():
+    import pdb; pdb.set_trace()  # Debugger will stop here
+    # ... test code
+```
+
+### Print debugging
+
+```bash
+# Show print statements
+{% if dependency_manager == 'uv' -%}
+uv run pytest -s
+{% else -%}
+poetry run pytest -s
+{% endif %}
+```
+
+### Verbose output
+
+```bash
+# Show detailed test output
+{% if dependency_manager == 'uv' -%}
+uv run pytest -vv
+{% else -%}
+poetry run pytest -vv
+{% endif %}
+```
+
+## Further Reading
+
+- [pytest documentation](https://docs.pytest.org/)
+- [pytest-django documentation](https://pytest-django.readthedocs.io/)
+{% if api_style != 'none' -%}
+- [DRF testing](https://www.django-rest-framework.org/api-guide/testing/)
+{% endif -%}
+- [Django testing](https://docs.djangoproject.com/en/5.2/topics/testing/)

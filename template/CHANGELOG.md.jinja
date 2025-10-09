@@ -1,0 +1,109 @@
+# Changelog
+
+All notable changes to {{ project_name }} will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+### Added
+- Initial project setup generated with django-keel
+- Django {{ '5.2' }} with Python {{ python_version }}
+{% if api_style == 'drf' -%}
+- Django REST Framework API
+{% elif api_style == 'graphql-strawberry' -%}
+- Strawberry GraphQL API
+{% elif api_style == 'both' -%}
+- Django REST Framework and Strawberry GraphQL APIs
+{% endif -%}
+{% if frontend == 'htmx-tailwind' -%}
+- HTMX + Tailwind CSS frontend
+{% elif frontend == 'nextjs' -%}
+- Next.js frontend
+{% endif -%}
+{% if use_celery -%}
+- Celery background task queue with Redis broker
+{% endif -%}
+{% if use_channels -%}
+- Django Channels for WebSocket support
+{% endif -%}
+{% if use_stripe -%}
+- Stripe payment integration
+{% endif -%}
+{% if use_2fa -%}
+- Two-factor authentication (TOTP)
+{% endif -%}
+{% if use_i18n -%}
+- Internationalization (i18n) support
+{% endif -%}
+{% if 'kubernetes' in deployment_targets -%}
+- Kubernetes deployment configuration (Helm + Kustomize)
+{% endif -%}
+{% if 'aws-ec2-ansible' in deployment_targets -%}
+- AWS EC2 deployment with Ansible
+{% endif -%}
+- Comprehensive pytest test suite
+  - Core functionality tests
+  - User authentication tests
+{% if api_style != 'none' -%}
+  - API endpoint tests
+{% endif -%}
+{% if use_celery -%}
+  - Celery task tests
+{% endif -%}
+{% if use_stripe -%}
+  - Stripe billing tests
+{% endif -%}
+{% if use_channels -%}
+  - WebSocket tests
+{% endif -%}
+{% if use_2fa -%}
+  - 2FA authentication tests
+{% endif -%}
+
+## [0.1.0] - {{ "now" | strftime("%Y-%m-%d") }}
+
+### Added
+- Initial release
+- Core Django setup with custom user model
+- Authentication system with {% if auth_backend == 'allauth' %}django-allauth{% elif auth_backend == 'jwt' %}JWT{% else %}django-allauth + JWT{% endif %}
+- {{ database }} database configuration
+{% if cache == 'redis' -%}
+- Redis caching
+{% endif -%}
+{% if media_storage == 'aws-s3' -%}
+- AWS S3 media storage
+{% elif media_storage == 'gcp-gcs' -%}
+- Google Cloud Storage media storage
+{% elif media_storage == 'azure-storage' -%}
+- Azure Storage media storage
+{% else -%}
+- Local media storage with Whitenoise
+{% endif -%}
+{% if observability_level != 'minimal' -%}
+- Observability stack:
+  - Structured logging
+{% if use_sentry -%}
+  - Sentry error tracking
+{% endif -%}
+{% if observability_level == 'full' -%}
+  - OpenTelemetry instrumentation
+  - Prometheus metrics
+{% endif -%}
+{% endif -%}
+- Development tooling:
+  - Ruff for linting and formatting
+  - mypy for type checking
+  - pre-commit hooks
+{% if ci_provider in ['github-actions', 'both'] -%}
+  - GitHub Actions CI/CD
+{% endif -%}
+{% if ci_provider in ['gitlab-ci', 'both'] -%}
+  - GitLab CI/CD
+{% endif -%}
+- Docker Compose development environment
+- MkDocs documentation
+
+[Unreleased]: https://github.com/{{ author_name }}/{{ project_slug }}/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/{{ author_name }}/{{ project_slug }}/releases/tag/v0.1.0
