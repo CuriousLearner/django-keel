@@ -27,6 +27,12 @@ env/
 .coverage
 htmlcov/
 
+# Ruff
+.ruff_cache/
+
+# MkDocs
+site/
+
 # Copier
 .copier-answers.yml
 
