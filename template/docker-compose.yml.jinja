@@ -16,8 +16,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+{% if cache == 'redis' %}
 
-{% if cache == 'redis' -%}
   redis:
     image: redis:7-alpine
     ports:
@@ -29,15 +29,15 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-{% endif %}
+{% endif -%}
 
   mailpit:
     image: axllent/mailpit:latest
     ports:
       - "1025:1025"
       - "8025:8025"
+{% if observability_level == 'full' %}
 
-{% if observability_level == 'full' -%}
   jaeger:
     image: jaegertracing/all-in-one:latest
     ports:
@@ -45,10 +45,10 @@ services:
       - "4318:4318"    # OTLP gRPC
     environment:
       COLLECTOR_OTLP_ENABLED: "true"
-{% endif %}
+{% endif -%}
 
 volumes:
   postgres_data:
-{% if cache == 'redis' -%}
+{% if cache == 'redis' %}
   redis_data:
-{% endif %}
+{% endif -%}

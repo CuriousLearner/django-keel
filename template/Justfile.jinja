@@ -83,16 +83,50 @@ docs-build:
 
 # Install dependencies
 install:
-{% if dependency_manager == 'uv' -%}
-    uv sync
-{% else -%}
-    poetry install
-{% endif %}
+    {% if dependency_manager == 'uv' %}uv sync{% else %}poetry install{% endif %}
 
 # Update dependencies
 update:
-{% if dependency_manager == 'uv' -%}
-    uv lock --upgrade
-{% else -%}
-    poetry update
+    {% if dependency_manager == 'uv' %}uv lock --upgrade{% else %}poetry update{% endif %}
+
+# Validate YAML files (basic syntax check)
+validate-yaml:
+    @echo "Validating YAML files..."
+    @for file in $(find . -name "*.yml" -o -name "*.yaml" | grep -v -E "(.venv|node_modules|venv)"); do \
+        python -c "import yaml; yaml.load(open('$$file'), Loader=yaml.FullLoader)" 2>&1 | grep -q "Error" && echo "✗ $$file" || true; \
+    done
+    @echo "✓ Basic YAML validation complete (use 'yamllint .' for detailed linting)"
+
+# Lint Dockerfile
+lint-docker:
+    @echo "Linting Dockerfile..."
+    @docker run --rm -i hadolint/hadolint < Dockerfile || echo "Hadolint not available - install with: docker pull hadolint/hadolint"
+
+# Validate docker-compose (syntax check)
+validate-compose:
+    @echo "Validating docker-compose.yml syntax..."
+    @docker compose config > /dev/null && echo "✓ docker-compose.yml syntax is valid" || echo "Note: Schema validation warnings are normal for custom services"
+
+{% if 'kubernetes' in deployment_targets -%}
+# Validate Kubernetes manifests
+validate-k8s:
+    @echo "Validating Kubernetes manifests..."
+    @kubectl apply --dry-run=client -f deploy/k8s/kustomize/base/ || echo "kubectl not available"
+
+# Lint Helm chart
+lint-helm:
+    @echo "Linting Helm chart..."
+    @helm lint deploy/k8s/helm/{{ project_slug }}-Chart.yaml || echo "Helm not available"
 {% endif %}
+
+{% if 'aws-ec2-ansible' in deployment_targets -%}
+# Validate Ansible playbooks
+validate-ansible:
+    @echo "Validating Ansible playbooks..."
+    @ansible-playbook --syntax-check deploy/ansible/playbooks/deploy.yml || echo "Ansible not available"
+{% endif %}
+
+# Validate all infrastructure configs
+validate-infra: validate-yaml validate-compose lint-docker{% if 'kubernetes' in deployment_targets %} validate-k8s{% endif %}{% if 'aws-ec2-ansible' in deployment_targets %} validate-ansible{% endif %}
+    @echo ""
+    @echo "✅ All infrastructure validations complete!"

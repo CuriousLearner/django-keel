@@ -1,0 +1,81 @@
+stages:
+  - lint
+  - test
+  - build
+
+variables:
+  POSTGRES_DB: test_db
+  POSTGRES_USER: postgres
+  POSTGRES_PASSWORD: postgres
+{% if cache == 'redis' %}
+  REDIS_URL: redis://redis:6379/0
+{% endif %}
+
+lint:
+  stage: lint
+  image: python:{{ python_version }}
+{% if dependency_manager == 'uv' %}
+  before_script:
+    - curl -LsSf https://astral.sh/uv/install.sh | sh
+    - export PATH="$HOME/.cargo/bin:$PATH"
+    - uv sync
+  script:
+    - uv run ruff check .
+    - uv run ruff format --check .
+    - uv run mypy .
+{% else %}
+  before_script:
+    - pip install poetry
+    - poetry install
+  script:
+    - poetry run ruff check .
+    - poetry run ruff format --check .
+    - poetry run mypy .
+{% endif %}
+
+test:
+  stage: test
+  image: python:{{ python_version }}
+  services:
+    - postgres:16-alpine
+{% if cache == 'redis' %}
+    - redis:7-alpine
+{% endif %}
+  variables:
+    DATABASE_URL: postgres://postgres:postgres@postgres:5432/test_db
+{% if dependency_manager == 'uv' %}
+  before_script:
+    - curl -LsSf https://astral.sh/uv/install.sh | sh
+    - export PATH="$HOME/.cargo/bin:$PATH"
+    - uv sync
+  script:
+    - uv run pytest --cov --cov-report=xml
+{% else %}
+  before_script:
+    - pip install poetry
+    - poetry install
+  script:
+    - poetry run pytest --cov --cov-report=xml
+{% endif %}
+  coverage: '/(?i)total.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/'
+  artifacts:
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage.xml
+
+build:
+  stage: build
+  image: docker:latest
+  services:
+    - docker:dind
+  needs: [lint, test]
+  before_script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+  script:
+    - docker build -t {{ project_slug }}:$CI_COMMIT_SHA .
+    - docker tag {{ project_slug }}:$CI_COMMIT_SHA $CI_REGISTRY_IMAGE:latest
+    - docker push $CI_REGISTRY_IMAGE:latest
+  only:
+    - main
+    - develop

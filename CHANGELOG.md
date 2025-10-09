@@ -27,13 +27,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - pytest-asyncio conditionally added for Channels WebSocket testing
 - Enhanced conftest.py with comprehensive fixtures
 - pytest.ini configuration for generated projects
+- GitLab CI workflow template (.gitlab-ci.yml)
+- Infrastructure validation commands in Justfile
+  - validate-yaml: Validate all YAML files
+  - validate-compose: Validate docker-compose.yml
+  - lint-docker: Lint Dockerfile with hadolint
+  - validate-k8s: Validate Kubernetes manifests (when enabled)
+  - lint-helm: Lint Helm charts (when enabled)
+  - validate-ansible: Validate Ansible playbooks (when enabled)
+  - validate-infra: Run all infrastructure validations
+- Comprehensive documentation for generated projects
+  - CONTRIBUTING.md with development workflow
+  - CHANGELOG.md template
+  - Testing guide in docs/development/testing.md
 
 ### Fixed
 - Template rendering issues with Django template tags
 - Jinja2 whitespace control in GitHub Actions CI workflow
+- Jinja2 whitespace control in docker-compose.yml breaking YAML indentation
+- Jinja2 whitespace control in mkdocs.yml breaking YAML structure
 - Allauth middleware configuration for Django 5.2
 - YAML indentation in CI workflow templates
 - Settings import tests with proper .env file setup
+- Justfile syntax for install/update commands
 
 ### Changed
 - Converted all tests from class-based to function-based

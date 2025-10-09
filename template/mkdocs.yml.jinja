@@ -36,12 +36,12 @@ nav:
       - Decisions: adr/
   - API:
       - Overview: api/overview.md
-{% if 'kubernetes' in deployment_targets -%}
+{% if 'kubernetes' in deployment_targets %}
   - Kubernetes:
       - Setup: kubernetes/setup.md
       - Monitoring: kubernetes/monitoring.md
 {% endif -%}
-{% if 'aws-ec2-ansible' in deployment_targets -%}
+{% if 'aws-ec2-ansible' in deployment_targets %}
   - AWS EC2:
       - Deployment: aws/ec2-deployment.md
 {% endif -%}
