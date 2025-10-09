@@ -290,10 +290,6 @@ def test_docker_deployment_generated(generate):
     docker_compose = project / "docker-compose.yml"
     assert docker_compose.exists()
 
-    # Production compose file
-    docker_compose_prod = project / "docker-compose.prod.yml"
-    # May or may not exist depending on configuration
-
 
 def test_ec2_ansible_deployment_generated(generate):
     """Test that AWS EC2 Ansible playbooks are generated."""
