@@ -9,6 +9,7 @@ services:
     plan: starter  # free, starter, standard, pro
     branch: main
     buildCommand: "./deploy/render/build.sh"
+    preDeployCommand: "./release.sh"
     startCommand: "gunicorn config.wsgi:application"
     envVars:
       - key: DJANGO_SETTINGS_MODULE

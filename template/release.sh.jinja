@@ -1,0 +1,29 @@
+#!/bin/bash
+# Release phase script for 12-factor app
+# This runs after build but before deployment
+
+set -e
+
+echo "===> Running release tasks..."
+
+# Collect static files
+echo "Collecting static files..."
+python manage.py collectstatic --noinput
+
+# Run database migrations
+echo "Running database migrations..."
+python manage.py migrate --noinput
+
+{% if use_search == 'opensearch' -%}
+# Initialize search indexes
+echo "Initializing search indexes..."
+python manage.py search_index --rebuild -f
+{% endif -%}
+
+{% if use_stripe and stripe_mode == 'advanced' -%}
+# Sync Stripe data
+echo "Syncing Stripe data..."
+python manage.py djstripe_sync_models
+{% endif -%}
+
+echo "===> Release tasks completed successfully!"

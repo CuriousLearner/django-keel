@@ -289,7 +289,19 @@ Every commit is tested against:
 ### 🎯 Core
 - **Django 5.2** with Python 3.12/3.13
 - **uv** or **Poetry** for blazing-fast dependency management
-- **12-Factor App** configuration with django-environ
+- **[12-Factor App](https://12factor.net/) compliant** - Fully adheres to all 12 factors ([docs](docs/12-factor.md))
+  - Single codebase with multiple deploys
+  - Explicit dependencies with lock files
+  - Config in environment variables
+  - Backing services as attached resources
+  - Separate build/release/run stages (`Procfile`, `release.sh`)
+  - Stateless processes
+  - Port binding export
+  - Horizontal scalability via process model
+  - Fast startup, graceful shutdown
+  - Dev/prod parity
+  - Logs as event streams
+  - Admin processes as one-off tasks
 - **Custom User Model** from day one
 - **Split Settings** (base/dev/test/prod)
 - **Docker + Compose** for local development - Postgres, Redis, and Mailpit included out-of-the-box

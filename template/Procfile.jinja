@@ -1,0 +1,13 @@
+# Process types for 12-factor app deployment
+{% if use_channels -%}
+web: daphne -b 0.0.0.0 -p $PORT config.asgi:application
+{% else -%}
+web: gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --workers 4 --max-requests 1000 --max-requests-jitter 50 --timeout 30
+{% endif -%}
+{% if background_tasks in ['celery', 'both'] -%}
+worker: celery -A config worker --loglevel=info --concurrency=2
+beat: celery -A config beat --loglevel=info
+{% endif -%}
+{% if background_tasks in ['celery', 'both'] and observability_level in ['standard', 'full'] -%}
+flower: celery -A config flower --port=5555
+{% endif -%}

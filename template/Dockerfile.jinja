@@ -31,9 +31,6 @@ RUN uv sync --no-dev
 # Copy application
 COPY . .
 
-# Collect static files
-RUN uv run python manage.py collectstatic --noinput
-
 {% else -%}
 # Install poetry
 RUN pip install poetry==1.7.0
@@ -48,9 +45,6 @@ RUN poetry config virtualenvs.create false \
 
 # Copy application
 COPY . .
-
-# Collect static files
-RUN python manage.py collectstatic --noinput
 {% endif -%}
 
 # Change ownership
