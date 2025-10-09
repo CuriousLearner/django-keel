@@ -94,7 +94,75 @@ def verified_user(db):
 {% endif -%}
 
 
+@pytest.fixture
+def staff_user(db):
+    """Create a staff user."""
+    from apps.users.models import User
+    return User.objects.create_user(
+        email="staff@example.com",
+        password="testpass123",
+        is_staff=True
+    )
+
+
+{% if use_teams -%}
+@pytest.fixture
+def team(db, user):
+    """Create a test team with owner membership."""
+    from apps.teams.models import Team, TeamMember
+
+    team = Team.objects.create(
+        name="Test Team",
+        slug="test-team",
+        owner=user,
+        description="A test team"
+    )
+
+    # Create owner membership
+    TeamMember.objects.create(
+        team=team,
+        user=user,
+        role="owner",
+        added_by=user
+    )
+
+    return team
+
+
+@pytest.fixture
+def team_member(db, team):
+    """Create a team member."""
+    from apps.teams.models import TeamMember
+    from apps.users.models import User
+
+    member_user = User.objects.create_user(
+        email="member@example.com",
+        password="testpass123"
+    )
+
+    return TeamMember.objects.create(
+        team=team,
+        user=member_user,
+        role="member"
+    )
+
+
+@pytest.fixture
+def team_invitation(db, team, user):
+    """Create a team invitation."""
+    from apps.teams.models import TeamInvitation
+
+    return TeamInvitation.objects.create(
+        team=team,
+        email="invitee@example.com",
+        role="member",
+        invited_by=user
+    )
+{% endif -%}
+
+
 {% if use_stripe -%}
+{% if stripe_mode == 'basic' -%}
 @pytest.fixture
 def stripe_customer(db, user):
     """Create a Stripe customer for testing."""
@@ -103,4 +171,84 @@ def stripe_customer(db, user):
         user=user,
         stripe_customer_id="cus_test123"
     )
+
+
+@pytest.fixture
+def subscription(db, stripe_customer):
+    """Create a test subscription."""
+    from apps.billing.models import Subscription
+    from django.utils import timezone
+    from datetime import timedelta
+
+    return Subscription.objects.create(
+        customer=stripe_customer,
+        stripe_subscription_id="sub_test123",
+        status="active",
+        plan_name="Pro Plan",
+        current_period_start=timezone.now(),
+        current_period_end=timezone.now() + timedelta(days=30)
+    )
+{% else -%}
+@pytest.fixture
+def stripe_customer(db, user):
+    """Create a dj-stripe customer for testing."""
+    from djstripe.models import Customer
+
+    return Customer.objects.create(
+        subscriber=user,
+        livemode=False
+    )
+
+
+@pytest.fixture
+def subscription(db, stripe_customer):
+    """Create a test subscription."""
+    from djstripe.models import Subscription
+    from apps.billing.models import SubscriptionMetadata
+
+    subscription = Subscription.objects.create(
+        customer=stripe_customer,
+        status="active",
+        livemode=False
+    )
+
+    # Create metadata
+    SubscriptionMetadata.objects.create(
+        subscription=subscription,
+        features={"api_access": True, "advanced_analytics": False},
+        usage_limits={"api_calls": 10000},
+        current_usage={"api_calls": 500}
+    )
+
+    return subscription
+
+
+@pytest.fixture
+def plan_config(db):
+    """Create a test plan configuration."""
+    from djstripe.models import Product, Price
+    from apps.billing.models import PlanConfiguration
+
+    product = Product.objects.create(
+        name="Pro Plan",
+        livemode=False
+    )
+
+    price = Price.objects.create(
+        product=product,
+        unit_amount=2900,  # $29.00
+        currency="usd",
+        livemode=False
+    )
+
+    return PlanConfiguration.objects.create(
+        stripe_product=product,
+        stripe_price=price,
+        name="Pro Plan",
+        slug="pro",
+        features={"api_access": True, "advanced_analytics": True},
+        limits={"api_calls": 100000, "team_members": 10},
+        is_active=True
+    )
+{% endif -%}
 {% endif -%}

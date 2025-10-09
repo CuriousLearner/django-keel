@@ -1,0 +1,279 @@
+"""Stripe webhook handlers."""
+import logging
+{% if stripe_mode == 'basic' -%}
+import stripe
+from django.conf import settings
+from django.http import HttpResponse
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_POST
+{% else -%}
+from django.dispatch import receiver
+from djstripe import webhooks
+from djstripe.models import Event, Subscription, Customer
+{% if use_teams -%}
+from apps.teams.models import Team
+{% endif -%}
+{% endif -%}
+
+logger = logging.getLogger(__name__)
+
+{% if stripe_mode == 'basic' -%}
+@csrf_exempt
+@require_POST
+def stripe_webhook(request):
+    """Handle Stripe webhooks."""
+    payload = request.body
+    sig_header = request.META.get("HTTP_STRIPE_SIGNATURE")
+
+    try:
+        event = stripe.Webhook.construct_event(
+            payload, sig_header, settings.STRIPE_WEBHOOK_SECRET
+        )
+    except ValueError:
+        # Invalid payload
+        logger.error("Invalid webhook payload")
+        return HttpResponse(status=400)
+    except stripe.error.SignatureVerificationError:
+        # Invalid signature
+        logger.error("Invalid webhook signature")
+        return HttpResponse(status=400)
+
+    # Handle the event
+    event_type = event["type"]
+    data = event["data"]["object"]
+
+    if event_type == "customer.subscription.created":
+        handle_subscription_created(data)
+    elif event_type == "customer.subscription.updated":
+        handle_subscription_updated(data)
+    elif event_type == "customer.subscription.deleted":
+        handle_subscription_deleted(data)
+    elif event_type == "invoice.payment_succeeded":
+        handle_invoice_payment_succeeded(data)
+    elif event_type == "invoice.payment_failed":
+        handle_invoice_payment_failed(data)
+    else:
+        logger.info(f"Unhandled event type: {event_type}")
+
+    return HttpResponse(status=200)
+
+
+def handle_subscription_created(subscription):
+    """Handle subscription.created event."""
+    from .models import StripeCustomer, Subscription as LocalSubscription
+
+    try:
+        customer = StripeCustomer.objects.get(
+            stripe_customer_id=subscription["customer"]
+        )
+
+        LocalSubscription.objects.create(
+            customer=customer,
+            stripe_subscription_id=subscription["id"],
+            status=subscription["status"],
+            plan_name=subscription["items"]["data"][0]["price"]["nickname"] or "Default Plan",
+            current_period_start=subscription["current_period_start"],
+            current_period_end=subscription["current_period_end"],
+        )
+
+        logger.info(f"Subscription created: {subscription['id']}")
+    except StripeCustomer.DoesNotExist:
+        logger.error(f"Customer not found: {subscription['customer']}")
+    except Exception as e:
+        logger.error(f"Error creating subscription: {e}")
+
+
+def handle_subscription_updated(subscription):
+    """Handle subscription.updated event."""
+    from .models import Subscription as LocalSubscription
+
+    try:
+        local_subscription = LocalSubscription.objects.get(
+            stripe_subscription_id=subscription["id"]
+        )
+
+        local_subscription.status = subscription["status"]
+        local_subscription.current_period_start = subscription["current_period_start"]
+        local_subscription.current_period_end = subscription["current_period_end"]
+        local_subscription.save()
+
+        logger.info(f"Subscription updated: {subscription['id']}")
+    except LocalSubscription.DoesNotExist:
+        logger.error(f"Subscription not found: {subscription['id']}")
+    except Exception as e:
+        logger.error(f"Error updating subscription: {e}")
+
+
+def handle_subscription_deleted(subscription):
+    """Handle subscription.deleted event."""
+    from .models import Subscription as LocalSubscription
+
+    try:
+        local_subscription = LocalSubscription.objects.get(
+            stripe_subscription_id=subscription["id"]
+        )
+
+        local_subscription.status = "canceled"
+        local_subscription.save()
+
+        logger.info(f"Subscription canceled: {subscription['id']}")
+    except LocalSubscription.DoesNotExist:
+        logger.error(f"Subscription not found: {subscription['id']}")
+    except Exception as e:
+        logger.error(f"Error canceling subscription: {e}")
+
+
+def handle_invoice_payment_succeeded(invoice):
+    """Handle invoice.payment_succeeded event."""
+    logger.info(f"Invoice payment succeeded: {invoice['id']}")
+    # Add custom logic (e.g., send receipt email, grant access)
+
+
+def handle_invoice_payment_failed(invoice):
+    """Handle invoice.payment_failed event."""
+    logger.warning(f"Invoice payment failed: {invoice['id']}")
+    # Add custom logic (e.g., send payment failure email, suspend access)
+{% else -%}
+# Advanced mode using dj-stripe webhooks
+
+@receiver(webhooks.WEBHOOK_SIGNALS["customer.subscription.created"])
+def handle_subscription_created(sender, event, **kwargs):
+    """Handle subscription.created event."""
+    subscription = event.data["object"]
+    logger.info(f"Subscription created: {subscription['id']}")
+
+    # Create subscription metadata
+    from .models import SubscriptionMetadata
+
+    try:
+        djstripe_subscription = Subscription.objects.get(id=subscription["id"])
+        SubscriptionMetadata.objects.get_or_create(
+            subscription=djstripe_subscription
+        )
+        logger.info(f"Created metadata for subscription: {subscription['id']}")
+    except Subscription.DoesNotExist:
+        logger.error(f"Subscription not found in database: {subscription['id']}")
+
+
+@receiver(webhooks.WEBHOOK_SIGNALS["customer.subscription.updated"])
+def handle_subscription_updated(sender, event, **kwargs):
+    """Handle subscription.updated event."""
+    subscription = event.data["object"]
+    logger.info(f"Subscription updated: {subscription['id']}")
+
+    # Sync subscription data
+    try:
+        djstripe_subscription = Subscription.objects.get(id=subscription["id"])
+
+        # Update metadata if features changed
+        if hasattr(djstripe_subscription, "metadata"):
+            metadata = djstripe_subscription.metadata
+            # Update features based on plan
+            # This is where you'd sync plan features from PlanConfiguration
+            metadata.save()
+
+        {% if use_teams -%}
+        # Update team subscription status
+        if hasattr(djstripe_subscription, "metadata") and djstripe_subscription.metadata.team:
+            team = djstripe_subscription.metadata.team
+            team.subscription_status = subscription["status"]
+            team.save()
+        {% endif -%}
+
+    except Subscription.DoesNotExist:
+        logger.error(f"Subscription not found: {subscription['id']}")
+
+
+@receiver(webhooks.WEBHOOK_SIGNALS["customer.subscription.deleted"])
+def handle_subscription_deleted(sender, event, **kwargs):
+    """Handle subscription.deleted event."""
+    subscription = event.data["object"]
+    logger.info(f"Subscription deleted: {subscription['id']}")
+
+    {% if use_teams -%}
+    # Deactivate team if subscription is deleted
+    try:
+        djstripe_subscription = Subscription.objects.get(id=subscription["id"])
+        if hasattr(djstripe_subscription, "metadata") and djstripe_subscription.metadata.team:
+            team = djstripe_subscription.metadata.team
+            team.subscription_status = "canceled"
+            team.is_active = False
+            team.save()
+            logger.info(f"Deactivated team: {team.name}")
+    except Subscription.DoesNotExist:
+        logger.error(f"Subscription not found: {subscription['id']}")
+    {% endif -%}
+
+
+@receiver(webhooks.WEBHOOK_SIGNALS["invoice.payment_succeeded"])
+def handle_invoice_payment_succeeded(sender, event, **kwargs):
+    """Handle invoice.payment_succeeded event."""
+    invoice = event.data["object"]
+    logger.info(f"Invoice payment succeeded: {invoice['id']}")
+
+    # Send receipt email
+    # Grant access to features
+    # Reset usage counters
+
+
+@receiver(webhooks.WEBHOOK_SIGNALS["invoice.payment_failed"])
+def handle_invoice_payment_failed(sender, event, **kwargs):
+    """Handle invoice.payment_failed event."""
+    invoice = event.data["object"]
+    logger.warning(f"Invoice payment failed: {invoice['id']}")
+
+    # Send payment failure email
+    # Potentially suspend access
+
+
+@receiver(webhooks.WEBHOOK_SIGNALS["payment_intent.succeeded"])
+def handle_payment_intent_succeeded(sender, event, **kwargs):
+    """Handle payment_intent.succeeded event for one-off payments."""
+    payment_intent = event.data["object"]
+    logger.info(f"Payment intent succeeded: {payment_intent['id']}")
+
+    from .models import PaymentIntent
+
+    try:
+        local_intent = PaymentIntent.objects.get(
+            stripe_payment_intent_id=payment_intent["id"]
+        )
+        local_intent.status = "succeeded"
+        local_intent.save()
+
+        # Add custom logic (e.g., credit account, send confirmation)
+
+    except PaymentIntent.DoesNotExist:
+        logger.error(f"Payment intent not found: {payment_intent['id']}")
+
+
+@receiver(webhooks.WEBHOOK_SIGNALS["checkout.session.completed"])
+def handle_checkout_session_completed(sender, event, **kwargs):
+    """Handle checkout.session.completed event."""
+    session = event.data["object"]
+    logger.info(f"Checkout session completed: {session['id']}")
+
+    # Link subscription to user/team
+    {% if use_teams -%}
+    if session.get("metadata", {}).get("team_id"):
+        try:
+            team = Team.objects.get(id=session["metadata"]["team_id"])
+            subscription = Subscription.objects.get(id=session["subscription"])
+
+            # Create or update metadata
+            from .models import SubscriptionMetadata
+            metadata, created = SubscriptionMetadata.objects.get_or_create(
+                subscription=subscription
+            )
+            metadata.team = team
+            metadata.save()
+
+            # Update team with subscription details
+            team.stripe_subscription_id = session["subscription"]
+            team.save()
+
+            logger.info(f"Linked subscription to team: {team.name}")
+        except (Team.DoesNotExist, Subscription.DoesNotExist) as e:
+            logger.error(f"Error linking subscription to team: {e}")
+    {% endif -%}
+{% endif -%}

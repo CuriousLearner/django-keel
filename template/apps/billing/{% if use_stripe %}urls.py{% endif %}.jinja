@@ -1,0 +1,57 @@
+"""Billing URL configuration."""
+from django.urls import path
+{% if stripe_mode == 'basic' -%}
+from .views import (
+    PricingView,
+    CheckoutView,
+    CheckoutSuccessView,
+    CustomerPortalView,
+    SubscriptionView,
+    CancelSubscriptionView,
+)
+from .webhooks import stripe_webhook
+{% else -%}
+from djstripe import views as djstripe_views
+from .views import (
+    PricingView,
+    CheckoutView,
+    CheckoutSuccessView,
+    CustomerPortalView,
+    SubscriptionView,
+    UsageStatsView,
+    UpdateUsageView,
+)
+{% endif -%}
+
+app_name = "billing"
+
+urlpatterns = [
+    # Public pages
+    path("pricing/", PricingView.as_view(), name="pricing"),
+
+    # Checkout flow
+    path("checkout/", CheckoutView.as_view(), name="checkout"),
+    path("checkout/success/", CheckoutSuccessView.as_view(), name="checkout_success"),
+
+    # Customer portal
+    path("portal/", CustomerPortalView.as_view(), name="customer_portal"),
+
+    # Subscription management
+    path("subscription/", SubscriptionView.as_view(), name="subscription"),
+    {% if stripe_mode == 'basic' -%}
+    path("subscription/cancel/", CancelSubscriptionView.as_view(), name="cancel_subscription"),
+    {% endif -%}
+
+    {% if stripe_mode == 'advanced' -%}
+    # Usage tracking (AJAX endpoints)
+    path("usage/stats/", UsageStatsView.as_view(), name="usage_stats"),
+    path("usage/update/", UpdateUsageView.as_view(), name="update_usage"),
+    {% endif -%}
+
+    # Webhooks
+    {% if stripe_mode == 'basic' -%}
+    path("webhook/stripe/", stripe_webhook, name="stripe_webhook"),
+    {% else -%}
+    path("webhook/stripe/", djstripe_views.ProcessWebhookView.as_view(), name="stripe_webhook"),
+    {% endif -%}
+]

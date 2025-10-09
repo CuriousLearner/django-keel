@@ -1,0 +1,261 @@
+"""Teams and multi-tenancy models."""
+import secrets
+from django.conf import settings
+from django.db import models
+from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
+
+
+class Team(models.Model):
+    """Team/Organization model for multi-tenancy."""
+
+    name = models.CharField(_("team name"), max_length=100)
+    slug = models.SlugField(_("slug"), unique=True, max_length=100)
+    description = models.TextField(_("description"), blank=True)
+
+    # Owner is the creator and primary admin
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="owned_teams",
+        verbose_name=_("owner"),
+    )
+
+    # Billing
+    {% if use_stripe -%}
+    stripe_customer_id = models.CharField(
+        _("Stripe customer ID"),
+        max_length=255,
+        blank=True,
+        null=True,
+    )
+    stripe_subscription_id = models.CharField(
+        _("Stripe subscription ID"),
+        max_length=255,
+        blank=True,
+        null=True,
+    )
+    subscription_status = models.CharField(
+        _("subscription status"),
+        max_length=20,
+        choices=[
+            ("active", _("Active")),
+            ("trialing", _("Trialing")),
+            ("past_due", _("Past Due")),
+            ("canceled", _("Canceled")),
+            ("incomplete", _("Incomplete")),
+        ],
+        default="active",
+    )
+    {% endif -%}
+
+    # Metadata
+    created_at = models.DateTimeField(_("created at"), auto_now_add=True)
+    updated_at = models.DateTimeField(_("updated at"), auto_now=True)
+    is_active = models.BooleanField(_("active"), default=True)
+
+    class Meta:
+        verbose_name = _("team")
+        verbose_name_plural = _("teams")
+        ordering = ["name"]
+
+    def __str__(self):
+        return self.name
+
+    def get_member_count(self):
+        """Get count of active team members."""
+        return self.members.filter(is_active=True).count()
+
+    def get_active_members(self):
+        """Get all active team members."""
+        return self.members.filter(is_active=True)
+
+    def has_member(self, user):
+        """Check if user is a member of this team."""
+        return self.members.filter(user=user, is_active=True).exists()
+
+    def add_user(self, user, role="member", added_by=None):
+        """Add a user to the team."""
+        return TeamMember.objects.create(
+            team=self,
+            user=user,
+            role=role,
+            added_by=added_by,
+        )
+
+
+class TeamMember(models.Model):
+    """Team membership model with roles."""
+
+    ROLE_CHOICES = [
+        ("owner", _("Owner")),
+        ("admin", _("Admin")),
+        ("member", _("Member")),
+    ]
+
+    team = models.ForeignKey(
+        Team,
+        on_delete=models.CASCADE,
+        related_name="members",
+        verbose_name=_("team"),
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="team_memberships",
+        verbose_name=_("user"),
+    )
+    role = models.CharField(
+        _("role"),
+        max_length=20,
+        choices=ROLE_CHOICES,
+        default="member",
+    )
+
+    # Metadata
+    is_active = models.BooleanField(_("active"), default=True)
+    joined_at = models.DateTimeField(_("joined at"), auto_now_add=True)
+    added_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+        verbose_name=_("added by"),
+    )
+
+    class Meta:
+        verbose_name = _("team member")
+        verbose_name_plural = _("team members")
+        unique_together = [["team", "user"]]
+        ordering = ["-joined_at"]
+
+    def __str__(self):
+        return f"{self.user} in {self.team} ({self.get_role_display()})"
+
+    def is_owner(self):
+        """Check if this member is the owner."""
+        return self.role == "owner"
+
+    def is_admin(self):
+        """Check if this member is an admin or owner."""
+        return self.role in ["owner", "admin"]
+
+    def can_manage_members(self):
+        """Check if this member can manage other members."""
+        return self.is_admin()
+
+    def can_manage_billing(self):
+        """Check if this member can manage billing."""
+        return self.is_owner()
+
+
+class TeamInvitation(models.Model):
+    """Team invitation model."""
+
+    STATUS_CHOICES = [
+        ("pending", _("Pending")),
+        ("accepted", _("Accepted")),
+        ("declined", _("Declined")),
+        ("expired", _("Expired")),
+    ]
+
+    team = models.ForeignKey(
+        Team,
+        on_delete=models.CASCADE,
+        related_name="invitations",
+        verbose_name=_("team"),
+    )
+    email = models.EmailField(_("email address"))
+    role = models.CharField(
+        _("role"),
+        max_length=20,
+        choices=TeamMember.ROLE_CHOICES,
+        default="member",
+    )
+    token = models.CharField(
+        _("token"),
+        max_length=64,
+        unique=True,
+        editable=False,
+    )
+    status = models.CharField(
+        _("status"),
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default="pending",
+    )
+
+    # Who sent the invitation
+    invited_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="sent_invitations",
+        verbose_name=_("invited by"),
+    )
+
+    # Metadata
+    created_at = models.DateTimeField(_("created at"), auto_now_add=True)
+    expires_at = models.DateTimeField(_("expires at"))
+    accepted_at = models.DateTimeField(_("accepted at"), null=True, blank=True)
+
+    class Meta:
+        verbose_name = _("team invitation")
+        verbose_name_plural = _("team invitations")
+        unique_together = [["team", "email", "status"]]
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"Invitation for {self.email} to {self.team}"
+
+    def save(self, *args, **kwargs):
+        """Generate token and set expiry on create."""
+        if not self.pk:
+            if not self.token:
+                self.token = secrets.token_urlsafe(32)
+            if not self.expires_at:
+                # Default: 7 days expiry
+                self.expires_at = timezone.now() + timezone.timedelta(days=7)
+        super().save(*args, **kwargs)
+
+    def is_valid(self):
+        """Check if invitation is still valid."""
+        return (
+            self.status == "pending"
+            and self.expires_at > timezone.now()
+        )
+
+    def accept(self, user):
+        """Accept the invitation."""
+        if not self.is_valid():
+            return False
+
+        # Create team membership
+        TeamMember.objects.create(
+            team=self.team,
+            user=user,
+            role=self.role,
+            added_by=self.invited_by,
+        )
+
+        # Update invitation
+        self.status = "accepted"
+        self.accepted_at = timezone.now()
+        self.save()
+
+        return True
+
+    def decline(self):
+        """Decline the invitation."""
+        self.status = "declined"
+        self.save()
+
+    def expire(self):
+        """Mark invitation as expired."""
+        self.status = "expired"
+        self.save()
+
+    def send_invitation_email(self):
+        """Send invitation email to the invitee."""
+        from apps.teams.utils import send_team_invitation_email
+        send_team_invitation_email(self)

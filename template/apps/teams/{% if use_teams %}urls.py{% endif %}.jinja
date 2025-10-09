@@ -1,0 +1,47 @@
+"""URL configuration for teams app."""
+from django.urls import path
+
+from apps.teams import views
+
+app_name = "teams"
+
+urlpatterns = [
+    # Team management
+    path("", views.TeamListView.as_view(), name="list"),
+    path("create/", views.TeamCreateView.as_view(), name="create"),
+    path("<slug:team_slug>/", views.TeamDetailView.as_view(), name="detail"),
+    path("<slug:team_slug>/edit/", views.TeamUpdateView.as_view(), name="update"),
+    path("<slug:team_slug>/delete/", views.TeamDeleteView.as_view(), name="delete"),
+    # Team invitations
+    path(
+        "<slug:team_slug>/invite/",
+        views.TeamInvitationCreateView.as_view(),
+        name="invite",
+    ),
+    path(
+        "invitations/<str:token>/accept/",
+        views.TeamInvitationAcceptView.as_view(),
+        name="invitation_accept",
+    ),
+    path(
+        "invitations/<str:token>/decline/",
+        views.TeamInvitationDeclineView.as_view(),
+        name="invitation_decline",
+    ),
+    # Team members
+    path(
+        "<slug:team_slug>/members/<int:member_id>/edit/",
+        views.TeamMemberUpdateView.as_view(),
+        name="member_update",
+    ),
+    path(
+        "<slug:team_slug>/members/<int:member_id>/remove/",
+        views.TeamMemberRemoveView.as_view(),
+        name="member_remove",
+    ),
+    path(
+        "<slug:team_slug>/leave/",
+        views.TeamMemberLeaveView.as_view(),
+        name="leave",
+    ),
+]

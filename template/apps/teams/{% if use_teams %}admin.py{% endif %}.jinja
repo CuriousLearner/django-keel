@@ -1,0 +1,144 @@
+"""Admin interface for teams app."""
+from django.contrib import admin
+from django.utils.html import format_html
+
+from apps.teams.models import Team, TeamInvitation, TeamMember
+
+
+class TeamMemberInline(admin.TabularInline):
+    """Inline admin for team members."""
+
+    model = TeamMember
+    extra = 0
+    fields = ["user", "role", "is_active", "joined_at", "added_by"]
+    readonly_fields = ["joined_at"]
+    autocomplete_fields = ["user", "added_by"]
+
+
+class TeamInvitationInline(admin.TabularInline):
+    """Inline admin for team invitations."""
+
+    model = TeamInvitation
+    extra = 0
+    fields = ["email", "role", "status", "invited_by", "created_at", "expires_at"]
+    readonly_fields = ["token", "created_at", "accepted_at"]
+
+
+@admin.register(Team)
+class TeamAdmin(admin.ModelAdmin):
+    """Admin interface for teams."""
+
+    list_display = [
+        "name",
+        "slug",
+        "owner",
+        "member_count",
+        {% if use_stripe -%}
+        "subscription_status",
+        {% endif -%}
+        "is_active",
+        "created_at",
+    ]
+    list_filter = [
+        "is_active",
+        {% if use_stripe -%}
+        "subscription_status",
+        {% endif -%}
+        "created_at",
+    ]
+    search_fields = ["name", "slug", "owner__email"]
+    prepopulated_fields = {"slug": ["name"]}
+    readonly_fields = ["created_at", "updated_at", "member_count"]
+    inlines = [TeamMemberInline, TeamInvitationInline]
+
+    fieldsets = [
+        (
+            "Basic Information",
+            {
+                "fields": [
+                    "name",
+                    "slug",
+                    "description",
+                    "owner",
+                    "is_active",
+                ]
+            },
+        ),
+        {% if use_stripe -%}
+        (
+            "Billing",
+            {
+                "fields": [
+                    "stripe_customer_id",
+                    "stripe_subscription_id",
+                    "subscription_status",
+                ]
+            },
+        ),
+        {% endif -%}
+        (
+            "Metadata",
+            {
+                "fields": [
+                    "member_count",
+                    "created_at",
+                    "updated_at",
+                ]
+            },
+        ),
+    ]
+
+    def member_count(self, obj):
+        """Display member count."""
+        count = obj.get_member_count()
+        return format_html(
+            '<span style="font-weight: bold;">{}</span>',
+            count
+        )
+
+    member_count.short_description = "Members"
+
+
+@admin.register(TeamMember)
+class TeamMemberAdmin(admin.ModelAdmin):
+    """Admin interface for team members."""
+
+    list_display = [
+        "user",
+        "team",
+        "role",
+        "is_active",
+        "joined_at",
+    ]
+    list_filter = ["role", "is_active", "joined_at"]
+    search_fields = [
+        "user__email",
+        "user__first_name",
+        "user__last_name",
+        "team__name",
+    ]
+    readonly_fields = ["joined_at"]
+    autocomplete_fields = ["user", "team", "added_by"]
+
+
+@admin.register(TeamInvitation)
+class TeamInvitationAdmin(admin.ModelAdmin):
+    """Admin interface for team invitations."""
+
+    list_display = [
+        "email",
+        "team",
+        "role",
+        "status",
+        "invited_by",
+        "created_at",
+        "expires_at",
+    ]
+    list_filter = ["status", "role", "created_at"]
+    search_fields = ["email", "team__name", "invited_by__email"]
+    readonly_fields = ["token", "created_at", "accepted_at"]
+    autocomplete_fields = ["team", "invited_by"]
+
+    def has_add_permission(self, request):
+        """Disable add in admin (use app interface instead)."""
+        return False

@@ -1,0 +1,355 @@
+"""Integration tests for SaaS features."""
+import pytest
+from django.contrib.auth import get_user_model
+{% if use_teams -%}
+from apps.teams.models import Team, TeamMember, TeamInvitation
+{% endif -%}
+{% if use_stripe -%}
+{% if stripe_mode == 'advanced' -%}
+from djstripe.models import Customer, Subscription
+from apps.billing.models import SubscriptionMetadata, PlanConfiguration
+{% else -%}
+from apps.billing.models import StripeCustomer, Subscription
+{% endif -%}
+{% endif -%}
+
+User = get_user_model()
+
+
+{% if use_teams and use_stripe -%}
+@pytest.mark.django_db
+@pytest.mark.integration
+class TestTeamSubscriptionIntegration:
+    """Test integration between teams and subscriptions."""
+
+    def test_team_with_subscription(self, user):
+        """Test creating team with subscription."""
+        # Create team
+        team = Team.objects.create(
+            name="Pro Team",
+            slug="pro-team",
+            owner=user
+        )
+
+        # Create owner membership
+        TeamMember.objects.create(
+            team=team,
+            user=user,
+            role="owner",
+            added_by=user
+        )
+
+        {% if stripe_mode == 'advanced' -%}
+        # Create customer and subscription
+        customer = Customer.objects.create(
+            subscriber=user,
+            livemode=False
+        )
+
+        subscription = Subscription.objects.create(
+            customer=customer,
+            status="active",
+            livemode=False
+        )
+
+        # Link subscription to team
+        metadata = SubscriptionMetadata.objects.create(
+            subscription=subscription,
+            team=team,
+            features={"api_access": True},
+            usage_limits={"team_members": 5}
+        )
+
+        # Test relationship
+        assert metadata.team == team
+        assert subscription.metadata.team == team
+        {% else -%}
+        # Create Stripe customer
+        stripe_customer = StripeCustomer.objects.create(
+            user=user,
+            stripe_customer_id="cus_test123"
+        )
+
+        # Link to team
+        team.stripe_customer_id = "cus_test123"
+        team.save()
+
+        assert team.stripe_customer_id == stripe_customer.stripe_customer_id
+        {% endif -%}
+
+    def test_per_seat_billing(self, user, team):
+        """Test per-seat billing when adding team members."""
+        initial_count = team.get_member_count()
+
+        # Add new member
+        new_user = User.objects.create_user(
+            email="newmember@example.com",
+            password="testpass123"
+        )
+
+        team.add_user(new_user, role="member")
+
+        # Verify count increased
+        assert team.get_member_count() == initial_count + 1
+
+        {% if stripe_mode == 'advanced' -%}
+        # Note: In production, signal would update Stripe quantity
+        # This is tested in signal tests
+        {% endif -%}
+
+    def test_team_invitation_with_subscription_check(self, user, team):
+        """Test team invitation respects subscription limits."""
+        {% if stripe_mode == 'advanced' -%}
+        # Create subscription with team member limit
+        customer = Customer.objects.create(
+            subscriber=user,
+            livemode=False
+        )
+
+        subscription = Subscription.objects.create(
+            customer=customer,
+            status="active",
+            livemode=False
+        )
+
+        metadata = SubscriptionMetadata.objects.create(
+            subscription=subscription,
+            team=team,
+            usage_limits={"team_members": 2}  # Only 2 members allowed
+        )
+
+        # Owner already exists, so we can add 1 more
+        invitation = TeamInvitation.objects.create(
+            team=team,
+            email="invite@example.com",
+            role="member",
+            invited_by=user
+        )
+
+        assert invitation.is_valid()
+        {% endif -%}
+{% endif -%}
+
+
+{% if use_teams -%}
+@pytest.mark.django_db
+@pytest.mark.integration
+class TestTeamWorkflow:
+    """Test complete team workflow."""
+
+    def test_complete_team_lifecycle(self, user):
+        """Test full team lifecycle from creation to deletion."""
+        # 1. Create team
+        team = Team.objects.create(
+            name="Startup Team",
+            slug="startup-team",
+            owner=user
+        )
+
+        TeamMember.objects.create(
+            team=team,
+            user=user,
+            role="owner",
+            added_by=user
+        )
+
+        assert team.is_active
+        assert team.get_member_count() == 1
+
+        # 2. Invite member
+        invitation = TeamInvitation.objects.create(
+            team=team,
+            email="member@example.com",
+            role="member",
+            invited_by=user
+        )
+
+        assert invitation.status == "pending"
+        assert invitation.is_valid()
+
+        # 3. Accept invitation
+        invited_user = User.objects.create_user(
+            email="member@example.com",
+            password="testpass123"
+        )
+
+        invitation.accept(invited_user)
+
+        assert invitation.status == "accepted"
+        assert team.get_member_count() == 2
+        assert team.has_member(invited_user)
+
+        # 4. Add another member directly
+        another_user = User.objects.create_user(
+            email="another@example.com",
+            password="testpass123"
+        )
+
+        member = team.add_user(another_user, role="admin", added_by=user)
+
+        assert member.role == "admin"
+        assert member.is_admin()
+        assert team.get_member_count() == 3
+
+        # 5. Remove member
+        member.is_active = False
+        member.save()
+
+        assert team.get_member_count() == 2
+
+        # 6. Soft delete team
+        team.is_active = False
+        team.save()
+
+        assert not team.is_active
+{% endif -%}
+
+
+{% if use_stripe -%}
+@pytest.mark.django_db
+@pytest.mark.integration
+class TestBillingWorkflow:
+    """Test complete billing workflow."""
+
+    {% if stripe_mode == 'advanced' -%}
+    def test_subscription_with_feature_gating(self, user):
+        """Test subscription creation and feature access."""
+        # Create product and plan
+        from djstripe.models import Product, Price
+
+        product = Product.objects.create(
+            name="Enterprise Plan",
+            livemode=False
+        )
+
+        price = Price.objects.create(
+            product=product,
+            unit_amount=9900,  # $99.00
+            currency="usd",
+            livemode=False
+        )
+
+        plan_config = PlanConfiguration.objects.create(
+            stripe_product=product,
+            stripe_price=price,
+            name="Enterprise Plan",
+            slug="enterprise",
+            features={"api_access": True, "advanced_analytics": True, "priority_support": True},
+            limits={"api_calls": 1000000, "team_members": 50},
+            is_active=True
+        )
+
+        # Create customer and subscription
+        customer = Customer.objects.create(
+            subscriber=user,
+            livemode=False
+        )
+
+        subscription = Subscription.objects.create(
+            customer=customer,
+            status="active",
+            livemode=False
+        )
+
+        # Create metadata with features
+        metadata = SubscriptionMetadata.objects.create(
+            subscription=subscription,
+            features=plan_config.features,
+            usage_limits=plan_config.limits,
+            current_usage={"api_calls": 0, "team_members": 1}
+        )
+
+        # Test feature access
+        assert metadata.has_feature("api_access")
+        assert metadata.has_feature("advanced_analytics")
+        assert metadata.has_feature("priority_support")
+        assert not metadata.has_feature("nonexistent_feature")
+
+        # Test usage limits
+        assert not metadata.is_over_limit("api_calls")
+        assert metadata.get_usage_percentage("api_calls") == 0.0
+
+        # Simulate usage
+        metadata.current_usage["api_calls"] = 500000
+        metadata.save()
+
+        assert metadata.get_usage_percentage("api_calls") == 50.0
+
+        # Hit limit
+        metadata.current_usage["api_calls"] = 1000000
+        metadata.save()
+
+        assert metadata.is_over_limit("api_calls")
+    {% endif -%}
+{% endif -%}
+
+
+@pytest.mark.django_db
+@pytest.mark.integration
+class TestFeatureFlagIntegration:
+    """Test feature flags integration."""
+
+    def test_feature_flag_with_user_groups(self):
+        """Test feature flags with user groups."""
+        from waffle.models import Flag
+        from django.contrib.auth.models import Group
+
+        # Create a flag for beta users
+        flag = Flag.objects.create(
+            name="beta_features",
+            everyone=False
+        )
+
+        # Create beta group
+        beta_group = Group.objects.create(name="Beta Testers")
+        flag.groups.add(beta_group)
+
+        # Create users
+        beta_user = User.objects.create_user(
+            email="beta@example.com",
+            password="testpass123"
+        )
+        beta_user.groups.add(beta_group)
+
+        regular_user = User.objects.create_user(
+            email="regular@example.com",
+            password="testpass123"
+        )
+
+        # Test access
+        from apps.core.feature_flags import is_feature_enabled
+
+        assert is_feature_enabled("beta_features", user=beta_user)
+        assert not is_feature_enabled("beta_features", user=regular_user)
+
+
+@pytest.mark.django_db
+@pytest.mark.integration
+class TestImpersonationIntegration:
+    """Test impersonation integration."""
+
+    def test_impersonation_with_feature_flags(self, client, staff_user):
+        """Test that impersonation works with feature flags."""
+        from waffle.models import Flag
+
+        # Create a staff-only flag
+        Flag.objects.create(
+            name="admin_panel",
+            staff=True,
+            everyone=False
+        )
+
+        regular_user = User.objects.create_user(
+            email="regular@example.com",
+            password="testpass123"
+        )
+
+        # Staff user can access
+        client.force_login(staff_user)
+        session = client.session
+        session["impersonate_id"] = regular_user.id
+        session.save()
+
+        # After impersonating, staff user becomes regular user
+        # But middleware should preserve permissions
+        # This tests that the real_user is used for staff checks

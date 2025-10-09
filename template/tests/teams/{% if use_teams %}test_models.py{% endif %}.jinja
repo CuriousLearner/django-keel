@@ -1,0 +1,375 @@
+"""Tests for teams models."""
+import pytest
+from django.contrib.auth import get_user_model
+from django.utils import timezone
+from datetime import timedelta
+
+from apps.teams.models import Team, TeamMember, TeamInvitation
+
+User = get_user_model()
+
+
+@pytest.fixture
+def user(db):
+    """Create a test user."""
+    return User.objects.create_user(
+        email="user@example.com",
+        password="testpass123"
+    )
+
+
+@pytest.fixture
+def team_owner(db):
+    """Create a team owner."""
+    return User.objects.create_user(
+        email="owner@example.com",
+        password="testpass123"
+    )
+
+
+@pytest.fixture
+def team(db, team_owner):
+    """Create a test team."""
+    return Team.objects.create(
+        name="Test Team",
+        slug="test-team",
+        owner=team_owner,
+        description="A test team"
+    )
+
+
+@pytest.mark.django_db
+class TestTeamModel:
+    """Test Team model."""
+
+    def test_team_creation(self, team, team_owner):
+        """Test team is created correctly."""
+        assert team.name == "Test Team"
+        assert team.slug == "test-team"
+        assert team.owner == team_owner
+        assert team.is_active is True
+
+    def test_team_str(self, team):
+        """Test team string representation."""
+        assert str(team) == "Test Team"
+
+    def test_get_member_count(self, team, user):
+        """Test get_member_count method."""
+        # Owner membership is created automatically via signal
+        initial_count = team.get_member_count()
+
+        # Add another member
+        TeamMember.objects.create(
+            team=team,
+            user=user,
+            role="member"
+        )
+
+        assert team.get_member_count() == initial_count + 1
+
+    def test_get_active_members(self, team, user):
+        """Test get_active_members method."""
+        member = TeamMember.objects.create(
+            team=team,
+            user=user,
+            role="member"
+        )
+
+        active_members = team.get_active_members()
+        assert member in active_members
+
+        # Deactivate member
+        member.is_active = False
+        member.save()
+
+        active_members = team.get_active_members()
+        assert member not in active_members
+
+    def test_has_member(self, team, user):
+        """Test has_member method."""
+        assert not team.has_member(user)
+
+        TeamMember.objects.create(
+            team=team,
+            user=user,
+            role="member"
+        )
+
+        assert team.has_member(user)
+
+    def test_add_user(self, team, user, team_owner):
+        """Test add_user method."""
+        member = team.add_user(user, role="admin", added_by=team_owner)
+
+        assert isinstance(member, TeamMember)
+        assert member.user == user
+        assert member.team == team
+        assert member.role == "admin"
+        assert member.added_by == team_owner
+
+
+@pytest.mark.django_db
+class TestTeamMemberModel:
+    """Test TeamMember model."""
+
+    def test_member_creation(self, team, user):
+        """Test member is created correctly."""
+        member = TeamMember.objects.create(
+            team=team,
+            user=user,
+            role="member"
+        )
+
+        assert member.team == team
+        assert member.user == user
+        assert member.role == "member"
+        assert member.is_active is True
+
+    def test_member_str(self, team, user):
+        """Test member string representation."""
+        member = TeamMember.objects.create(
+            team=team,
+            user=user,
+            role="admin"
+        )
+
+        assert str(member) == f"{user} in {team} (Admin)"
+
+    def test_is_owner(self, team, team_owner):
+        """Test is_owner method."""
+        owner_member = TeamMember.objects.create(
+            team=team,
+            user=team_owner,
+            role="owner"
+        )
+
+        assert owner_member.is_owner() is True
+
+        member = TeamMember.objects.create(
+            team=team,
+            user=User.objects.create_user(
+                email="member@example.com",
+                password="testpass123"
+            ),
+            role="member"
+        )
+
+        assert member.is_owner() is False
+
+    def test_is_admin(self, team, user):
+        """Test is_admin method."""
+        admin = TeamMember.objects.create(
+            team=team,
+            user=user,
+            role="admin"
+        )
+
+        assert admin.is_admin() is True
+
+        owner = TeamMember.objects.create(
+            team=team,
+            user=User.objects.create_user(
+                email="owner2@example.com",
+                password="testpass123"
+            ),
+            role="owner"
+        )
+
+        assert owner.is_admin() is True
+
+        member = TeamMember.objects.create(
+            team=team,
+            user=User.objects.create_user(
+                email="member@example.com",
+                password="testpass123"
+            ),
+            role="member"
+        )
+
+        assert member.is_admin() is False
+
+    def test_can_manage_members(self, team, user):
+        """Test can_manage_members method."""
+        admin = TeamMember.objects.create(
+            team=team,
+            user=user,
+            role="admin"
+        )
+
+        assert admin.can_manage_members() is True
+
+    def test_can_manage_billing(self, team, team_owner, user):
+        """Test can_manage_billing method."""
+        owner = TeamMember.objects.create(
+            team=team,
+            user=team_owner,
+            role="owner"
+        )
+
+        assert owner.can_manage_billing() is True
+
+        admin = TeamMember.objects.create(
+            team=team,
+            user=user,
+            role="admin"
+        )
+
+        assert admin.can_manage_billing() is False
+
+    def test_unique_together(self, team, user):
+        """Test unique constraint on team and user."""
+        TeamMember.objects.create(
+            team=team,
+            user=user,
+            role="member"
+        )
+
+        with pytest.raises(Exception):  # IntegrityError
+            TeamMember.objects.create(
+                team=team,
+                user=user,
+                role="admin"
+            )
+
+
+@pytest.mark.django_db
+class TestTeamInvitationModel:
+    """Test TeamInvitation model."""
+
+    def test_invitation_creation(self, team, team_owner):
+        """Test invitation is created correctly."""
+        invitation = TeamInvitation.objects.create(
+            team=team,
+            email="invitee@example.com",
+            role="member",
+            invited_by=team_owner
+        )
+
+        assert invitation.team == team
+        assert invitation.email == "invitee@example.com"
+        assert invitation.role == "member"
+        assert invitation.status == "pending"
+        assert invitation.invited_by == team_owner
+
+    def test_token_auto_generation(self, team, team_owner):
+        """Test token is auto-generated on save."""
+        invitation = TeamInvitation.objects.create(
+            team=team,
+            email="invitee@example.com",
+            role="member",
+            invited_by=team_owner
+        )
+
+        assert invitation.token is not None
+        assert len(invitation.token) > 0
+
+    def test_expiry_auto_set(self, team, team_owner):
+        """Test expiry is auto-set to 7 days."""
+        invitation = TeamInvitation.objects.create(
+            team=team,
+            email="invitee@example.com",
+            role="member",
+            invited_by=team_owner
+        )
+
+        expected_expiry = timezone.now() + timedelta(days=7)
+
+        # Allow 1 minute tolerance
+        assert abs((invitation.expires_at - expected_expiry).total_seconds()) < 60
+
+    def test_is_valid(self, team, team_owner):
+        """Test is_valid method."""
+        invitation = TeamInvitation.objects.create(
+            team=team,
+            email="invitee@example.com",
+            role="member",
+            invited_by=team_owner
+        )
+
+        assert invitation.is_valid() is True
+
+        # Expire invitation
+        invitation.expires_at = timezone.now() - timedelta(days=1)
+        invitation.save()
+
+        assert invitation.is_valid() is False
+
+        # Test with accepted status
+        invitation.expires_at = timezone.now() + timedelta(days=7)
+        invitation.status = "accepted"
+        invitation.save()
+
+        assert invitation.is_valid() is False
+
+    def test_accept(self, team, team_owner, user):
+        """Test accept method."""
+        invitation = TeamInvitation.objects.create(
+            team=team,
+            email=user.email,
+            role="member",
+            invited_by=team_owner
+        )
+
+        result = invitation.accept(user)
+
+        assert result is True
+        assert invitation.status == "accepted"
+        assert invitation.accepted_at is not None
+
+        # Check member was created
+        assert TeamMember.objects.filter(
+            team=team,
+            user=user,
+            role="member"
+        ).exists()
+
+    def test_accept_expired_invitation(self, team, team_owner, user):
+        """Test accepting expired invitation fails."""
+        invitation = TeamInvitation.objects.create(
+            team=team,
+            email=user.email,
+            role="member",
+            invited_by=team_owner,
+            expires_at=timezone.now() - timedelta(days=1)
+        )
+
+        result = invitation.accept(user)
+
+        assert result is False
+
+    def test_decline(self, team, team_owner):
+        """Test decline method."""
+        invitation = TeamInvitation.objects.create(
+            team=team,
+            email="invitee@example.com",
+            role="member",
+            invited_by=team_owner
+        )
+
+        invitation.decline()
+
+        assert invitation.status == "declined"
+
+    def test_expire(self, team, team_owner):
+        """Test expire method."""
+        invitation = TeamInvitation.objects.create(
+            team=team,
+            email="invitee@example.com",
+            role="member",
+            invited_by=team_owner
+        )
+
+        invitation.expire()
+
+        assert invitation.status == "expired"
+
+    def test_invitation_str(self, team, team_owner):
+        """Test invitation string representation."""
+        invitation = TeamInvitation.objects.create(
+            team=team,
+            email="invitee@example.com",
+            role="member",
+            invited_by=team_owner
+        )
+
+        assert str(invitation) == f"Invitation for invitee@example.com to {team}"

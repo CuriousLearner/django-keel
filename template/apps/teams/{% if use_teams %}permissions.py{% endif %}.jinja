@@ -1,0 +1,129 @@
+"""Permissions and mixins for teams."""
+from django.contrib.auth.mixins import AccessMixin
+from django.core.exceptions import PermissionDenied
+from django.shortcuts import get_object_or_404
+
+from apps.teams.models import Team, TeamMember
+
+
+class TeamPermissionMixin(AccessMixin):
+    """Mixin to check team permissions."""
+
+    def get_team(self):
+        """Get team from URL kwargs."""
+        team_slug = self.kwargs.get("team_slug")
+        if not team_slug:
+            raise ValueError("team_slug not found in URL")
+        return get_object_or_404(Team, slug=team_slug, is_active=True)
+
+    def get_team_member(self, team=None):
+        """Get team member for current user."""
+        if not team:
+            team = self.get_team()
+
+        try:
+            return TeamMember.objects.get(
+                team=team,
+                user=self.request.user,
+                is_active=True,
+            )
+        except TeamMember.DoesNotExist:
+            return None
+
+    def check_team_permission(self, team=None, require_admin=False):
+        """Check if user has team permission."""
+        if not team:
+            team = self.get_team()
+
+        member = self.get_team_member(team)
+        if not member:
+            raise PermissionDenied("You are not a member of this team")
+
+        if require_admin and not member.is_admin():
+            raise PermissionDenied("Admin permission required")
+
+        return member
+
+
+class TeamMemberRequiredMixin(TeamPermissionMixin):
+    """Require user to be a team member."""
+
+    def dispatch(self, request, *args, **kwargs):
+        """Check team membership before dispatching."""
+        if not request.user.is_authenticated:
+            return self.handle_no_permission()
+
+        self.team = self.get_team()
+        self.team_member = self.check_team_permission(self.team)
+
+        return super().dispatch(request, *args, **kwargs)
+
+
+class TeamAdminRequiredMixin(TeamPermissionMixin):
+    """Require user to be a team admin."""
+
+    def dispatch(self, request, *args, **kwargs):
+        """Check team admin permission before dispatching."""
+        if not request.user.is_authenticated:
+            return self.handle_no_permission()
+
+        self.team = self.get_team()
+        self.team_member = self.check_team_permission(
+            self.team,
+            require_admin=True
+        )
+
+        return super().dispatch(request, *args, **kwargs)
+
+
+class TeamOwnerRequiredMixin(TeamPermissionMixin):
+    """Require user to be the team owner."""
+
+    def dispatch(self, request, *args, **kwargs):
+        """Check team owner permission before dispatching."""
+        if not request.user.is_authenticated:
+            return self.handle_no_permission()
+
+        self.team = self.get_team()
+        self.team_member = self.check_team_permission(self.team)
+
+        if not self.team_member.is_owner():
+            raise PermissionDenied("Owner permission required")
+
+        return super().dispatch(request, *args, **kwargs)
+
+
+def user_can_access_team(user, team):
+    """Check if user can access team."""
+    if not user or not user.is_authenticated:
+        return False
+
+    return TeamMember.objects.filter(
+        team=team,
+        user=user,
+        is_active=True,
+    ).exists()
+
+
+def user_is_team_admin(user, team):
+    """Check if user is team admin."""
+    if not user or not user.is_authenticated:
+        return False
+
+    try:
+        member = TeamMember.objects.get(
+            team=team,
+            user=user,
+            is_active=True,
+        )
+        return member.is_admin()
+    except TeamMember.DoesNotExist:
+        return False
+
+
+def user_is_team_owner(user, team):
+    """Check if user is team owner."""
+    if not user or not user.is_authenticated:
+        return False
+
+    return team.owner == user

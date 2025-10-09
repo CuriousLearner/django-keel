@@ -1,0 +1,291 @@
+"""Views for teams app."""
+from django.contrib import messages
+from django.contrib.auth.mixins import LoginRequiredMixin
+from django.shortcuts import get_object_or_404, redirect
+from django.urls import reverse, reverse_lazy
+from django.utils.translation import gettext_lazy as _
+from django.views.generic import (
+    CreateView,
+    DeleteView,
+    DetailView,
+    ListView,
+    UpdateView,
+    View,
+)
+
+from apps.teams.forms import (
+    TeamCreateForm,
+    TeamInvitationForm,
+    TeamMemberUpdateForm,
+    TeamUpdateForm,
+)
+from apps.teams.models import Team, TeamInvitation, TeamMember
+from apps.teams.permissions import (
+    TeamAdminRequiredMixin,
+    TeamMemberRequiredMixin,
+    TeamOwnerRequiredMixin,
+)
+
+
+class TeamListView(LoginRequiredMixin, ListView):
+    """List all teams for current user."""
+
+    model = Team
+    template_name = "teams/team_list.html"
+    context_object_name = "teams"
+
+    def get_queryset(self):
+        """Get teams where user is a member."""
+        return Team.objects.filter(
+            members__user=self.request.user,
+            members__is_active=True,
+            is_active=True,
+        ).distinct()
+
+
+class TeamCreateView(LoginRequiredMixin, CreateView):
+    """Create a new team."""
+
+    model = Team
+    form_class = TeamCreateForm
+    template_name = "teams/team_form.html"
+
+    def form_valid(self, form):
+        """Set owner to current user."""
+        form.instance.owner = self.request.user
+        response = super().form_valid(form)
+        messages.success(
+            self.request,
+            _("Team '{}' created successfully!").format(form.instance.name),
+        )
+        return response
+
+    def get_success_url(self):
+        """Redirect to team detail."""
+        return reverse("teams:detail", kwargs={"team_slug": self.object.slug})
+
+
+class TeamDetailView(TeamMemberRequiredMixin, DetailView):
+    """Team detail view."""
+
+    model = Team
+    template_name = "teams/team_detail.html"
+    context_object_name = "team"
+    slug_url_kwarg = "team_slug"
+
+    def get_queryset(self):
+        """Filter to active teams only."""
+        return Team.objects.filter(is_active=True)
+
+    def get_context_data(self, **kwargs):
+        """Add member info to context."""
+        context = super().get_context_data(**kwargs)
+        context["team_member"] = self.team_member
+        context["members"] = self.object.get_active_members()
+        context["pending_invitations"] = self.object.invitations.filter(
+            status="pending"
+        )
+        return context
+
+
+class TeamUpdateView(TeamAdminRequiredMixin, UpdateView):
+    """Update team settings."""
+
+    model = Team
+    form_class = TeamUpdateForm
+    template_name = "teams/team_form.html"
+    slug_url_kwarg = "team_slug"
+
+    def get_queryset(self):
+        """Filter to active teams only."""
+        return Team.objects.filter(is_active=True)
+
+    def form_valid(self, form):
+        """Show success message."""
+        response = super().form_valid(form)
+        messages.success(self.request, _("Team updated successfully!"))
+        return response
+
+    def get_success_url(self):
+        """Redirect to team detail."""
+        return reverse("teams:detail", kwargs={"team_slug": self.object.slug})
+
+
+class TeamDeleteView(TeamOwnerRequiredMixin, DeleteView):
+    """Delete a team."""
+
+    model = Team
+    template_name = "teams/team_confirm_delete.html"
+    slug_url_kwarg = "team_slug"
+    success_url = reverse_lazy("teams:list")
+
+    def get_queryset(self):
+        """Filter to active teams only."""
+        return Team.objects.filter(is_active=True)
+
+    def delete(self, request, *args, **kwargs):
+        """Soft delete the team."""
+        self.object = self.get_object()
+        self.object.is_active = False
+        self.object.save()
+        messages.success(request, _("Team deleted successfully!"))
+        return redirect(self.success_url)
+
+
+class TeamInvitationCreateView(TeamAdminRequiredMixin, CreateView):
+    """Invite a user to join team."""
+
+    model = TeamInvitation
+    form_class = TeamInvitationForm
+    template_name = "teams/invitation_form.html"
+
+    def get_form_kwargs(self):
+        """Pass team to form."""
+        kwargs = super().get_form_kwargs()
+        kwargs["team"] = self.team
+        return kwargs
+
+    def form_valid(self, form):
+        """Set team and inviter."""
+        form.instance.team = self.team
+        form.instance.invited_by = self.request.user
+        response = super().form_valid(form)
+
+        # Send invitation email
+        self.object.send_invitation_email()
+
+        messages.success(
+            self.request,
+            _("Invitation sent to {}").format(form.instance.email),
+        )
+        return response
+
+    def get_success_url(self):
+        """Redirect to team detail."""
+        return reverse("teams:detail", kwargs={"team_slug": self.team.slug})
+
+
+class TeamInvitationAcceptView(LoginRequiredMixin, View):
+    """Accept a team invitation."""
+
+    def get(self, request, token):
+        """Accept invitation and redirect."""
+        invitation = get_object_or_404(
+            TeamInvitation,
+            token=token,
+            status="pending",
+        )
+
+        if not invitation.is_valid():
+            invitation.expire()
+            messages.error(request, _("This invitation has expired."))
+            return redirect("teams:list")
+
+        # Check if user email matches
+        if invitation.email != request.user.email:
+            messages.error(
+                request,
+                _("This invitation is for a different email address."),
+            )
+            return redirect("teams:list")
+
+        # Accept invitation
+        if invitation.accept(request.user):
+            messages.success(
+                request,
+                _("You've joined {}!").format(invitation.team.name),
+            )
+            return redirect(
+                "teams:detail",
+                team_slug=invitation.team.slug
+            )
+        else:
+            messages.error(request, _("Unable to accept invitation."))
+            return redirect("teams:list")
+
+
+class TeamInvitationDeclineView(LoginRequiredMixin, View):
+    """Decline a team invitation."""
+
+    def post(self, request, token):
+        """Decline invitation."""
+        invitation = get_object_or_404(
+            TeamInvitation,
+            token=token,
+            status="pending",
+        )
+
+        invitation.decline()
+        messages.info(request, _("Invitation declined."))
+        return redirect("teams:list")
+
+
+class TeamMemberUpdateView(TeamAdminRequiredMixin, UpdateView):
+    """Update team member role."""
+
+    model = TeamMember
+    form_class = TeamMemberUpdateForm
+    template_name = "teams/member_form.html"
+    pk_url_kwarg = "member_id"
+
+    def get_queryset(self):
+        """Filter to current team's members."""
+        return TeamMember.objects.filter(team=self.team)
+
+    def form_valid(self, form):
+        """Show success message."""
+        response = super().form_valid(form)
+        messages.success(request, _("Member updated successfully!"))
+        return response
+
+    def get_success_url(self):
+        """Redirect to team detail."""
+        return reverse("teams:detail", kwargs={"team_slug": self.team.slug})
+
+
+class TeamMemberRemoveView(TeamAdminRequiredMixin, View):
+    """Remove a member from team."""
+
+    def post(self, request, team_slug, member_id):
+        """Remove member."""
+        member = get_object_or_404(
+            TeamMember,
+            pk=member_id,
+            team=self.team,
+        )
+
+        # Can't remove owner
+        if member.is_owner():
+            messages.error(request, _("Cannot remove team owner."))
+            return redirect("teams:detail", team_slug=team_slug)
+
+        # Deactivate member
+        member.is_active = False
+        member.save()
+
+        messages.success(
+            request,
+            _("{} removed from team.").format(member.user.email),
+        )
+        return redirect("teams:detail", team_slug=team_slug)
+
+
+class TeamMemberLeaveView(TeamMemberRequiredMixin, View):
+    """Leave a team."""
+
+    def post(self, request, team_slug):
+        """Leave team."""
+        # Owner can't leave their own team
+        if self.team_member.is_owner():
+            messages.error(
+                request,
+                _("Team owner cannot leave. Transfer ownership or delete the team."),
+            )
+            return redirect("teams:detail", team_slug=team_slug)
+
+        # Deactivate membership
+        self.team_member.is_active = False
+        self.team_member.save()
+
+        messages.success(request, _("You've left the team."))
+        return redirect("teams:list")

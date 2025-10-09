@@ -1,0 +1,369 @@
+"""Feature flags using django-waffle."""
+import logging
+from functools import wraps
+from django.shortcuts import redirect
+from django.contrib import messages
+from django.http import JsonResponse, Http404
+from django.utils.translation import gettext_lazy as _
+from waffle import flag_is_active, switch_is_active, sample_is_active
+from waffle.decorators import waffle_flag, waffle_switch
+
+logger = logging.getLogger(__name__)
+
+
+# Utility functions
+
+def is_feature_enabled(feature_name, request=None, user=None):
+    """
+    Check if a feature flag is enabled.
+
+    Args:
+        feature_name: Name of the feature flag
+        request: Optional HttpRequest object
+        user: Optional User object (if no request provided)
+
+    Returns:
+        bool: True if feature is enabled
+    """
+    if request:
+        return flag_is_active(request, feature_name)
+    elif user:
+        # Create a minimal request-like object for waffle
+        class MinimalRequest:
+            def __init__(self, user):
+                self.user = user
+
+        return flag_is_active(MinimalRequest(user), feature_name)
+    else:
+        # No user context, check if it's a switch
+        return switch_is_active(feature_name)
+
+
+def is_switch_enabled(switch_name):
+    """Check if a switch is enabled (global on/off)."""
+    return switch_is_active(switch_name)
+
+
+def is_in_sample(sample_name, request):
+    """Check if request is in a sample (percentage rollout)."""
+    return sample_is_active(sample_name, request)
+
+
+# Decorators for function-based views
+
+def feature_flag(
+    flag_name,
+    redirect_to="/",
+    message=None,
+    ajax_response=False,
+):
+    """
+    Decorator to gate views behind feature flags.
+
+    Usage:
+        @feature_flag("new_dashboard")
+        def new_dashboard_view(request):
+            ...
+
+        @feature_flag("beta_features", redirect_to="/pricing/")
+        def beta_view(request):
+            ...
+    """
+    def decorator(view_func):
+        @wraps(view_func)
+        def wrapper(request, *args, **kwargs):
+            if flag_is_active(request, flag_name):
+                return view_func(request, *args, **kwargs)
+
+            # Feature not enabled
+            error_message = (
+                message or
+                _("This feature is not available.")
+            )
+
+            if ajax_response or request.headers.get("X-Requested-With") == "XMLHttpRequest":
+                return JsonResponse(
+                    {"error": str(error_message)},
+                    status=403
+                )
+
+            if message:
+                messages.warning(request, error_message)
+
+            return redirect(redirect_to)
+
+        return wrapper
+    return decorator
+
+
+def feature_switch(
+    switch_name,
+    redirect_to="/",
+    message=None,
+    ajax_response=False,
+):
+    """
+    Decorator to gate views behind switches (simpler than flags).
+
+    Usage:
+        @feature_switch("maintenance_mode", redirect_to="/maintenance/")
+        def admin_only_view(request):
+            ...
+    """
+    def decorator(view_func):
+        @wraps(view_func)
+        def wrapper(request, *args, **kwargs):
+            if switch_is_active(switch_name):
+                return view_func(request, *args, **kwargs)
+
+            # Switch is off
+            error_message = (
+                message or
+                _("This feature is currently unavailable.")
+            )
+
+            if ajax_response or request.headers.get("X-Requested-With") == "XMLHttpRequest":
+                return JsonResponse(
+                    {"error": str(error_message)},
+                    status=503
+                )
+
+            if message:
+                messages.info(request, error_message)
+
+            return redirect(redirect_to)
+
+        return wrapper
+    return decorator
+
+
+def feature_sample(
+    sample_name,
+    redirect_to="/",
+    message=None,
+):
+    """
+    Decorator for A/B testing with samples.
+
+    Usage:
+        @feature_sample("new_ui_rollout")
+        def new_ui_view(request):
+            ...
+    """
+    def decorator(view_func):
+        @wraps(view_func)
+        def wrapper(request, *args, **kwargs):
+            if sample_is_active(sample_name, request):
+                return view_func(request, *args, **kwargs)
+
+            # Not in sample
+            error_message = (
+                message or
+                _("This feature is not available to you yet.")
+            )
+
+            messages.info(request, error_message)
+            return redirect(redirect_to)
+
+        return wrapper
+    return decorator
+
+
+# Class-based view mixins
+
+class FeatureFlagMixin:
+    """
+    Mixin to gate class-based views behind feature flags.
+
+    Usage:
+        class MyView(FeatureFlagMixin, View):
+            feature_flag_name = "new_feature"
+            feature_redirect_url = "/pricing/"
+    """
+
+    feature_flag_name = None
+    feature_redirect_url = "/"
+    feature_message = _("This feature is not available.")
+
+    def dispatch(self, request, *args, **kwargs):
+        if not self.feature_flag_name:
+            raise ValueError("feature_flag_name must be set")
+
+        if not flag_is_active(request, self.feature_flag_name):
+            messages.warning(request, self.feature_message)
+            return redirect(self.feature_redirect_url)
+
+        return super().dispatch(request, *args, **kwargs)
+
+
+class FeatureSwitchMixin:
+    """
+    Mixin to gate class-based views behind switches.
+
+    Usage:
+        class MyView(FeatureSwitchMixin, View):
+            feature_switch_name = "api_enabled"
+    """
+
+    feature_switch_name = None
+    feature_redirect_url = "/"
+    feature_message = _("This feature is currently unavailable.")
+
+    def dispatch(self, request, *args, **kwargs):
+        if not self.feature_switch_name:
+            raise ValueError("feature_switch_name must be set")
+
+        if not switch_is_active(self.feature_switch_name):
+            messages.info(request, self.feature_message)
+            return redirect(self.feature_redirect_url)
+
+        return super().dispatch(request, *args, **kwargs)
+
+
+class FeatureSampleMixin:
+    """
+    Mixin for A/B testing with samples.
+
+    Usage:
+        class MyView(FeatureSampleMixin, View):
+            feature_sample_name = "new_checkout"
+            feature_redirect_url = "/checkout/"
+    """
+
+    feature_sample_name = None
+    feature_redirect_url = "/"
+
+    def dispatch(self, request, *args, **kwargs):
+        if not self.feature_sample_name:
+            raise ValueError("feature_sample_name must be set")
+
+        if not sample_is_active(self.feature_sample_name, request):
+            return redirect(self.feature_redirect_url)
+
+        return super().dispatch(request, *args, **kwargs)
+
+
+# Template tag helpers (to be used in templates)
+
+def get_feature_flags_for_template(request):
+    """
+    Get all active feature flags for template context.
+
+    Add to context processors or pass to templates as needed.
+    """
+    from waffle.models import Flag
+
+    active_flags = {}
+    for flag in Flag.objects.all():
+        active_flags[flag.name] = flag_is_active(request, flag.name)
+
+    return {"feature_flags": active_flags}
+
+
+# Management commands helpers
+
+def create_default_flags():
+    """
+    Create default feature flags.
+
+    Call this in a management command or migration.
+    """
+    from waffle.models import Flag
+
+    default_flags = [
+        {
+            "name": "beta_features",
+            "everyone": False,
+            "note": "Enable access to beta features",
+        },
+        {% if use_teams -%}
+        {
+            "name": "team_collaboration",
+            "everyone": True,
+            "note": "Enable team collaboration features",
+        },
+        {% endif -%}
+        {% if use_stripe -%}
+        {
+            "name": "premium_features",
+            "everyone": False,
+            "note": "Enable premium subscription features",
+        },
+        {% endif -%}
+        {
+            "name": "api_v2",
+            "everyone": False,
+            "note": "Enable API v2 endpoints",
+        },
+    ]
+
+    for flag_data in default_flags:
+        Flag.objects.get_or_create(
+            name=flag_data["name"],
+            defaults={
+                "everyone": flag_data["everyone"],
+                "note": flag_data["note"],
+            }
+        )
+
+    logger.info(f"Created {len(default_flags)} default feature flags")
+
+
+def create_default_switches():
+    """Create default switches."""
+    from waffle.models import Switch
+
+    default_switches = [
+        {
+            "name": "maintenance_mode",
+            "active": False,
+            "note": "Enable maintenance mode",
+        },
+        {
+            "name": "read_only_mode",
+            "active": False,
+            "note": "Enable read-only mode",
+        },
+        {% if use_stripe -%}
+        {
+            "name": "accept_payments",
+            "active": True,
+            "note": "Enable payment processing",
+        },
+        {% endif -%}
+    ]
+
+    for switch_data in default_switches:
+        Switch.objects.get_or_create(
+            name=switch_data["name"],
+            defaults={
+                "active": switch_data["active"],
+                "note": switch_data["note"],
+            }
+        )
+
+    logger.info(f"Created {len(default_switches)} default switches")
+
+
+def create_default_samples():
+    """Create default samples for A/B testing."""
+    from waffle.models import Sample
+
+    default_samples = [
+        {
+            "name": "new_ui_rollout",
+            "percent": 10.0,  # 10% of users
+            "note": "Gradual rollout of new UI",
+        },
+    ]
+
+    for sample_data in default_samples:
+        Sample.objects.get_or_create(
+            name=sample_data["name"],
+            defaults={
+                "percent": sample_data["percent"],
+                "note": sample_data["note"],
+            }
+        )
+
+    logger.info(f"Created {len(default_samples)} default samples")

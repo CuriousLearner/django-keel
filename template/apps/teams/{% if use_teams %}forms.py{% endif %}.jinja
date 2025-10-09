@@ -1,0 +1,89 @@
+"""Forms for teams app."""
+from django import forms
+from django.utils.text import slugify
+from django.utils.translation import gettext_lazy as _
+
+from apps.teams.models import Team, TeamInvitation, TeamMember
+
+
+class TeamCreateForm(forms.ModelForm):
+    """Form for creating a new team."""
+
+    class Meta:
+        model = Team
+        fields = ["name", "slug", "description"]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["slug"].required = False
+        self.fields["description"].required = False
+
+    def clean_slug(self):
+        """Auto-generate slug if not provided."""
+        slug = self.cleaned_data.get("slug")
+        if not slug:
+            slug = slugify(self.cleaned_data.get("name"))
+        return slug
+
+
+class TeamUpdateForm(forms.ModelForm):
+    """Form for updating team settings."""
+
+    class Meta:
+        model = Team
+        fields = ["name", "description"]
+
+
+class TeamInvitationForm(forms.ModelForm):
+    """Form for inviting users to team."""
+
+    class Meta:
+        model = TeamInvitation
+        fields = ["email", "role"]
+
+    def __init__(self, *args, **kwargs):
+        self.team = kwargs.pop("team", None)
+        super().__init__(*args, **kwargs)
+
+    def clean_email(self):
+        """Validate email."""
+        email = self.cleaned_data.get("email")
+
+        # Check if user is already a member
+        if TeamMember.objects.filter(
+            team=self.team,
+            user__email=email,
+            is_active=True,
+        ).exists():
+            raise forms.ValidationError(
+                _("This user is already a member of the team.")
+            )
+
+        # Check if there's a pending invitation
+        if TeamInvitation.objects.filter(
+            team=self.team,
+            email=email,
+            status="pending",
+        ).exists():
+            raise forms.ValidationError(
+                _("There is already a pending invitation for this email.")
+            )
+
+        return email
+
+
+class TeamMemberUpdateForm(forms.ModelForm):
+    """Form for updating team member role."""
+
+    class Meta:
+        model = TeamMember
+        fields = ["role"]
+
+    def clean_role(self):
+        """Prevent changing owner role."""
+        role = self.cleaned_data.get("role")
+        if self.instance.is_owner() and role != "owner":
+            raise forms.ValidationError(
+                _("Cannot change owner's role. Transfer ownership first.")
+            )
+        return role

@@ -1,0 +1,161 @@
+"""Advanced billing admin using dj-stripe."""
+from django.contrib import admin
+from django.utils.html import format_html
+from djstripe.admin import SubscriptionAdmin as DjStripeSubscriptionAdmin
+from djstripe.models import Customer, Subscription, Price, Product, Event
+
+from .models import (
+    SubscriptionMetadata,
+    PlanConfiguration,
+    UsageRecord,
+    PaymentIntent,
+)
+
+
+@admin.register(SubscriptionMetadata)
+class SubscriptionMetadataAdmin(admin.ModelAdmin):
+    """Subscription metadata admin."""
+
+    list_display = [
+        "subscription",
+        {% if use_teams -%}
+        "team",
+        {% endif -%}
+        "feature_count",
+        "created_at",
+    ]
+    search_fields = [
+        "subscription__id",
+        {% if use_teams -%}
+        "team__name",
+        {% endif -%}
+    ]
+    readonly_fields = ["created_at", "updated_at"]
+    {% if use_teams -%}
+    list_filter = ["team"]
+    {% endif -%}
+
+    def feature_count(self, obj):
+        """Count enabled features."""
+        return len([k for k, v in obj.features.items() if v])
+    feature_count.short_description = "Features Enabled"
+
+
+@admin.register(PlanConfiguration)
+class PlanConfigurationAdmin(admin.ModelAdmin):
+    """Plan configuration admin."""
+
+    list_display = [
+        "name",
+        "slug",
+        "stripe_product",
+        "stripe_price",
+        "is_popular",
+        "is_active",
+        "display_order",
+    ]
+    list_filter = ["is_popular", "is_active"]
+    search_fields = ["name", "slug", "stripe_product__name"]
+    readonly_fields = ["created_at", "updated_at"]
+    prepopulated_fields = {"slug": ("name",)}
+
+    fieldsets = (
+        (None, {
+            "fields": ("name", "slug", "description")
+        }),
+        ("Stripe Integration", {
+            "fields": ("stripe_product", "stripe_price")
+        }),
+        ("Features & Limits", {
+            "fields": ("features", "limits")
+        }),
+        ("Display", {
+            "fields": ("is_popular", "display_order", "is_active")
+        }),
+        ("Metadata", {
+            "fields": ("created_at", "updated_at"),
+            "classes": ("collapse",)
+        }),
+    )
+
+
+@admin.register(UsageRecord)
+class UsageRecordAdmin(admin.ModelAdmin):
+    """Usage record admin."""
+
+    list_display = ["subscription", "metric", "quantity", "timestamp"]
+    list_filter = ["metric", "timestamp"]
+    search_fields = ["subscription__id", "metric"]
+    readonly_fields = ["timestamp"]
+    date_hierarchy = "timestamp"
+
+    def has_add_permission(self, request):
+        """Usage records are created automatically."""
+        return False
+
+
+@admin.register(PaymentIntent)
+class PaymentIntentAdmin(admin.ModelAdmin):
+    """Payment intent admin."""
+
+    list_display = [
+        "user",
+        "amount_display",
+        "status",
+        "description_short",
+        "created_at",
+    ]
+    list_filter = ["status", "currency", "created_at"]
+    search_fields = [
+        "user__email",
+        "stripe_payment_intent_id",
+        "description",
+    ]
+    readonly_fields = ["created_at", "updated_at", "stripe_payment_intent_id"]
+
+    def amount_display(self, obj):
+        """Display formatted amount."""
+        return f"{obj.amount} {obj.currency.upper()}"
+    amount_display.short_description = "Amount"
+
+    def description_short(self, obj):
+        """Show truncated description."""
+        if len(obj.description) > 50:
+            return obj.description[:50] + "..."
+        return obj.description
+    description_short.short_description = "Description"
+
+
+# Customize dj-stripe admin interfaces
+class CustomSubscriptionAdmin(DjStripeSubscriptionAdmin):
+    """Enhanced subscription admin."""
+
+    list_display = DjStripeSubscriptionAdmin.list_display + [
+        "has_metadata",
+        {% if use_teams -%}
+        "team_link",
+        {% endif -%}
+    ]
+
+    def has_metadata(self, obj):
+        """Check if subscription has extended metadata."""
+        return hasattr(obj, "metadata")
+    has_metadata.boolean = True
+    has_metadata.short_description = "Metadata"
+
+    {% if use_teams -%}
+    def team_link(self, obj):
+        """Link to associated team."""
+        if hasattr(obj, "metadata") and obj.metadata.team:
+            from django.urls import reverse
+            from django.utils.html import format_html
+            url = reverse("admin:teams_team_change", args=[obj.metadata.team.pk])
+            return format_html('<a href="{}">{}</a>', url, obj.metadata.team.name)
+        return "-"
+    team_link.short_description = "Team"
+    {% endif -%}
+
+
+# Re-register with custom admin
+admin.site.unregister(Subscription)
+admin.site.register(Subscription, CustomSubscriptionAdmin)

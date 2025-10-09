@@ -77,8 +77,13 @@ dependencies = [
     "django-prometheus>=2.3.0",
 {% endif -%}
 {% if use_stripe -%}
+{% if stripe_mode == 'basic' -%}
     "stripe>=9.0.0",
+{% else -%}
+    "dj-stripe>=2.8.0",
 {% endif -%}
+{% endif -%}
+    "django-waffle>=4.1.0",
 {% if use_search == 'postgres-fts' -%}
     "django-postgres-extra>=2.0.0",
 {% elif use_search == 'opensearch' -%}

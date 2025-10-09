@@ -1,0 +1,317 @@
+"""Billing utility functions."""
+import logging
+{% if stripe_mode == 'basic' -%}
+import stripe
+from django.conf import settings
+
+stripe.api_key = settings.STRIPE_SECRET_KEY
+{% else -%}
+from djstripe.models import Customer, Subscription, Price
+{% endif -%}
+
+logger = logging.getLogger(__name__)
+
+
+{% if stripe_mode == 'basic' -%}
+def create_stripe_customer(user):
+    """Create a Stripe customer for a user."""
+    from .models import StripeCustomer
+
+    try:
+        customer = stripe.Customer.create(
+            email=user.email,
+            name=user.get_full_name() or user.email,
+            metadata={"user_id": user.id},
+        )
+
+        stripe_customer, created = StripeCustomer.objects.get_or_create(
+            user=user,
+            defaults={"stripe_customer_id": customer.id}
+        )
+
+        return stripe_customer
+    except stripe.error.StripeError as e:
+        logger.error(f"Error creating Stripe customer: {e}")
+        return None
+
+
+def create_checkout_session(user, price_id, success_url, cancel_url):
+    """Create a Stripe Checkout session."""
+    from .models import StripeCustomer
+
+    try:
+        stripe_customer = StripeCustomer.objects.get(user=user)
+    except StripeCustomer.DoesNotExist:
+        stripe_customer = create_stripe_customer(user)
+
+    if not stripe_customer:
+        return None
+
+    try:
+        session = stripe.checkout.Session.create(
+            customer=stripe_customer.stripe_customer_id,
+            payment_method_types=["card"],
+            line_items=[{
+                "price": price_id,
+                "quantity": 1,
+            }],
+            mode="subscription",
+            success_url=success_url,
+            cancel_url=cancel_url,
+        )
+
+        return session
+    except stripe.error.StripeError as e:
+        logger.error(f"Error creating checkout session: {e}")
+        return None
+
+
+def cancel_subscription(subscription_id):
+    """Cancel a subscription."""
+    try:
+        subscription = stripe.Subscription.delete(subscription_id)
+        return subscription
+    except stripe.error.StripeError as e:
+        logger.error(f"Error canceling subscription: {e}")
+        return None
+
+
+def get_customer_portal_url(customer_id, return_url):
+    """Get Stripe Customer Portal URL."""
+    try:
+        session = stripe.billing_portal.Session.create(
+            customer=customer_id,
+            return_url=return_url,
+        )
+        return session.url
+    except stripe.error.StripeError as e:
+        logger.error(f"Error creating portal session: {e}")
+        return None
+{% else -%}
+def get_or_create_customer(user):
+    """Get or create a Stripe customer for a user."""
+    try:
+        customer = Customer.objects.get(subscriber=user)
+        return customer
+    except Customer.DoesNotExist:
+        customer = Customer.create(subscriber=user)
+        return customer
+
+
+def create_checkout_session(user, price_id, success_url, cancel_url, metadata=None):
+    """Create a Stripe Checkout session using dj-stripe."""
+    import stripe
+    from django.conf import settings
+
+    customer = get_or_create_customer(user)
+
+    try:
+        session = stripe.checkout.Session.create(
+            api_key=settings.STRIPE_SECRET_KEY,
+            customer=customer.id,
+            payment_method_types=["card"],
+            line_items=[{
+                "price": price_id,
+                "quantity": 1,
+            }],
+            mode="subscription",
+            success_url=success_url,
+            cancel_url=cancel_url,
+            metadata=metadata or {},
+        )
+
+        return session
+    except stripe.error.StripeError as e:
+        logger.error(f"Error creating checkout session: {e}")
+        return None
+
+
+def update_subscription_quantity(subscription_id, quantity):
+    """Update subscription quantity for per-seat billing."""
+    import stripe
+    from django.conf import settings
+
+    try:
+        subscription = stripe.Subscription.retrieve(
+            subscription_id,
+            api_key=settings.STRIPE_SECRET_KEY,
+        )
+
+        # Update the first subscription item (assumes single item)
+        stripe.SubscriptionItem.modify(
+            subscription.items.data[0].id,
+            quantity=quantity,
+            api_key=settings.STRIPE_SECRET_KEY,
+        )
+
+        logger.info(f"Updated subscription {subscription_id} quantity to {quantity}")
+        return True
+    except stripe.error.StripeError as e:
+        logger.error(f"Error updating subscription quantity: {e}")
+        return False
+
+
+def create_payment_intent(user, amount, currency="usd", description="", metadata=None):
+    """Create a payment intent for one-off payments."""
+    import stripe
+    from django.conf import settings
+    from .models import PaymentIntent
+
+    customer = get_or_create_customer(user)
+
+    try:
+        intent = stripe.PaymentIntent.create(
+            api_key=settings.STRIPE_SECRET_KEY,
+            amount=int(amount * 100),  # Convert to cents
+            currency=currency,
+            customer=customer.id,
+            description=description,
+            metadata=metadata or {},
+        )
+
+        # Save to database
+        payment_intent = PaymentIntent.objects.create(
+            user=user,
+            stripe_payment_intent_id=intent.id,
+            amount=amount,
+            currency=currency,
+            status=intent.status,
+            description=description,
+            metadata=metadata or {},
+        )
+
+        return payment_intent
+    except stripe.error.StripeError as e:
+        logger.error(f"Error creating payment intent: {e}")
+        return None
+
+
+def get_customer_portal_url(user, return_url):
+    """Get Stripe Customer Portal URL."""
+    import stripe
+    from django.conf import settings
+
+    customer = get_or_create_customer(user)
+
+    try:
+        session = stripe.billing_portal.Session.create(
+            api_key=settings.STRIPE_SECRET_KEY,
+            customer=customer.id,
+            return_url=return_url,
+        )
+        return session.url
+    except stripe.error.StripeError as e:
+        logger.error(f"Error creating portal session: {e}")
+        return None
+
+
+def get_active_subscription(user):
+    """Get user's active subscription."""
+    {% if use_teams -%}
+    # For team-based billing, get subscription through team
+    from apps.teams.models import TeamMember
+    from .models import SubscriptionMetadata
+
+    try:
+        # Get user's teams
+        team_memberships = TeamMember.objects.filter(
+            user=user,
+            is_active=True
+        ).select_related("team")
+
+        for membership in team_memberships:
+            # Check if team has active subscription
+            if membership.team.stripe_subscription_id:
+                try:
+                    subscription = Subscription.objects.get(
+                        id=membership.team.stripe_subscription_id,
+                        status__in=["active", "trialing"]
+                    )
+                    return subscription
+                except Subscription.DoesNotExist:
+                    continue
+
+        return None
+    except Exception as e:
+        logger.error(f"Error getting active subscription: {e}")
+        return None
+    {% else -%}
+    # Individual user subscriptions
+    try:
+        customer = Customer.objects.get(subscriber=user)
+        subscription = Subscription.objects.filter(
+            customer=customer,
+            status__in=["active", "trialing"]
+        ).first()
+        return subscription
+    except Customer.DoesNotExist:
+        return None
+    {% endif -%}
+
+
+def has_active_subscription(user):
+    """Check if user has an active subscription."""
+    return get_active_subscription(user) is not None
+
+
+def record_usage(subscription, metric, quantity):
+    """Record usage for metered billing."""
+    from .models import UsageRecord
+
+    usage = UsageRecord.objects.create(
+        subscription=subscription,
+        metric=metric,
+        quantity=quantity,
+    )
+
+    # Optionally report to Stripe for metered billing
+    # stripe.SubscriptionItem.create_usage_record(...)
+
+    return usage
+
+
+def get_subscription_features(subscription):
+    """Get features available for a subscription."""
+    from .models import PlanConfiguration
+
+    try:
+        # Get plan configuration from subscription
+        if subscription.plan and subscription.plan.product:
+            plan_config = PlanConfiguration.objects.get(
+                stripe_product=subscription.plan.product
+            )
+            return plan_config.features
+    except PlanConfiguration.DoesNotExist:
+        pass
+
+    return {}
+
+
+def check_feature_access(user, feature_key):
+    """Check if user has access to a feature."""
+    subscription = get_active_subscription(user)
+
+    if not subscription:
+        return False
+
+    # Check subscription metadata
+    if hasattr(subscription, "metadata"):
+        return subscription.metadata.has_feature(feature_key)
+
+    # Fallback to plan configuration
+    features = get_subscription_features(subscription)
+    return features.get(feature_key, False)
+
+
+def check_usage_limit(user, metric):
+    """Check if user is over usage limit."""
+    subscription = get_active_subscription(user)
+
+    if not subscription:
+        return True  # Over limit if no subscription
+
+    if hasattr(subscription, "metadata"):
+        return subscription.metadata.is_over_limit(metric)
+
+    return False
+{% endif -%}

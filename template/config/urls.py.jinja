@@ -15,6 +15,13 @@ urlpatterns = [
 {% if auth_backend in ['allauth', 'both'] -%}
     path("accounts/", include("allauth.urls")),
 {% endif -%}
+    path("users/", include("apps.users.urls")),
+{% if use_teams -%}
+    path("teams/", include("apps.teams.urls")),
+{% endif -%}
+{% if use_stripe -%}
+    path("billing/", include("apps.billing.urls")),
+{% endif -%}
 {% if observability_level == 'full' -%}
     path("", include("django_prometheus.urls")),
 {% endif -%}

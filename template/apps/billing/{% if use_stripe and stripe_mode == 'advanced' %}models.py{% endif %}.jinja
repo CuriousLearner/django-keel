@@ -1,0 +1,211 @@
+"""Advanced billing models using dj-stripe."""
+from django.conf import settings
+from django.db import models
+from django.utils.translation import gettext_lazy as _
+from djstripe.models import Customer, Subscription, Price, Product
+
+
+class SubscriptionMetadata(models.Model):
+    """Extended metadata for subscriptions."""
+
+    subscription = models.OneToOneField(
+        Subscription,
+        on_delete=models.CASCADE,
+        related_name="metadata"
+    )
+    {% if use_teams -%}
+    # Link to team for per-seat billing
+    team = models.ForeignKey(
+        "teams.Team",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="subscription_metadata",
+        help_text=_("Team associated with this subscription")
+    )
+    {% endif -%}
+
+    # Feature access
+    features = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text=_("Feature flags for this subscription")
+    )
+
+    # Usage tracking
+    usage_limits = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text=_("Usage limits (e.g., {'api_calls': 10000, 'storage_gb': 100})")
+    )
+    current_usage = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text=_("Current usage metrics")
+    )
+
+    # Metadata
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = _("Subscription Metadata")
+        verbose_name_plural = _("Subscription Metadata")
+
+    def __str__(self):
+        return f"Metadata for {self.subscription}"
+
+    def has_feature(self, feature_key):
+        """Check if subscription has access to a feature."""
+        return self.features.get(feature_key, False)
+
+    def get_usage_percentage(self, metric):
+        """Get usage percentage for a metric."""
+        limit = self.usage_limits.get(metric)
+        current = self.current_usage.get(metric, 0)
+
+        if not limit:
+            return 0
+
+        return (current / limit) * 100
+
+    def is_over_limit(self, metric):
+        """Check if usage is over limit for a metric."""
+        limit = self.usage_limits.get(metric)
+        current = self.current_usage.get(metric, 0)
+
+        if not limit:
+            return False
+
+        return current >= limit
+
+
+class PlanConfiguration(models.Model):
+    """Configuration for subscription plans."""
+
+    # Link to Stripe product/price
+    stripe_product = models.OneToOneField(
+        Product,
+        on_delete=models.CASCADE,
+        related_name="plan_config"
+    )
+    stripe_price = models.ForeignKey(
+        Price,
+        on_delete=models.CASCADE,
+        related_name="plan_configs"
+    )
+
+    # Plan details
+    name = models.CharField(_("plan name"), max_length=100)
+    slug = models.SlugField(_("slug"), unique=True)
+    description = models.TextField(_("description"), blank=True)
+
+    # Features
+    features = models.JSONField(
+        default=dict,
+        help_text=_("Feature flags (e.g., {'api_access': True, 'advanced_analytics': True})")
+    )
+
+    # Limits
+    limits = models.JSONField(
+        default=dict,
+        help_text=_("Usage limits (e.g., {'api_calls': 10000, 'team_members': 5})")
+    )
+
+    # Display
+    is_popular = models.BooleanField(_("popular plan"), default=False)
+    display_order = models.PositiveIntegerField(_("display order"), default=0)
+    is_active = models.BooleanField(_("active"), default=True)
+
+    # Metadata
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = _("Plan Configuration")
+        verbose_name_plural = _("Plan Configurations")
+        ordering = ["display_order", "name"]
+
+    def __str__(self):
+        return self.name
+
+
+class UsageRecord(models.Model):
+    """Track usage for metered billing."""
+
+    subscription = models.ForeignKey(
+        Subscription,
+        on_delete=models.CASCADE,
+        related_name="usage_records"
+    )
+
+    metric = models.CharField(_("metric"), max_length=100)
+    quantity = models.PositiveIntegerField(_("quantity"))
+
+    # Metadata
+    timestamp = models.DateTimeField(auto_now_add=True)
+    metadata = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        verbose_name = _("Usage Record")
+        verbose_name_plural = _("Usage Records")
+        ordering = ["-timestamp"]
+        indexes = [
+            models.Index(fields=["subscription", "metric", "-timestamp"]),
+        ]
+
+    def __str__(self):
+        return f"{self.metric}: {self.quantity} at {self.timestamp}"
+
+
+class PaymentIntent(models.Model):
+    """Track one-off payments (e-commerce, credits, etc.)."""
+
+    STATUS_CHOICES = [
+        ("requires_payment_method", _("Requires Payment Method")),
+        ("requires_confirmation", _("Requires Confirmation")),
+        ("requires_action", _("Requires Action")),
+        ("processing", _("Processing")),
+        ("succeeded", _("Succeeded")),
+        ("canceled", _("Canceled")),
+    ]
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="payment_intents"
+    )
+
+    stripe_payment_intent_id = models.CharField(
+        _("Stripe Payment Intent ID"),
+        max_length=255,
+        unique=True
+    )
+
+    amount = models.DecimalField(
+        _("amount"),
+        max_digits=10,
+        decimal_places=2
+    )
+    currency = models.CharField(_("currency"), max_length=3, default="usd")
+    status = models.CharField(
+        _("status"),
+        max_length=30,
+        choices=STATUS_CHOICES
+    )
+
+    # Purpose
+    description = models.TextField(_("description"), blank=True)
+    metadata = models.JSONField(default=dict, blank=True)
+
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = _("Payment Intent")
+        verbose_name_plural = _("Payment Intents")
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.user.email} - {self.amount} {self.currency} ({self.status})"

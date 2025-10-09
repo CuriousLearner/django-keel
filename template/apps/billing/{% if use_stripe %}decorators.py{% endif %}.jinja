@@ -1,0 +1,318 @@
+"""Feature gating decorators for subscription-based access control."""
+from functools import wraps
+from django.shortcuts import redirect
+from django.contrib import messages
+from django.http import JsonResponse, HttpResponseForbidden
+from django.utils.translation import gettext_lazy as _
+
+from .utils import (
+    has_active_subscription,
+    check_feature_access,
+    check_usage_limit,
+    get_active_subscription,
+)
+
+
+def subscription_required(
+    redirect_url="/billing/subscribe/",
+    message=_("An active subscription is required to access this feature."),
+    ajax_response=False,
+):
+    """
+    Decorator to require an active subscription.
+
+    Usage:
+        @subscription_required()
+        def my_view(request):
+            ...
+
+        @subscription_required(redirect_url="/pricing/")
+        def another_view(request):
+            ...
+    """
+    def decorator(view_func):
+        @wraps(view_func)
+        def wrapper(request, *args, **kwargs):
+            if not request.user.is_authenticated:
+                if ajax_response:
+                    return JsonResponse(
+                        {"error": "Authentication required"},
+                        status=401
+                    )
+                return redirect("account_login")
+
+            if has_active_subscription(request.user):
+                return view_func(request, *args, **kwargs)
+
+            # No active subscription
+            if ajax_response:
+                return JsonResponse(
+                    {"error": str(message), "redirect": redirect_url},
+                    status=403
+                )
+
+            messages.warning(request, message)
+            return redirect(redirect_url)
+
+        return wrapper
+    return decorator
+
+
+def feature_required(
+    feature_key,
+    redirect_url="/billing/upgrade/",
+    message=None,
+    ajax_response=False,
+):
+    """
+    Decorator to require a specific feature.
+
+    Usage:
+        @feature_required("api_access")
+        def api_view(request):
+            ...
+
+        @feature_required("advanced_analytics", redirect_url="/pricing/")
+        def analytics_view(request):
+            ...
+    """
+    def decorator(view_func):
+        @wraps(view_func)
+        def wrapper(request, *args, **kwargs):
+            if not request.user.is_authenticated:
+                if ajax_response:
+                    return JsonResponse(
+                        {"error": "Authentication required"},
+                        status=401
+                    )
+                return redirect("account_login")
+
+            if check_feature_access(request.user, feature_key):
+                return view_func(request, *args, **kwargs)
+
+            # Feature not available
+            error_message = (
+                message or
+                _("Your current plan does not include access to this feature.")
+            )
+
+            if ajax_response:
+                return JsonResponse(
+                    {
+                        "error": str(error_message),
+                        "redirect": redirect_url,
+                        "feature": feature_key,
+                    },
+                    status=403
+                )
+
+            messages.warning(request, error_message)
+            return redirect(redirect_url)
+
+        return wrapper
+    return decorator
+
+
+def plan_required(
+    *plan_slugs,
+    redirect_url="/billing/upgrade/",
+    message=None,
+    ajax_response=False,
+):
+    """
+    Decorator to require a specific plan or set of plans.
+
+    Usage:
+        @plan_required("pro", "enterprise")
+        def pro_view(request):
+            ...
+
+        @plan_required("enterprise")
+        def enterprise_view(request):
+            ...
+    """
+    def decorator(view_func):
+        @wraps(view_func)
+        def wrapper(request, *args, **kwargs):
+            if not request.user.is_authenticated:
+                if ajax_response:
+                    return JsonResponse(
+                        {"error": "Authentication required"},
+                        status=401
+                    )
+                return redirect("account_login")
+
+            subscription = get_active_subscription(request.user)
+
+            if subscription:
+                {% if stripe_mode == 'advanced' -%}
+                from .models import PlanConfiguration
+
+                # Check if subscription's plan matches required plans
+                try:
+                    plan_config = PlanConfiguration.objects.get(
+                        stripe_product=subscription.plan.product
+                    )
+                    if plan_config.slug in plan_slugs:
+                        return view_func(request, *args, **kwargs)
+                except PlanConfiguration.DoesNotExist:
+                    pass
+                {% else -%}
+                # Basic mode - check plan name
+                if subscription.plan_name.lower() in [slug.lower() for slug in plan_slugs]:
+                    return view_func(request, *args, **kwargs)
+                {% endif -%}
+
+            # Plan not matched or no subscription
+            error_message = (
+                message or
+                _("This feature requires a higher tier plan.")
+            )
+
+            if ajax_response:
+                return JsonResponse(
+                    {
+                        "error": str(error_message),
+                        "redirect": redirect_url,
+                        "required_plans": list(plan_slugs),
+                    },
+                    status=403
+                )
+
+            messages.warning(request, error_message)
+            return redirect(redirect_url)
+
+        return wrapper
+    return decorator
+
+
+def usage_limit_check(
+    metric,
+    redirect_url="/billing/upgrade/",
+    message=None,
+    ajax_response=False,
+):
+    """
+    Decorator to check usage limits.
+
+    Usage:
+        @usage_limit_check("api_calls")
+        def api_endpoint(request):
+            ...
+
+        @usage_limit_check("storage_gb")
+        def upload_view(request):
+            ...
+    """
+    def decorator(view_func):
+        @wraps(view_func)
+        def wrapper(request, *args, **kwargs):
+            if not request.user.is_authenticated:
+                if ajax_response:
+                    return JsonResponse(
+                        {"error": "Authentication required"},
+                        status=401
+                    )
+                return redirect("account_login")
+
+            if check_usage_limit(request.user, metric):
+                # Over limit
+                error_message = (
+                    message or
+                    _("You have reached your usage limit for {}. Please upgrade your plan.").format(metric)
+                )
+
+                if ajax_response:
+                    return JsonResponse(
+                        {
+                            "error": str(error_message),
+                            "redirect": redirect_url,
+                            "metric": metric,
+                        },
+                        status=429  # Too Many Requests
+                    )
+
+                messages.warning(request, error_message)
+                return redirect(redirect_url)
+
+            return view_func(request, *args, **kwargs)
+
+        return wrapper
+    return decorator
+
+
+# Class-based view mixins
+
+class SubscriptionRequiredMixin:
+    """Mixin to require subscription for class-based views."""
+
+    subscription_redirect_url = "/billing/subscribe/"
+    subscription_message = _("An active subscription is required to access this feature.")
+
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return self.handle_no_permission()
+
+        if not has_active_subscription(request.user):
+            messages.warning(request, self.subscription_message)
+            return redirect(self.subscription_redirect_url)
+
+        return super().dispatch(request, *args, **kwargs)
+
+
+class FeatureRequiredMixin:
+    """Mixin to require specific feature for class-based views."""
+
+    required_feature = None
+    feature_redirect_url = "/billing/upgrade/"
+    feature_message = _("Your current plan does not include access to this feature.")
+
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return self.handle_no_permission()
+
+        if not self.required_feature:
+            raise ValueError("required_feature must be set")
+
+        if not check_feature_access(request.user, self.required_feature):
+            messages.warning(request, self.feature_message)
+            return redirect(self.feature_redirect_url)
+
+        return super().dispatch(request, *args, **kwargs)
+
+
+class PlanRequiredMixin:
+    """Mixin to require specific plan for class-based views."""
+
+    required_plans = []
+    plan_redirect_url = "/billing/upgrade/"
+    plan_message = _("This feature requires a higher tier plan.")
+
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return self.handle_no_permission()
+
+        if not self.required_plans:
+            raise ValueError("required_plans must be set")
+
+        subscription = get_active_subscription(request.user)
+
+        if subscription:
+            {% if stripe_mode == 'advanced' -%}
+            from .models import PlanConfiguration
+
+            try:
+                plan_config = PlanConfiguration.objects.get(
+                    stripe_product=subscription.plan.product
+                )
+                if plan_config.slug in self.required_plans:
+                    return super().dispatch(request, *args, **kwargs)
+            except PlanConfiguration.DoesNotExist:
+                pass
+            {% else -%}
+            if subscription.plan_name.lower() in [slug.lower() for slug in self.required_plans]:
+                return super().dispatch(request, *args, **kwargs)
+            {% endif -%}
+
+        messages.warning(request, self.plan_message)
+        return redirect(self.plan_redirect_url)

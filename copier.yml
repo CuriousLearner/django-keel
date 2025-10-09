@@ -166,10 +166,24 @@ use_sops:
   default: false
 
 # Optional Features
+use_teams:
+  type: bool
+  help: Include Teams/Organizations (multi-tenancy)?
+  default: false
+
 use_stripe:
   type: bool
   help: Include Stripe payment integration?
   default: false
+
+stripe_mode:
+  type: str
+  help: Stripe integration mode
+  when: "{{ use_stripe }}"
+  choices:
+    - "basic"
+    - "advanced"
+  default: "advanced"
 
 use_search:
   type: str

@@ -1,0 +1,283 @@
+"""Billing views."""
+from django.conf import settings
+from django.contrib import messages
+from django.contrib.auth.mixins import LoginRequiredMixin
+from django.http import JsonResponse
+from django.shortcuts import redirect, get_object_or_404
+from django.urls import reverse
+from django.utils.translation import gettext_lazy as _
+from django.views.generic import TemplateView, View
+
+{% if stripe_mode == 'basic' -%}
+from .models import StripeCustomer, Subscription
+from .utils import (
+    create_checkout_session,
+    cancel_subscription,
+    get_customer_portal_url,
+)
+{% else -%}
+from djstripe.models import Customer, Subscription, Price, Product
+from .models import PlanConfiguration
+from .utils import (
+    create_checkout_session,
+    get_customer_portal_url,
+    get_active_subscription,
+)
+{% endif -%}
+
+
+class PricingView(TemplateView):
+    """Display pricing plans."""
+
+    template_name = "billing/pricing.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        {% if stripe_mode == 'advanced' -%}
+        # Get all active plans
+        plans = PlanConfiguration.objects.filter(
+            is_active=True
+        ).select_related("stripe_product", "stripe_price")
+
+        context["plans"] = plans
+        {% else -%}
+        # Add your pricing plans manually or from settings
+        context["plans"] = getattr(settings, "STRIPE_PRICING_PLANS", [])
+        {% endif -%}
+
+        # Get user's current subscription if authenticated
+        if self.request.user.is_authenticated:
+            {% if stripe_mode == 'advanced' -%}
+            context["current_subscription"] = get_active_subscription(self.request.user)
+            {% else -%}
+            try:
+                stripe_customer = StripeCustomer.objects.get(user=self.request.user)
+                context["current_subscription"] = stripe_customer.subscriptions.filter(
+                    status__in=["active", "trialing"]
+                ).first()
+            except StripeCustomer.DoesNotExist:
+                context["current_subscription"] = None
+            {% endif -%}
+
+        return context
+
+
+class CheckoutView(LoginRequiredMixin, View):
+    """Create a checkout session and redirect to Stripe."""
+
+    def post(self, request, *args, **kwargs):
+        price_id = request.POST.get("price_id")
+
+        if not price_id:
+            messages.error(request, _("Invalid price selected."))
+            return redirect("billing:pricing")
+
+        # Build URLs
+        success_url = request.build_absolute_uri(
+            reverse("billing:checkout_success")
+        ) + "?session_id={CHECKOUT_SESSION_ID}"
+        cancel_url = request.build_absolute_uri(reverse("billing:pricing"))
+
+        # Create metadata for checkout session
+        metadata = {}
+        {% if use_teams -%}
+        team_id = request.POST.get("team_id")
+        if team_id:
+            metadata["team_id"] = team_id
+        {% endif -%}
+
+        # Create checkout session
+        session = create_checkout_session(
+            user=request.user,
+            price_id=price_id,
+            success_url=success_url,
+            cancel_url=cancel_url,
+            metadata=metadata,
+        )
+
+        if not session:
+            messages.error(request, _("Unable to create checkout session."))
+            return redirect("billing:pricing")
+
+        # Redirect to Stripe Checkout
+        return redirect(session.url)
+
+
+class CheckoutSuccessView(LoginRequiredMixin, TemplateView):
+    """Checkout success page."""
+
+    template_name = "billing/checkout_success.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["session_id"] = self.request.GET.get("session_id")
+        return context
+
+
+class CustomerPortalView(LoginRequiredMixin, View):
+    """Redirect to Stripe Customer Portal."""
+
+    def get(self, request, *args, **kwargs):
+        return_url = request.build_absolute_uri(reverse("billing:subscription"))
+
+        {% if stripe_mode == 'basic' -%}
+        try:
+            stripe_customer = StripeCustomer.objects.get(user=request.user)
+            portal_url = get_customer_portal_url(
+                stripe_customer.stripe_customer_id,
+                return_url
+            )
+        except StripeCustomer.DoesNotExist:
+            messages.error(request, _("No customer account found."))
+            return redirect("billing:pricing")
+        {% else -%}
+        portal_url = get_customer_portal_url(request.user, return_url)
+        {% endif -%}
+
+        if not portal_url:
+            messages.error(request, _("Unable to access customer portal."))
+            return redirect("billing:subscription")
+
+        return redirect(portal_url)
+
+
+class SubscriptionView(LoginRequiredMixin, TemplateView):
+    """View user's subscription details."""
+
+    template_name = "billing/subscription.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        {% if stripe_mode == 'basic' -%}
+        try:
+            stripe_customer = StripeCustomer.objects.get(user=self.request.user)
+            subscriptions = stripe_customer.subscriptions.filter(
+                status__in=["active", "trialing", "past_due"]
+            )
+            context["subscription"] = subscriptions.first()
+        except StripeCustomer.DoesNotExist:
+            context["subscription"] = None
+        {% else -%}
+        subscription = get_active_subscription(self.request.user)
+        context["subscription"] = subscription
+
+        # Get plan details
+        if subscription and hasattr(subscription, "metadata"):
+            context["features"] = subscription.metadata.features
+            context["usage"] = subscription.metadata.current_usage
+            context["limits"] = subscription.metadata.usage_limits
+
+        # Get plan configuration
+        if subscription and subscription.plan:
+            try:
+                plan_config = PlanConfiguration.objects.get(
+                    stripe_product=subscription.plan.product
+                )
+                context["plan_config"] = plan_config
+            except PlanConfiguration.DoesNotExist:
+                pass
+        {% endif -%}
+
+        return context
+
+
+{% if stripe_mode == 'basic' -%}
+class CancelSubscriptionView(LoginRequiredMixin, View):
+    """Cancel user's subscription."""
+
+    def post(self, request, *args, **kwargs):
+        try:
+            stripe_customer = StripeCustomer.objects.get(user=request.user)
+            subscription = stripe_customer.subscriptions.filter(
+                status__in=["active", "trialing"]
+            ).first()
+
+            if not subscription:
+                messages.error(request, _("No active subscription found."))
+                return redirect("billing:subscription")
+
+            # Cancel subscription
+            result = cancel_subscription(subscription.stripe_subscription_id)
+
+            if result:
+                messages.success(
+                    request,
+                    _("Your subscription has been canceled and will end at the current billing period.")
+                )
+            else:
+                messages.error(request, _("Unable to cancel subscription."))
+
+        except StripeCustomer.DoesNotExist:
+            messages.error(request, _("No customer account found."))
+
+        return redirect("billing:subscription")
+{% endif -%}
+
+
+{% if stripe_mode == 'advanced' -%}
+class UsageStatsView(LoginRequiredMixin, View):
+    """Get usage statistics (for AJAX requests)."""
+
+    def get(self, request, *args, **kwargs):
+        subscription = get_active_subscription(request.user)
+
+        if not subscription or not hasattr(subscription, "metadata"):
+            return JsonResponse({"error": "No subscription found"}, status=404)
+
+        metadata = subscription.metadata
+
+        # Build usage stats
+        stats = {}
+        for metric, limit in metadata.usage_limits.items():
+            current = metadata.current_usage.get(metric, 0)
+            stats[metric] = {
+                "current": current,
+                "limit": limit,
+                "percentage": metadata.get_usage_percentage(metric),
+                "over_limit": metadata.is_over_limit(metric),
+            }
+
+        return JsonResponse({"stats": stats})
+
+
+class UpdateUsageView(LoginRequiredMixin, View):
+    """Update usage (internal API for recording usage)."""
+
+    def post(self, request, *args, **kwargs):
+        from .utils import record_usage
+
+        metric = request.POST.get("metric")
+        quantity = request.POST.get("quantity")
+
+        if not metric or not quantity:
+            return JsonResponse({"error": "Missing parameters"}, status=400)
+
+        try:
+            quantity = int(quantity)
+        except ValueError:
+            return JsonResponse({"error": "Invalid quantity"}, status=400)
+
+        subscription = get_active_subscription(request.user)
+
+        if not subscription:
+            return JsonResponse({"error": "No active subscription"}, status=404)
+
+        # Record usage
+        usage = record_usage(subscription, metric, quantity)
+
+        # Update current usage in metadata
+        if hasattr(subscription, "metadata"):
+            metadata = subscription.metadata
+            current = metadata.current_usage.get(metric, 0)
+            metadata.current_usage[metric] = current + quantity
+            metadata.save()
+
+        return JsonResponse({
+            "success": True,
+            "usage_id": usage.id,
+            "metric": metric,
+            "quantity": quantity,
+        })
+{% endif -%}

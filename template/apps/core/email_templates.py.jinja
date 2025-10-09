@@ -1,0 +1,290 @@
+"""Professional email template system."""
+import logging
+from django.conf import settings
+from django.core.mail import EmailMultiAlternatives
+from django.template.loader import render_to_string
+from django.utils.html import strip_tags
+
+logger = logging.getLogger(__name__)
+
+
+class EmailTemplate:
+    """Base class for email templates."""
+
+    # Override these in subclasses
+    subject_template = None
+    html_template = None
+    text_template = None
+
+    def __init__(self, to_email, context=None, from_email=None, cc=None, bcc=None):
+        """
+        Initialize email template.
+
+        Args:
+            to_email: Recipient email address (string or list)
+            context: Context dict for template rendering
+            from_email: Sender email (defaults to DEFAULT_FROM_EMAIL)
+            cc: CC recipients (list)
+            bcc: BCC recipients (list)
+        """
+        self.to_email = [to_email] if isinstance(to_email, str) else to_email
+        self.context = context or {}
+        self.from_email = from_email or settings.DEFAULT_FROM_EMAIL
+        self.cc = cc or []
+        self.bcc = bcc or []
+
+        # Add default context
+        self.context.setdefault("site_name", getattr(settings, "SITE_NAME", "Django Keel"))
+        self.context.setdefault("site_url", getattr(settings, "SITE_URL", "http://localhost:8000"))
+        self.context.setdefault("support_email", getattr(settings, "SUPPORT_EMAIL", self.from_email))
+
+    def render_subject(self):
+        """Render email subject."""
+        if self.subject_template:
+            subject = render_to_string(self.subject_template, self.context)
+            # Remove newlines from subject
+            return " ".join(subject.split())
+        return ""
+
+    def render_html(self):
+        """Render HTML email body."""
+        if self.html_template:
+            return render_to_string(self.html_template, self.context)
+        return None
+
+    def render_text(self):
+        """Render plain text email body."""
+        if self.text_template:
+            return render_to_string(self.text_template, self.context)
+
+        # Fallback: strip HTML tags if only HTML template exists
+        html = self.render_html()
+        if html:
+            return strip_tags(html)
+
+        return ""
+
+    def send(self, fail_silently=False):
+        """Send the email."""
+        try:
+            subject = self.render_subject()
+            text_content = self.render_text()
+            html_content = self.render_html()
+
+            # Create email message
+            msg = EmailMultiAlternatives(
+                subject=subject,
+                body=text_content,
+                from_email=self.from_email,
+                to=self.to_email,
+                cc=self.cc,
+                bcc=self.bcc,
+            )
+
+            # Attach HTML alternative
+            if html_content:
+                msg.attach_alternative(html_content, "text/html")
+
+            # Send
+            msg.send(fail_silently=fail_silently)
+
+            logger.info(f"Email sent: {subject} to {', '.join(self.to_email)}")
+            return True
+
+        except Exception as e:
+            logger.error(f"Error sending email: {e}")
+            if not fail_silently:
+                raise
+            return False
+
+
+# Common email templates
+
+class WelcomeEmail(EmailTemplate):
+    """Welcome email for new users."""
+
+    subject_template = "emails/welcome_subject.txt"
+    html_template = "emails/welcome.html"
+    text_template = "emails/welcome.txt"
+
+
+class PasswordResetEmail(EmailTemplate):
+    """Password reset email."""
+
+    subject_template = "emails/password_reset_subject.txt"
+    html_template = "emails/password_reset.html"
+    text_template = "emails/password_reset.txt"
+
+
+{% if use_teams -%}
+class TeamInvitationEmail(EmailTemplate):
+    """Team invitation email."""
+
+    subject_template = "emails/team_invitation_subject.txt"
+    html_template = "emails/team_invitation.html"
+    text_template = "emails/team_invitation.txt"
+
+
+class TeamMemberRemovedEmail(EmailTemplate):
+    """Email when removed from team."""
+
+    subject_template = "emails/team_member_removed_subject.txt"
+    html_template = "emails/team_member_removed.html"
+    text_template = "emails/team_member_removed.txt"
+{% endif -%}
+
+
+{% if use_stripe -%}
+class SubscriptionActivatedEmail(EmailTemplate):
+    """Subscription activated email."""
+
+    subject_template = "emails/subscription_activated_subject.txt"
+    html_template = "emails/subscription_activated.html"
+    text_template = "emails/subscription_activated.txt"
+
+
+class SubscriptionCanceledEmail(EmailTemplate):
+    """Subscription canceled email."""
+
+    subject_template = "emails/subscription_canceled_subject.txt"
+    html_template = "emails/subscription_canceled.html"
+    text_template = "emails/subscription_canceled.txt"
+
+
+class PaymentFailedEmail(EmailTemplate):
+    """Payment failed email."""
+
+    subject_template = "emails/payment_failed_subject.txt"
+    html_template = "emails/payment_failed.html"
+    text_template = "emails/payment_failed.txt"
+
+
+class InvoiceEmail(EmailTemplate):
+    """Invoice/receipt email."""
+
+    subject_template = "emails/invoice_subject.txt"
+    html_template = "emails/invoice.html"
+    text_template = "emails/invoice.txt"
+{% endif -%}
+
+
+class NotificationEmail(EmailTemplate):
+    """Generic notification email."""
+
+    subject_template = "emails/notification_subject.txt"
+    html_template = "emails/notification.html"
+    text_template = "emails/notification.txt"
+
+
+# Utility functions for sending emails
+
+def send_welcome_email(user):
+    """Send welcome email to new user."""
+    email = WelcomeEmail(
+        to_email=user.email,
+        context={
+            "user": user,
+            "name": user.get_full_name() or user.email,
+        }
+    )
+    return email.send()
+
+
+{% if use_teams -%}
+def send_team_invitation_email(invitation):
+    """Send team invitation email."""
+    from django.urls import reverse
+
+    accept_url = settings.SITE_URL + reverse(
+        "teams:invitation_accept",
+        kwargs={"token": invitation.token}
+    )
+
+    email = TeamInvitationEmail(
+        to_email=invitation.email,
+        context={
+            "invitation": invitation,
+            "team": invitation.team,
+            "invited_by": invitation.invited_by,
+            "accept_url": accept_url,
+        }
+    )
+    return email.send()
+
+
+def send_team_member_removed_email(member, team):
+    """Send email when member is removed from team."""
+    email = TeamMemberRemovedEmail(
+        to_email=member.user.email,
+        context={
+            "user": member.user,
+            "team": team,
+        }
+    )
+    return email.send()
+{% endif -%}
+
+
+{% if use_stripe -%}
+def send_subscription_activated_email(user, subscription):
+    """Send subscription activated email."""
+    email = SubscriptionActivatedEmail(
+        to_email=user.email,
+        context={
+            "user": user,
+            "subscription": subscription,
+        }
+    )
+    return email.send()
+
+
+def send_subscription_canceled_email(user, subscription):
+    """Send subscription canceled email."""
+    email = SubscriptionCanceledEmail(
+        to_email=user.email,
+        context={
+            "user": user,
+            "subscription": subscription,
+        }
+    )
+    return email.send()
+
+
+def send_payment_failed_email(user, invoice):
+    """Send payment failed email."""
+    email = PaymentFailedEmail(
+        to_email=user.email,
+        context={
+            "user": user,
+            "invoice": invoice,
+        }
+    )
+    return email.send()
+
+
+def send_invoice_email(user, invoice):
+    """Send invoice/receipt email."""
+    email = InvoiceEmail(
+        to_email=user.email,
+        context={
+            "user": user,
+            "invoice": invoice,
+        }
+    )
+    return email.send()
+{% endif -%}
+
+
+def send_notification_email(to_email, subject_text, message, context=None):
+    """Send a generic notification email."""
+    ctx = context or {}
+    ctx.update({
+        "subject": subject_text,
+        "message": message,
+    })
+
+    email = NotificationEmail(
+        to_email=to_email,
+        context=ctx
+    )
+    return email.send()

@@ -76,6 +76,10 @@ THIRD_PARTY_APPS = [
 {% if use_i18n -%}
     "parler",
 {% endif -%}
+{% if use_stripe and stripe_mode == 'advanced' -%}
+    "djstripe",
+{% endif -%}
+    "waffle",
     "django_extensions",
     "django_alive",
 ]
@@ -85,6 +89,9 @@ LOCAL_APPS = [
     "apps.users",
 {% if api_style != 'none' -%}
     "apps.api",
+{% endif -%}
+{% if use_teams -%}
+    "apps.teams",
 {% endif -%}
 {% if use_stripe -%}
     "apps.billing",
@@ -117,6 +124,8 @@ MIDDLEWARE = [
 {% if use_2fa -%}
     "django_otp.middleware.OTPMiddleware",
 {% endif -%}
+    "apps.users.impersonation.ImpersonationMiddleware",
+    "waffle.middleware.WaffleMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 {% if use_i18n -%}
@@ -143,6 +152,8 @@ TEMPLATES = [
 {% if use_i18n -%}
                 "django.template.context_processors.i18n",
 {% endif -%}
+                "apps.users.impersonation.impersonation_context",
+                "apps.core.feature_flags.get_feature_flags_for_template",
             ],
         },
     },
@@ -406,3 +417,30 @@ LOGGING = {
 {% endif -%}
     },
 }
+
+{% if use_stripe -%}
+# Stripe Configuration
+STRIPE_LIVE_PUBLIC_KEY = env("STRIPE_LIVE_PUBLIC_KEY", default="")
+STRIPE_LIVE_SECRET_KEY = env("STRIPE_LIVE_SECRET_KEY", default="")
+STRIPE_TEST_PUBLIC_KEY = env("STRIPE_TEST_PUBLIC_KEY", default="")
+STRIPE_TEST_SECRET_KEY = env("STRIPE_TEST_SECRET_KEY", default="")
+STRIPE_LIVE_MODE = env.bool("STRIPE_LIVE_MODE", default=False)
+{% if stripe_mode == 'basic' -%}
+# Basic Stripe integration
+STRIPE_PUBLIC_KEY = STRIPE_LIVE_PUBLIC_KEY if STRIPE_LIVE_MODE else STRIPE_TEST_PUBLIC_KEY
+STRIPE_SECRET_KEY = STRIPE_LIVE_SECRET_KEY if STRIPE_LIVE_MODE else STRIPE_TEST_SECRET_KEY
+STRIPE_WEBHOOK_SECRET = env("STRIPE_WEBHOOK_SECRET", default="")
+{% else -%}
+# dj-stripe advanced integration
+STRIPE_PUBLISHABLE_KEY = STRIPE_LIVE_PUBLIC_KEY if STRIPE_LIVE_MODE else STRIPE_TEST_PUBLIC_KEY
+STRIPE_SECRET_KEY = STRIPE_LIVE_SECRET_KEY if STRIPE_LIVE_MODE else STRIPE_TEST_SECRET_KEY
+DJSTRIPE_WEBHOOK_SECRET = env("DJSTRIPE_WEBHOOK_SECRET", default="")
+DJSTRIPE_FOREIGN_KEY_TO_FIELD = "id"
+DJSTRIPE_USE_NATIVE_JSONFIELD = True
+{% endif -%}
+{% endif -%}
+
+# Site Configuration
+SITE_NAME = env("SITE_NAME", default="{{ project_name }}")
+SITE_URL = env("SITE_URL", default="http://localhost:8000")
+SUPPORT_EMAIL = env("SUPPORT_EMAIL", default=DEFAULT_FROM_EMAIL)

@@ -1,0 +1,227 @@
+"""Tests for billing decorators."""
+import pytest
+from django.contrib.auth import get_user_model
+from django.http import HttpResponse
+from django.test import RequestFactory
+from unittest.mock import Mock, patch
+
+from apps.billing.decorators import (
+    subscription_required,
+    feature_required,
+    plan_required,
+    usage_limit_check,
+)
+
+User = get_user_model()
+
+
+@pytest.fixture
+def user(db):
+    """Create a test user."""
+    return User.objects.create_user(
+        email="user@example.com",
+        password="testpass123"
+    )
+
+
+@pytest.fixture
+def rf():
+    """Request factory."""
+    return RequestFactory()
+
+
+@pytest.mark.django_db
+class TestSubscriptionRequiredDecorator:
+    """Test subscription_required decorator."""
+
+    def test_with_active_subscription(self, user, rf):
+        """Test decorator allows access with active subscription."""
+        @subscription_required()
+        def view(request):
+            return HttpResponse("Success")
+
+        request = rf.get("/")
+        request.user = user
+
+        with patch("apps.billing.decorators.has_active_subscription", return_value=True):
+            response = view(request)
+
+        assert response.status_code == 200
+        assert response.content == b"Success"
+
+    def test_without_subscription(self, user, rf):
+        """Test decorator redirects without subscription."""
+        @subscription_required()
+        def view(request):
+            return HttpResponse("Success")
+
+        request = rf.get("/")
+        request.user = user
+
+        with patch("apps.billing.decorators.has_active_subscription", return_value=False):
+            response = view(request)
+
+        assert response.status_code == 302  # Redirect
+
+    def test_unauthenticated_user(self, rf):
+        """Test decorator redirects unauthenticated users."""
+        @subscription_required()
+        def view(request):
+            return HttpResponse("Success")
+
+        request = rf.get("/")
+        request.user = Mock(is_authenticated=False)
+
+        response = view(request)
+
+        assert response.status_code == 302
+
+    def test_ajax_response(self, user, rf):
+        """Test decorator returns JSON for AJAX requests."""
+        @subscription_required(ajax_response=True)
+        def view(request):
+            return HttpResponse("Success")
+
+        request = rf.get("/")
+        request.user = user
+
+        with patch("apps.billing.decorators.has_active_subscription", return_value=False):
+            response = view(request)
+
+        assert response.status_code == 403
+        assert response["Content-Type"] == "application/json"
+
+
+@pytest.mark.django_db
+class TestFeatureRequiredDecorator:
+    """Test feature_required decorator."""
+
+    def test_with_feature_access(self, user, rf):
+        """Test decorator allows access when feature is available."""
+        @feature_required("api_access")
+        def view(request):
+            return HttpResponse("Success")
+
+        request = rf.get("/")
+        request.user = user
+
+        with patch("apps.billing.decorators.check_feature_access", return_value=True):
+            response = view(request)
+
+        assert response.status_code == 200
+
+    def test_without_feature_access(self, user, rf):
+        """Test decorator blocks access when feature is unavailable."""
+        @feature_required("api_access")
+        def view(request):
+            return HttpResponse("Success")
+
+        request = rf.get("/")
+        request.user = user
+
+        with patch("apps.billing.decorators.check_feature_access", return_value=False):
+            response = view(request)
+
+        assert response.status_code == 302
+
+
+@pytest.mark.django_db
+class TestPlanRequiredDecorator:
+    """Test plan_required decorator."""
+
+    def test_with_correct_plan(self, user, rf):
+        """Test decorator allows access with correct plan."""
+        @plan_required("pro", "enterprise")
+        def view(request):
+            return HttpResponse("Success")
+
+        request = rf.get("/")
+        request.user = user
+
+        {% if stripe_mode == 'advanced' -%}
+        mock_subscription = Mock()
+        mock_plan_config = Mock(slug="pro")
+
+        with patch("apps.billing.decorators.get_active_subscription", return_value=mock_subscription):
+            with patch("apps.billing.models.PlanConfiguration.objects.get", return_value=mock_plan_config):
+                response = view(request)
+        {% else -%}
+        mock_subscription = Mock(plan_name="Pro")
+
+        with patch("apps.billing.decorators.get_active_subscription", return_value=mock_subscription):
+            response = view(request)
+        {% endif -%}
+
+        assert response.status_code == 200
+
+    def test_with_wrong_plan(self, user, rf):
+        """Test decorator blocks access with wrong plan."""
+        @plan_required("enterprise")
+        def view(request):
+            return HttpResponse("Success")
+
+        request = rf.get("/")
+        request.user = user
+
+        {% if stripe_mode == 'advanced' -%}
+        mock_subscription = Mock()
+        mock_plan_config = Mock(slug="basic")
+
+        with patch("apps.billing.decorators.get_active_subscription", return_value=mock_subscription):
+            with patch("apps.billing.models.PlanConfiguration.objects.get", return_value=mock_plan_config):
+                response = view(request)
+        {% else -%}
+        mock_subscription = Mock(plan_name="Basic")
+
+        with patch("apps.billing.decorators.get_active_subscription", return_value=mock_subscription):
+            response = view(request)
+        {% endif -%}
+
+        assert response.status_code == 302
+
+
+@pytest.mark.django_db
+class TestUsageLimitCheckDecorator:
+    """Test usage_limit_check decorator."""
+
+    def test_within_limit(self, user, rf):
+        """Test decorator allows access when within limit."""
+        @usage_limit_check("api_calls")
+        def view(request):
+            return HttpResponse("Success")
+
+        request = rf.get("/")
+        request.user = user
+
+        with patch("apps.billing.decorators.check_usage_limit", return_value=False):
+            response = view(request)
+
+        assert response.status_code == 200
+
+    def test_over_limit(self, user, rf):
+        """Test decorator blocks access when over limit."""
+        @usage_limit_check("api_calls")
+        def view(request):
+            return HttpResponse("Success")
+
+        request = rf.get("/")
+        request.user = user
+
+        with patch("apps.billing.decorators.check_usage_limit", return_value=True):
+            response = view(request)
+
+        assert response.status_code == 302
+
+    def test_over_limit_ajax(self, user, rf):
+        """Test decorator returns 429 for AJAX when over limit."""
+        @usage_limit_check("api_calls", ajax_response=True)
+        def view(request):
+            return HttpResponse("Success")
+
+        request = rf.get("/")
+        request.user = user
+
+        with patch("apps.billing.decorators.check_usage_limit", return_value=True):
+            response = view(request)
+
+        assert response.status_code == 429  # Too Many Requests
