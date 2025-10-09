@@ -39,7 +39,9 @@ Django Keel is a comprehensive Copier template for Django projects that combines
 - **Next.js** (full-stack)
 
 ### ⚡ Async & Background Tasks
-- **Celery** with Redis broker
+- **Celery** - Traditional async tasks (emails, reports, high-volume processing)
+- **Temporal** - Durable workflows (onboarding, payment flows, long-running processes)
+- **Both** - Use Celery AND Temporal together
 - Celery Beat for periodic tasks
 - Flower for monitoring
 - **Django Channels** for WebSockets (optional)
@@ -52,7 +54,7 @@ Django Keel is a comprehensive Copier template for Django projects that combines
 - Health and readiness endpoints
 
 ### 🚀 Deployment
-- **Kubernetes**:
+- **Kubernetes** (Enterprise-scale):
   - Helm charts
   - Kustomize overlays (dev/staging/prod)
   - CloudNativePG operator for PostgreSQL
@@ -60,16 +62,36 @@ Django Keel is a comprehensive Copier template for Django projects that combines
   - Horizontal Pod Autoscaling
   - ArgoCD ready
 
-- **AWS EC2 (Ansible)**:
+- **AWS ECS Fargate** (Serverless containers):
+  - No EC2 instance management
+  - Application Load Balancer with auto-scaling
+  - Multi-AZ high availability
+  - Terraform infrastructure-as-code
+
+- **Fly.io** (Global edge):
+  - Deploy close to users worldwide
+  - Automatic HTTPS & SSL
+  - PostgreSQL & Redis included
+  - Free tier: 3 VMs, 3GB DB, 160GB bandwidth
+  - Multi-region deployment
+
+- **Render** (Platform-as-Service):
+  - One-click deployment from GitHub
+  - Auto-deploy on git push
+  - PostgreSQL & Redis included
+  - Free tier available
+  - Zero configuration
+
+- **AWS EC2 (Ansible)** (Full control):
   - Ubuntu 24.04 playbooks
   - Caddy reverse proxy with auto-HTTPS
   - Systemd services
   - Zero-downtime deployments
 
-- **Other Platforms**:
-  - ECS/Fargate (planned)
-  - Fly.io (planned)
-  - Render (planned)
+- **Docker** (Universal):
+  - Multi-stage optimized builds
+  - docker-compose for development
+  - Deploy anywhere
 
 ### 🧪 Developer Experience
 - **ruff** for linting and formatting (10-100x faster)
@@ -135,7 +157,12 @@ your-project/
 │   └── asgi.py
 ├── deploy/                    # Deployment configs
 │   ├── k8s/                  # Kubernetes (Helm + Kustomize)
+│   ├── ecs/                  # AWS ECS Fargate (Terraform)
+│   ├── flyio/                # Fly.io configuration
+│   ├── render/               # Render blueprints
 │   └── ansible/              # EC2/Ansible playbooks
+├── fly.toml                   # Fly.io config (if selected)
+├── render.yaml                # Render blueprint (if selected)
 ├── docs/                      # MkDocs documentation
 ├── tests/                     # Test suite
 ├── Dockerfile                 # Production image
@@ -242,28 +269,37 @@ Each generated project includes its own comprehensive documentation in the `docs
 # Example answers
 api_style: drf
 frontend: none
-use_celery: false
+background_tasks: none
 observability_level: minimal
-deployment_targets: kubernetes
+deployment_targets: render
 ```
 
 ### Full-Stack SaaS
 ```yaml
 api_style: both  # DRF + GraphQL
 frontend: nextjs
-use_celery: true
+background_tasks: both  # Celery + Temporal
 use_stripe: true
 observability_level: full
-deployment_targets: kubernetes,aws-ec2-ansible
+deployment_targets: kubernetes,ecs
 ```
 
 ### HTMX Monolith
 ```yaml
 api_style: drf
 frontend: htmx-tailwind
-use_celery: true
+background_tasks: celery
 observability_level: standard
-deployment_targets: aws-ec2-ansible
+deployment_targets: flyio
+```
+
+### Hobby Project
+```yaml
+api_style: drf
+frontend: htmx-tailwind
+background_tasks: celery
+observability_level: minimal
+deployment_targets: render
 ```
 
 ## 🔄 Updating Your Project

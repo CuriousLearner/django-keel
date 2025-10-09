@@ -27,7 +27,7 @@ copier copy . ../my-api-project \
   --data project_name="My API Project" \
   --data api_style=drf \
   --data frontend=none \
-  --data use_celery=false \
+  --data background_tasks=none \
   --data deployment_targets=kubernetes
 ```
 
@@ -125,7 +125,7 @@ copier update
 copier copy ../django-keel ../api-only \
   --data api_style=drf \
   --data frontend=none \
-  --data use_celery=false
+  --data background_tasks=none
 
 cd ../api-only
 uv sync
@@ -138,7 +138,7 @@ just test
 copier copy ../django-keel ../fullstack-htmx \
   --data api_style=both \
   --data frontend=htmx-tailwind \
-  --data use_celery=true \
+  --data background_tasks=celery \
   --data observability_level=full
 
 cd ../fullstack-htmx
@@ -154,12 +154,12 @@ just dev
 copier copy ../django-keel ../saas-project \
   --data api_style=both \
   --data frontend=nextjs \
-  --data use_celery=true \
+  --data background_tasks=both \
   --data use_stripe=true \
   --data use_search=postgres-fts \
   --data observability_level=full \
   --data security_profile=strict \
-  --data deployment_targets=kubernetes,aws-ec2-ansible
+  --data deployment_targets=kubernetes,ecs,flyio
 
 cd ../saas-project
 uv sync

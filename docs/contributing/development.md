@@ -160,8 +160,8 @@ copier copy . /tmp/test-basic
 # With specific features
 copier copy . /tmp/test-full \
   --data api_style=both \
-  --data use_celery=true \
-  --data deployment_targets=kubernetes
+  --data background_tasks=both \
+  --data deployment_targets=kubernetes,ecs,flyio
 
 # Test the generated project
 cd /tmp/test-full

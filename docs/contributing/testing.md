@@ -40,13 +40,13 @@ Tests that verify Django configuration in generated projects:
 
 Tests for optional features:
 
-- Celery configuration
+- Background tasks (Celery, Temporal, both)
 - Channels/WebSockets
 - Stripe integration
 - 2FA setup
 - i18n configuration
 - Caching options
-- Deployment targets
+- Deployment targets (Kubernetes, ECS, Fly.io, Render, EC2)
 
 ### Generation Tests (16 tests)
 
@@ -82,7 +82,7 @@ def test_with_config(project_with_config):
     """Test using project_with_config fixture."""
     project, config = project_with_config(
         api_style="drf",
-        use_celery=True
+        background_tasks="celery"
     )
 
     assert (project / "config/celery.py").exists()

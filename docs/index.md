@@ -15,7 +15,7 @@ Django Keel is a comprehensive Copier template for Django projects that combines
 
 - **Battle-tested architecture** from years of real-world Django projects
 - **Security hardening** built-in (HSTS, CSP, rate limiting)
-- **Multiple deployment options** (Kubernetes, AWS EC2, more coming)
+- **Multiple deployment options** (Kubernetes, AWS ECS Fargate, Fly.io, Render, AWS EC2, Docker)
 - **Comprehensive observability** (logging, metrics, tracing)
 
 ### ⚡ Modern Development Experience
@@ -31,11 +31,11 @@ Choose exactly what you need:
 
 - **API**: Django REST Framework, GraphQL (Strawberry), both, or none
 - **Frontend**: HTMX + Tailwind, Next.js, or API-only
-- **Background Tasks**: Celery with Redis
+- **Background Tasks**: Celery, Temporal, both, or none
 - **WebSockets**: Django Channels
 - **Payments**: Stripe integration
 - **Search**: PostgreSQL FTS or OpenSearch
-- **Deployment**: Kubernetes (Helm + Kustomize), AWS EC2 (Ansible)
+- **Deployment**: Kubernetes, AWS ECS Fargate, Fly.io, Render, AWS EC2, Docker
 - **Observability**: Minimal, standard, or full stack
 - **And much more...**
 
@@ -97,27 +97,63 @@ Visit [Quick Start](getting-started/quickstart.md) for detailed instructions.
 
 ### Background Tasks
 
-- Celery with Redis broker
-- Celery Beat for periodic tasks
-- Flower for monitoring
+**Celery**:
+- Traditional async task queue with Redis broker
+- Celery Beat for periodic tasks (cron-like scheduling)
+- Flower for monitoring and management
+- Best for: Simple async tasks, emails, image processing, high-volume jobs
+
+**Temporal**:
+- Durable workflow orchestration platform
+- Temporal Python SDK (temporalio>=1.6.0)
+- Example workflows: UserOnboardingWorkflow, BatchProcessingWorkflow
+- Example activities with Django ORM support
+- Temporal UI for workflow monitoring
+- Best for: Complex multi-step workflows, long-running processes, saga patterns
+
+**Both**: Use Celery AND Temporal together for diverse background task needs
 
 ### Deployment
 
-**Kubernetes**:
-
-- Helm charts
+**Kubernetes** (Enterprise-scale):
+- Helm charts for package management
 - Kustomize overlays (dev/staging/prod)
 - CloudNativePG operator for PostgreSQL
-- Traefik + cert-manager for ingress
+- Traefik + cert-manager for automatic HTTPS
 - Horizontal Pod Autoscaling
-- ArgoCD ready
+- ArgoCD GitOps ready
 
-**AWS EC2**:
+**AWS ECS Fargate** (Serverless containers):
+- No EC2 instance management required
+- Application Load Balancer with auto-scaling
+- Multi-AZ high availability deployment
+- CloudWatch logging and monitoring
+- Terraform infrastructure-as-code
 
-- Ubuntu 24.04 Ansible playbooks
+**Fly.io** (Global edge):
+- Deploy close to users worldwide for low latency
+- Automatic HTTPS and SSL certificates
+- PostgreSQL and Redis included
+- Free tier: 3 VMs, 3GB DB, 160GB bandwidth
+- Multi-region deployment support
+
+**Render** (Platform-as-Service):
+- One-click deployment from GitHub
+- Automatic deploys on git push
+- PostgreSQL and Redis included
+- Automatic SSL certificates
+- Free tier available (spins down after 15 min)
+
+**AWS EC2 (Ansible)** (Full control):
+- Ubuntu 24.04 automated provisioning
 - Caddy reverse proxy with auto-HTTPS
-- Systemd services
+- Systemd service management
 - Zero-downtime deployments
+
+**Docker** (Universal):
+- Multi-stage optimized Dockerfile
+- docker-compose.yml for local development
+- Deploy to any container platform
 
 ### Observability
 
@@ -149,9 +185,9 @@ Visit [Quick Start](getting-started/quickstart.md) for detailed instructions.
 ```yaml
 api_style: drf
 frontend: none
-use_celery: false
+background_tasks: none
 observability_level: minimal
-deployment_targets: kubernetes
+deployment_targets: render
 ```
 
 ### Full-Stack SaaS
@@ -159,10 +195,10 @@ deployment_targets: kubernetes
 ```yaml
 api_style: both  # DRF + GraphQL
 frontend: nextjs
-use_celery: true
+background_tasks: both  # Celery + Temporal
 use_stripe: true
 observability_level: full
-deployment_targets: kubernetes,aws-ec2-ansible
+deployment_targets: kubernetes,ecs
 ```
 
 ### HTMX Monolith
@@ -170,9 +206,19 @@ deployment_targets: kubernetes,aws-ec2-ansible
 ```yaml
 api_style: drf
 frontend: htmx-tailwind
-use_celery: true
+background_tasks: celery
 observability_level: standard
-deployment_targets: aws-ec2-ansible
+deployment_targets: flyio
+```
+
+### Hobby Project
+
+```yaml
+api_style: drf
+frontend: htmx-tailwind
+background_tasks: celery
+observability_level: minimal
+deployment_targets: render
 ```
 
 ## What You Get
