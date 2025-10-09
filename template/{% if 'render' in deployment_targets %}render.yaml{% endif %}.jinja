@@ -1,0 +1,88 @@
+# Render Blueprint for {{ project_name }}
+# https://render.com/docs/blueprint-spec
+
+services:
+  - type: web
+    name: {{ project_slug }}
+    runtime: python
+    region: oregon  # Change as needed: oregon, frankfurt, singapore
+    plan: starter  # free, starter, standard, pro
+    branch: main
+    buildCommand: "./deploy/render/build.sh"
+    startCommand: "gunicorn config.wsgi:application"
+    envVars:
+      - key: DJANGO_SETTINGS_MODULE
+        value: config.settings.prod
+      - key: PYTHON_VERSION
+        value: {{ python_version }}
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DEBUG
+        value: False
+      - key: ALLOWED_HOSTS
+        sync: false  # Set in Render dashboard
+      - key: DATABASE_URL
+        fromDatabase:
+          name: {{ project_slug }}-db
+          property: connectionString
+{% if cache == 'redis' %}
+      - key: REDIS_URL
+        fromService:
+          name: {{ project_slug }}-redis
+          type: redis
+          property: connectionString
+{% endif %}
+{% if use_sentry %}
+      - key: SENTRY_DSN
+        sync: false
+{% endif %}
+{% if media_storage == 'aws-s3' %}
+      - key: AWS_ACCESS_KEY_ID
+        sync: false
+      - key: AWS_SECRET_ACCESS_KEY
+        sync: false
+      - key: AWS_STORAGE_BUCKET_NAME
+        value: {{ project_slug }}-media
+      - key: AWS_S3_REGION_NAME
+        value: us-east-1
+{% endif %}
+
+    healthCheckPath: /health/
+
+databases:
+  - name: {{ project_slug }}-db
+    databaseName: {{ project_slug }}
+    plan: free  # free, starter, standard, pro
+    region: oregon
+    ipAllowList: []  # Allow from web service
+{% if cache == 'redis' %}
+
+services:
+  - type: redis
+    name: {{ project_slug }}-redis
+    plan: free  # free, starter, standard, pro
+    region: oregon
+    maxmemoryPolicy: noeviction
+{% endif %}
+{% if background_tasks in ['celery', 'both'] %}
+
+  - type: worker
+    name: {{ project_slug }}-celery-worker
+    runtime: python
+    plan: starter
+    branch: main
+    buildCommand: "./deploy/render/build.sh"
+    startCommand: "celery -A config worker -l info"
+    envVars:
+      - key: DJANGO_SETTINGS_MODULE
+        value: config.settings.prod
+      - key: DATABASE_URL
+        fromDatabase:
+          name: {{ project_slug }}-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          name: {{ project_slug }}-redis
+          type: redis
+          property: connectionString
+{% endif %}

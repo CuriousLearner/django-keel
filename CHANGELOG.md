@@ -31,6 +31,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Deployment
 - Kubernetes deployment with Helm charts and Kustomize
+- AWS ECS Fargate deployment with Terraform
+- Fly.io deployment with automatic global edge distribution
+- Render deployment with one-click GitHub integration
 - AWS EC2 deployment with Ansible playbooks
 - Docker and Docker Compose setup
 - Multiple storage backends (local + Whitenoise, AWS S3, GCP GCS, Azure)

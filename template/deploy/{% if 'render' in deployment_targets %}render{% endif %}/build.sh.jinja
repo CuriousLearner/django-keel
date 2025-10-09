@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# exit on error
+set -o errexit
+
+{% if dependency_manager == 'uv' -%}
+# Install uv
+pip install uv
+
+# Install dependencies
+uv sync --frozen
+{% else -%}
+# Install dependencies
+pip install -r requirements.txt
+{% endif -%}
+
+# Collect static files
+python manage.py collectstatic --noinput
+
+# Run migrations
+python manage.py migrate --noinput

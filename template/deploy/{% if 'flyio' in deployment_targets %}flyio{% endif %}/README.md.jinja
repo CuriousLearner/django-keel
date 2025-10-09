@@ -1,0 +1,469 @@
+# Fly.io Deployment
+
+Deploy {{ project_name }} to Fly.io for fast, global deployment with automatic scaling.
+
+## Overview
+
+Fly.io provides:
+
+- **Global Edge Deployment**: Deploy close to your users
+- **Auto Scaling**: Automatic horizontal scaling
+- **PostgreSQL Included**: Managed Postgres clusters
+- **Simple Deployment**: Deploy with `fly deploy`
+- **Free Tier**: Generous free tier for small apps
+- **Fast**: Sub-100ms latency worldwide
+
+## Prerequisites
+
+- Fly.io account ([Sign up](https://fly.io/app/sign-up))
+- Fly CLI installed:
+  ```bash
+  # macOS
+  brew install flyctl
+
+  # Linux
+  curl -L https://fly.io/install.sh | sh
+
+  # Windows
+  iwr https://fly.io/install.ps1 -useb | iex
+  ```
+
+## Quick Start
+
+### 1. Login to Fly.io
+
+```bash
+fly auth login
+```
+
+### 2. Launch Application
+
+```bash
+# From your project directory
+fly launch
+
+# Follow prompts:
+# - Choose region (closest to you)
+# - Create PostgreSQL database (yes)
+# - Deploy now (yes)
+```
+
+The `fly launch` command will:
+- Create `fly.toml` configuration file
+- Set up PostgreSQL database
+- Create app on Fly.io
+- Deploy your application
+
+### 3. Set Secrets
+
+```bash
+# Required secrets
+fly secrets set DJANGO_SECRET_KEY="$(python -c 'from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())')"
+fly secrets set DEBUG=False
+fly secrets set ALLOWED_HOSTS="{{ project_slug }}.fly.dev"
+
+{% if cache == 'redis' -%}
+# Optional: Redis (if using cache/Celery)
+fly redis create
+fly secrets set REDIS_URL="<redis-connection-string>"
+{% endif -%}
+
+{% if use_sentry -%}
+# Optional: Sentry
+fly secrets set SENTRY_DSN="<your-sentry-dsn>"
+{% endif -%}
+
+{% if media_storage == 'aws-s3' -%}
+# Optional: AWS S3 (for media files)
+fly secrets set AWS_ACCESS_KEY_ID="<your-key>"
+fly secrets set AWS_SECRET_ACCESS_KEY="<your-secret>"
+fly secrets set AWS_STORAGE_BUCKET_NAME="{{ project_slug }}-media"
+{% endif -%}
+```
+
+## Configuration
+
+### fly.toml
+
+The `fly.toml` file is already included in your project. Key sections:
+
+```toml
+app = "{{ project_slug }}"
+primary_region = "iad"  # Change to your preferred region
+
+[deploy]
+  release_command = "python manage.py migrate --noinput"
+
+[http_service]
+  internal_port = 8000
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 1
+
+[[http_service.checks]]
+  path = "/health/"
+```
+
+### Database
+
+Fly.io PostgreSQL is automatically configured during `fly launch`.
+
+**Connection String**: Automatically set as `DATABASE_URL`
+
+To access your database:
+
+```bash
+# Connect via proxy
+fly proxy 5432 -a <postgres-app-name>
+
+# Then connect with psql
+psql postgres://postgres:<password>@localhost:5432/{{ project_slug }}
+
+# Or use Fly's console
+fly postgres connect -a <postgres-app-name>
+```
+
+### Static Files
+
+Fly.io serves static files efficiently:
+
+```python
+# settings/prod.py
+STATIC_ROOT = BASE_DIR / "staticfiles"
+STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+```
+
+Whitenoise is already configured in your project.
+
+### Media Files
+
+For user uploads, use S3 or Fly Volumes:
+
+#### Option 1: AWS S3 (Recommended)
+
+Already configured if you selected `aws-s3` storage.
+
+#### Option 2: Fly Volumes
+
+```bash
+# Create volume
+fly volumes create {{ project_slug }}_media --size 10
+
+# Update fly.toml
+[mounts]
+  source = "{{ project_slug }}_media"
+  destination = "/app/media"
+```
+
+**Note**: Volumes are single-machine only and don't work well with auto-scaling.
+
+## Deployment
+
+### Initial Deploy
+
+```bash
+fly deploy
+```
+
+### Subsequent Deploys
+
+```bash
+# Deploy latest code
+fly deploy
+
+# Deploy specific image
+fly deploy --image <image-name>
+
+# Deploy with build args
+fly deploy --build-arg VERSION=1.0.0
+```
+
+## Scaling
+
+### Vertical Scaling (Machine Size)
+
+```bash
+# List available sizes
+fly platform vm-sizes
+
+# Scale to larger machine
+fly scale vm shared-cpu-2x --memory 512
+
+# Scale to dedicated CPU
+fly scale vm dedicated-cpu-1x --memory 2048
+```
+
+### Horizontal Scaling (More Machines)
+
+```bash
+# Scale to 3 machines
+fly scale count 3
+
+# Scale with regions
+fly scale count 3 --region iad,lhr,syd
+
+# Auto-scale (experimental)
+fly autoscale set min=2 max=10
+```
+
+## Monitoring
+
+### View Logs
+
+```bash
+# Stream logs
+fly logs
+
+# View specific machine
+fly logs -i <machine-id>
+
+# Filter logs
+fly logs --grep ERROR
+```
+
+### Metrics
+
+```bash
+# View dashboard
+fly dashboard
+
+# Check status
+fly status
+
+# List machines
+fly machines list
+```
+
+### Health Checks
+
+Fly.io automatically monitors `/health/` endpoint:
+
+```bash
+# Check health
+fly checks list
+```
+
+## Custom Domain
+
+### Add Domain
+
+```bash
+# Add domain
+fly certs add {{ project_slug }}.com
+
+# Check certificate status
+fly certs show {{ project_slug }}.com
+
+# List all certificates
+fly certs list
+```
+
+### DNS Configuration
+
+Add these DNS records:
+
+```
+CNAME {{ project_slug }}.com -> {{ project_slug }}.fly.dev
+CNAME www.{{ project_slug }}.com -> {{ project_slug }}.fly.dev
+```
+
+Or use A/AAAA records (shown in `fly certs show`).
+
+## Background Tasks
+
+{% if background_tasks in ['celery', 'both'] -%}
+### Celery Workers
+
+Create a separate machine for Celery workers:
+
+```bash
+# Create worker process in fly.toml
+[processes]
+  app = "gunicorn config.wsgi:application"
+  worker = "celery -A config worker -l info"
+
+# Deploy worker
+fly deploy --process worker
+```
+
+{% endif -%}
+{% if background_tasks in ['temporal', 'both'] -%}
+### Temporal Workers
+
+For Temporal, run worker as separate machine:
+
+```bash
+# Create worker process
+[processes]
+  app = "gunicorn config.wsgi:application"
+  temporal_worker = "python manage.py run_temporal_worker"
+
+# Deploy
+fly deploy --process temporal_worker
+```
+
+{% endif -%}
+
+## CI/CD
+
+### GitHub Actions
+
+```yaml
+name: Deploy to Fly.io
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+
+      - name: Deploy to Fly.io
+        run: flyctl deploy --remote-only
+        env:
+          FLY_API_TOKEN: {% raw %}${{ secrets.FLY_API_TOKEN }}{% endraw %}
+```
+
+Get your API token:
+
+```bash
+fly auth token
+```
+
+Add it to GitHub Secrets as `FLY_API_TOKEN`.
+
+## Multi-Region Deployment
+
+Deploy to multiple regions for low latency:
+
+```bash
+# Add regions
+fly regions add lhr syd sin
+
+# Deploy
+fly deploy
+
+# Check distribution
+fly status
+```
+
+Fly.io automatically routes users to nearest region.
+
+## Development vs Production
+
+### Development
+
+```bash
+# Deploy to staging
+fly deploy --config fly.staging.toml
+
+# Create staging app
+fly apps create {{ project_slug }}-staging
+```
+
+### Production
+
+```bash
+# Deploy to production
+fly deploy
+
+# Zero-downtime deploys
+fly deploy --strategy rolling
+```
+
+## Cost Optimization
+
+Tips for reducing costs:
+
+1. **Auto-stop**: Machines auto-stop when idle (free tier)
+2. **Right-size**: Start with `shared-cpu-1x` (256MB)
+3. **Regions**: Deploy only to needed regions
+4. **Volumes**: Use S3 instead of Fly Volumes
+5. **Database**: Use Postgres free tier (3GB)
+
+### Free Tier Limits
+
+- Up to 3 shared-cpu-1x VMs (256MB RAM)
+- 3GB persistent volume storage
+- 160GB outbound data transfer
+
+## Troubleshooting
+
+### App Won't Start
+
+```bash
+# Check logs
+fly logs
+
+# SSH into machine
+fly ssh console
+
+# Check config
+fly config display
+```
+
+### Database Connection Issues
+
+```bash
+# Verify DATABASE_URL is set
+fly secrets list
+
+# Test connection
+fly ssh console
+python manage.py dbshell
+```
+
+### Deployment Fails
+
+```bash
+# View deployment status
+fly status --all
+
+# Force deploy
+fly deploy --force-new
+
+# Check build logs
+fly logs --source build
+```
+
+### High Latency
+
+```bash
+# Add more regions
+fly regions add <region-code>
+
+# Increase machine size
+fly scale vm shared-cpu-2x
+```
+
+## Cleanup
+
+To delete your app:
+
+```bash
+# Destroy app and resources
+fly apps destroy {{ project_slug }}
+
+# Delete database
+fly postgres destroy <postgres-app-name>
+```
+
+## Resources
+
+- [Fly.io Django Guide](https://fly.io/docs/django/)
+- [Fly.io Pricing](https://fly.io/docs/about/pricing/)
+- [Fly.io Regions](https://fly.io/docs/reference/regions/)
+- [Django on Fly.io Tutorial](https://testdriven.io/blog/django-fly/)
+- [Fly.io Community](https://community.fly.io/)
+
+## Support
+
+- [Fly.io Docs](https://fly.io/docs/)
+- [Community Forum](https://community.fly.io/)
+- [Status Page](https://status.flyio.net/)
