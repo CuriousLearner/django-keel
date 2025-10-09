@@ -95,6 +95,14 @@ jobs:
       - name: Install dependencies
         run: uv sync
 
+      - name: Check for missing migrations
+        env:
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/test_db
+{% if cache == 'redis' %}
+          REDIS_URL: redis://localhost:6379/0
+{% endif %}
+        run: uv run python manage.py makemigrations --check --dry-run
+
       - name: Run tests
         env:
           DATABASE_URL: postgres://postgres:postgres@localhost:5432/test_db
@@ -113,6 +121,14 @@ jobs:
 
       - name: Install dependencies
         run: poetry install
+
+      - name: Check for missing migrations
+        env:
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/test_db
+{% if cache == 'redis' %}
+          REDIS_URL: redis://localhost:6379/0
+{% endif %}
+        run: poetry run python manage.py makemigrations --check --dry-run
 
       - name: Run tests
         env:
