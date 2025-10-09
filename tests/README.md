@@ -1,10 +1,12 @@
 # Django Keel Tests
 
-Comprehensive test suite for the django-keel template using pytest with behavioral and functional testing approaches.
+Comprehensive functional and behavioral test suite for the django-keel template using pytest.
 
 ## Overview
 
-This test suite ensures that the django-keel template generates valid, working Django projects across all configuration combinations. Tests are organized into three main categories:
+This test suite ensures that the django-keel template generates valid, working Django projects across all configuration combinations. All tests are **function-based** (no classes) following pytest best practices for functional and behavioral testing.
+
+Tests are organized into three main categories:
 
 1. **Functional Tests** (`test_generation.py`) - Verify project generation and structure
 2. **Behavioral Tests** (`test_features.py`) - Verify feature-specific behavior
@@ -74,17 +76,17 @@ pytest tests/test_features.py::TestCeleryFeature::test_celery_files_generated_wh
 
 ### Functional Tests (test_generation.py)
 
-Tests that verify the basic project generation functionality:
+Tests that verify the basic project generation functionality - all function-based:
 
-- **TestProjectGeneration**: Basic project structure and files
-- **TestDependencyManagers**: UV and Poetry configuration
-- **TestAPIStyles**: DRF, GraphQL, both, and none
-- **TestFrontendOptions**: None, HTMX, and Next.js
-- **TestAuthBackends**: Allauth, JWT, and both
+- Basic project structure and files
+- UV and Poetry configuration
+- DRF, GraphQL, both, and none API styles
+- None, HTMX, and Next.js frontend options
+- Allauth, JWT, and both auth backends
 
 **Example:**
 ```python
-def test_basic_project_generates(self, generate):
+def test_basic_project_generates(generate):
     """Test that a basic project can be generated."""
     project = generate()
     assert project.exists()
@@ -93,21 +95,21 @@ def test_basic_project_generates(self, generate):
 
 ### Behavioral Tests (test_features.py)
 
-Tests that verify feature-specific behavior and conditional logic:
+Tests that verify feature-specific behavior and conditional logic - all function-based:
 
-- **TestCeleryFeature**: Celery task queue configuration
-- **TestChannelsFeature**: WebSocket support with Channels
-- **TestStripeFeature**: Payment integration
-- **Test2FAFeature**: Two-factor authentication
-- **TestI18nFeature**: Internationalization
-- **TestCacheOptions**: Redis and no-cache configurations
-- **TestDeploymentTargets**: Kubernetes and other deployment options
-- **TestMediaStorage**: Local, S3, and other storage backends
-- **TestAllFeaturesCombination**: All features enabled together
+- Celery task queue configuration
+- WebSocket support with Channels
+- Stripe payment integration
+- Two-factor authentication
+- Internationalization
+- Redis and no-cache configurations
+- Kubernetes and other deployment options
+- Local, S3, and other storage backends
+- All features enabled together
 
 **Example:**
 ```python
-def test_celery_files_generated_when_enabled(self, generate):
+def test_celery_files_generated_when_enabled(generate):
     """Test that Celery configuration is generated when enabled."""
     project = generate(use_celery=True)
     assert (project / "config/celery.py").exists()
@@ -115,19 +117,19 @@ def test_celery_files_generated_when_enabled(self, generate):
 
 ### Integration Tests (test_django_integration.py)
 
-Tests that verify Django-specific functionality:
+Tests that verify Django-specific functionality - all function-based:
 
-- **TestDjangoCommands**: Management commands work
-- **TestDatabaseConfiguration**: Database setup
-- **TestStaticFilesConfiguration**: Static file handling
-- **TestURLConfiguration**: URL routing
-- **TestMiddlewareConfiguration**: Middleware stack
-- **TestModelConfiguration**: Custom user model
-- **TestTemplateConfiguration**: Template engine setup
+- Django management commands
+- Database setup
+- Static file handling
+- URL routing
+- Middleware stack
+- Custom user model
+- Template engine setup
 
 **Example:**
 ```python
-def test_django_check_passes(self, generate):
+def test_django_check_passes(generate, copier_answers):
     """Test that Django system check passes on generated project."""
     project = generate()
     # ... run manage.py check
@@ -164,31 +166,29 @@ def test_custom_configuration(generate):
 ### Test Naming Conventions
 
 - Test files: `test_*.py`
-- Test classes: `Test*`
-- Test methods: `test_*`
+- Test functions: `test_*`
+- **No classes** - all tests are function-based
 
 ### Example Test
 
 ```python
-class TestMyFeature:
-    """Test my custom feature."""
+def test_feature_enabled(generate):
+    """Test that feature works when enabled."""
+    project = generate(my_feature=True)
 
-    def test_feature_enabled(self, generate):
-        """Test that feature works when enabled."""
-        project = generate(my_feature=True)
+    # Verify behavior
+    assert (project / "my_feature_file.py").exists()
 
-        # Verify behavior
-        assert (project / "my_feature_file.py").exists()
+    settings = project / "config/settings/base.py"
+    content = settings.read_text()
+    assert "my_feature" in content
 
-        settings = project / "config/settings/base.py"
-        content = settings.read_text()
-        assert "my_feature" in content
 
-    def test_feature_disabled(self, generate):
-        """Test that feature is excluded when disabled."""
-        project = generate(my_feature=False)
+def test_feature_disabled(generate):
+    """Test that feature is excluded when disabled."""
+    project = generate(my_feature=False)
 
-        assert not (project / "my_feature_file.py").exists()
+    assert not (project / "my_feature_file.py").exists()
 ```
 
 ## Testing Best Practices
