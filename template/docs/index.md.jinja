@@ -8,20 +8,117 @@ Welcome to the {{ project_name }} documentation!
 
 ## Features
 
+### Core
+- **Django 5.2** with Python {{ python_version }}
+- **Package Management**: {{ dependency_manager }}
+- **Database**: {{ database }} with connection pooling
+{% if cache == 'redis' -%}
+- **Caching**: Redis for high performance
+{% endif -%}
+- **Authentication**: {% if auth_backend == 'allauth' %}django-allauth (social + email){% elif auth_backend == 'jwt' %}JWT tokens{% else %}django-allauth + JWT{% endif %}
+{% if use_2fa -%}
+- **Two-Factor Authentication**: TOTP-based (Google Authenticator, Authy)
+{% endif -%}
+
+### API & Frontend
 {% if api_style != 'none' -%}
-- **RESTful API**: Built with Django REST Framework
+- **API Framework**: {% if api_style == 'drf' %}Django REST Framework with OpenAPI/Swagger docs{% elif api_style == 'graphql-strawberry' %}Strawberry GraphQL (type-safe, modern){% else %}Django REST Framework + Strawberry GraphQL{% endif %}
 {% endif -%}
+{% if frontend != 'none' -%}
+- **Frontend**: {% if frontend == 'htmx-tailwind' %}HTMX + Tailwind CSS + Alpine.js{% else %}Next.js (TypeScript, App Router){% endif %}
+{% endif -%}
+
+### Background Tasks & Real-time
 {% if use_celery -%}
-- **Background Tasks**: Celery with Redis broker
+- **Background Jobs**: Celery with Redis broker
+- **Periodic Tasks**: Celery Beat for scheduled jobs
+- **Monitoring**: Flower dashboard for task monitoring
 {% endif -%}
-- **Production Ready**: Docker, {% if 'kubernetes' in deployment_targets %}Kubernetes, {% endif %}{% if 'aws-ec2-ansible' in deployment_targets %}AWS EC2 {% endif %}deployment support
-- **Developer Friendly**: Pre-configured linting, testing, and type checking
+{% if use_channels -%}
+- **WebSockets**: Django Channels for real-time features
+- **Real-time Updates**: Live notifications, chat, collaborative editing
+{% endif -%}
+
+### SaaS Features
+{% if use_teams -%}
+- **Multi-Tenancy**: Teams & organizations with RBAC
+- **Team Roles**: Owner, Admin, Member permissions
+- **Team Invitations**: Email-based with secure tokens
+{% endif -%}
+{% if use_stripe -%}
+- **Payments**: Stripe integration ({% if stripe_mode == 'advanced' %}dj-stripe with full lifecycle management{% else %}basic API integration{% endif %})
+- **Subscriptions**: Recurring billing with webhook handling
+{% if stripe_mode == 'advanced' -%}
+- **Feature Gating**: Subscription-based access control
+- **Usage Tracking**: Metered billing and usage limits
+{% endif -%}
+{% endif -%}
+- **Feature Flags**: django-waffle for A/B testing and gradual rollouts
+- **User Impersonation**: Staff can impersonate users for support/debugging
+
+### Observability & Monitoring
+{% if observability_level != 'minimal' -%}
+- **Error Tracking**: {% if observability_level == 'standard' %}Sentry integration{% else %}Sentry + distributed tracing{% endif %}
+- **Structured Logging**: JSON logs with correlation IDs
+{% if observability_level == 'full' -%}
+- **Metrics**: Prometheus + Grafana dashboards
+- **Tracing**: OpenTelemetry for distributed tracing
+- **APM**: Application Performance Monitoring
+{% endif -%}
+{% endif -%}
+- **Health Checks**: `/health/` endpoint with database connectivity checks
+{% if media_storage == 'aws-s3' -%}
+- **File Storage**: AWS S3 for media and static files
+{% endif -%}
+
+### Security
+- **Security Headers**: CSP, HSTS, X-Frame-Options{% if security_profile == 'strict' %} (strict mode){% endif %}
+- **Password Security**: Argon2 hashing
+- **CSRF Protection**: Built-in Django CSRF + SameSite cookies
+{% if use_sops -%}
+- **Secret Management**: SOPS for encrypted configuration
+{% endif -%}
+{% if security_profile == 'strict' -%}
+- **Rate Limiting**: API throttling and login attempt limits
+- **Input Validation**: Comprehensive request validation
+{% endif -%}
+
+### Development Tools
+- **Task Runner**: Justfile for common commands
+- **Code Quality**: Ruff for linting and formatting
+- **Type Checking**: mypy for static type analysis
+- **Testing**: pytest with coverage reporting
+- **Pre-commit Hooks**: Automated code quality checks
+{% if ci_provider != 'none' -%}
+- **CI/CD**: {% if ci_provider == 'github-actions' %}GitHub Actions{% elif ci_provider == 'gitlab-ci' %}GitLab CI{% else %}GitHub Actions + GitLab CI{% endif %}
+{% endif -%}
+
+### Deployment
+{% if 'render' in deployment_targets -%}
+- **Render**: Zero-config PaaS deployment with render.yaml
+{% endif -%}
+{% if 'flyio' in deployment_targets -%}
+- **Fly.io**: Global edge deployment across 30+ regions
+{% endif -%}
+{% if 'aws-ecs-fargate' in deployment_targets -%}
+- **AWS ECS Fargate**: Serverless containers with Terraform IaC
+{% endif -%}
+{% if 'docker' in deployment_targets -%}
+- **Docker**: Multi-stage builds for production deployment
+{% endif -%}
+{% if 'aws-ec2-ansible' in deployment_targets -%}
+- **AWS EC2**: Ansible-automated deployment with Caddy reverse proxy
+{% endif -%}
+{% if 'kubernetes' in deployment_targets -%}
+- **Kubernetes**: Helm charts + Kustomize overlays for GitOps
+{% endif -%}
+- **Production Ready**: Environment-based configuration, database migrations, static file serving
 
 ## Quick Start
 
 ```bash
 # Clone the repository
-git clone https://github.com/CuriousLearner/django-keel
+git clone {{ repository_url }}
 cd {{ project_slug }}
 
 # Install dependencies
@@ -37,8 +134,56 @@ docker compose up -d
 # Run migrations
 just migrate
 
+# Create superuser
+just createsuperuser
+
 # Start development server
 just dev
 ```
 
-Visit [Getting Started](getting-started/installation.md) for detailed instructions.
+## Access Points
+
+After starting the development server:
+
+- **Application**: http://localhost:8000
+- **Admin Panel**: http://localhost:8000/admin/
+{% if api_style != 'none' -%}
+- **API Documentation**: http://localhost:8000/api/schema/swagger/
+{% if api_style in ['graphql-strawberry', 'both'] -%}
+- **GraphQL Playground**: http://localhost:8000/graphql/
+{% endif -%}
+{% endif -%}
+- **Email Testing (Mailpit)**: http://localhost:8025
+{% if use_celery -%}
+- **Celery Flower**: http://localhost:5555 (after running `just celery-flower`)
+{% endif -%}
+
+## Next Steps
+
+- [Installation Guide](getting-started/installation.md) - Detailed setup instructions
+- [Architecture Overview](architecture/overview.md) - System design and structure
+- [Development Guide](development/testing.md) - Testing and development workflow
+{% if use_teams -%}
+- [Teams Setup](saas/teams.md) - Multi-tenancy configuration
+{% endif -%}
+{% if use_stripe -%}
+- [Stripe Integration](saas/stripe.md) - Payment and subscription setup
+{% endif -%}
+- [Deployment](deployment/) - Production deployment guides
+
+## Documentation
+
+Browse the full documentation:
+
+- **Getting Started**: Installation, configuration, first steps
+- **Architecture**: System design, project structure, key decisions
+- **Development**: Testing, debugging, workflow
+{% if use_teams or use_stripe -%}
+- **SaaS Features**: Teams, billing, feature flags, impersonation
+{% endif -%}
+- **Deployment**: Platform-specific deployment guides
+- **ADRs**: Architecture Decision Records
+
+---
+
+**Built with [Django Keel](https://github.com/CuriousLearner/django-keel)** 🚢

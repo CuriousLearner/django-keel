@@ -1,55 +1,492 @@
 # Architecture Overview
 
-{{ project_name }} follows a modern Django architecture with clean separation of concerns.
+{{ project_name }} follows a modern Django architecture with clean separation of concerns and production-ready patterns.
 
 ## Project Structure
 
 ```
 {{ project_slug }}/
-├── apps/              # Django applications
-├── config/            # Project configuration
-├── deploy/            # Deployment configs
-├── docs/              # Documentation
-├── static/            # Static files
-├── media/             # User uploads
-└── tests/             # Test suite
+├── apps/                   # Django applications
+│   ├── core/              # Core functionality (health checks, utils, middleware)
+│   ├── users/             # Custom user model and authentication
+{% if api_style != 'none' -%}
+│   ├── api/               # API endpoints{% if api_style == 'drf' %} (DRF){% elif api_style == 'graphql-strawberry' %} (GraphQL){% else %} (DRF + GraphQL){% endif %}
+{% endif -%}
+{% if use_teams -%}
+│   ├── teams/             # Multi-tenancy (teams, invitations, RBAC)
+{% endif -%}
+{% if use_stripe -%}
+│   ├── billing/           # Stripe integration (subscriptions, webhooks)
+{% endif -%}
+│   └── ...                # Additional apps as needed
+├── config/                 # Project configuration
+│   ├── settings/          # Split settings (base, dev, test, prod)
+│   ├── urls.py            # URL configuration
+│   ├── asgi.py            # ASGI application{% if use_channels %} (Django Channels){% endif %}
+│   └── wsgi.py            # WSGI application
+├── static/                 # Static files (CSS, JS, images)
+├── media/                  # User uploads{% if media_storage == 'aws-s3' %} (→ AWS S3){% endif %}
+├── docs/                   # Project documentation
+│   └── adr/               # Architecture Decision Records
+├── tests/                  # Test suite
+{% if 'render' in deployment_targets or 'flyio' in deployment_targets or 'aws-ecs-fargate' in deployment_targets or 'aws-ec2-ansible' in deployment_targets or 'kubernetes' in deployment_targets -%}
+├── deploy/                 # Deployment configurations
+{% if 'render' in deployment_targets -%}
+│   ├── render/            # Render.com deployment
+{% endif -%}
+{% if 'flyio' in deployment_targets -%}
+│   ├── flyio/             # Fly.io deployment
+{% endif -%}
+{% if 'aws-ecs-fargate' in deployment_targets -%}
+│   ├── ecs/               # AWS ECS Fargate (Terraform)
+{% endif -%}
+{% if 'aws-ec2-ansible' in deployment_targets -%}
+│   ├── ansible/           # AWS EC2 (Ansible playbooks)
+{% endif -%}
+{% if 'kubernetes' in deployment_targets -%}
+│   └── k8s/               # Kubernetes (Helm + Kustomize)
+{% endif -%}
+{% endif -%}
+{% if ci_provider in ['github-actions', 'both'] -%}
+├── .github/
+│   └── workflows/         # GitHub Actions CI/CD
+{% endif -%}
+{% if ci_provider in ['gitlab-ci', 'both'] -%}
+├── .gitlab-ci.yml         # GitLab CI
+{% endif -%}
+├── Dockerfile             # Production container image
+├── docker-compose.yml     # Development environment
+├── Justfile               # Task runner (commands)
+├── pyproject.toml         # Python dependencies and tool config
+└── README.md
 ```
 
 ## Key Components
 
 ### Django Apps
 
-- **core**: Core functionality, health checks, utilities
-- **users**: Custom user model and authentication
-{% if api_style != 'none' -%}
-- **api**: API endpoints and serializers
+- **core**: Core functionality shared across the project
+  - Health check endpoints (`/health/`)
+  - Middleware (security, logging{% if use_teams %}, team context{% endif %})
+  - Utility functions and helpers
+{% if use_celery -%}
+  - Celery tasks
 {% endif -%}
 
-### Settings
+- **users**: Custom user model and authentication
+  - Email-based authentication
+  - User profile management
+{% if auth_backend in ['allauth', 'both'] -%}
+  - Social authentication (Google, GitHub, etc.)
+{% endif -%}
+{% if use_2fa -%}
+  - Two-factor authentication (TOTP)
+{% endif -%}
+  - User impersonation for staff support
 
-Settings are split into:
-- `base.py`: Common settings
-- `dev.py`: Development overrides
-- `test.py`: Test configuration
-- `prod.py`: Production settings with security hardening
+{% if api_style != 'none' -%}
+- **api**: API layer
+{% if api_style == 'drf' or api_style == 'both' -%}
+  - RESTful endpoints (Django REST Framework)
+  - OpenAPI/Swagger documentation
+  - Serializers and viewsets
+{% endif -%}
+{% if api_style == 'graphql-strawberry' or api_style == 'both' -%}
+  - GraphQL schema (Strawberry)
+  - Type-safe resolvers
+  - GraphQL Playground
+{% endif -%}
+  - Authentication ({% if auth_backend in ['jwt', 'both'] %}JWT tokens{% else %}session + token{% endif %})
+  - Permissions and throttling
+
+{% endif -%}
+{% if use_teams -%}
+- **teams**: Multi-tenancy and team management
+  - Team model with RBAC (Owner, Admin, Member)
+  - Team invitations with email verification
+  - Team-scoped data access
+  - Per-team billing{% if use_stripe %} (Stripe integration){% endif %}
+  - Audit logging
+
+{% endif -%}
+{% if use_stripe -%}
+- **billing**: Payment and subscription management
+  - Stripe {% if stripe_mode == 'advanced' %}(dj-stripe - full integration){% else %}(basic API integration){% endif %}
+  - Subscription lifecycle management
+  - Webhook handlers (payment events)
+{% if stripe_mode == 'advanced' -%}
+  - Feature gating by subscription tier
+  - Usage-based billing and limits
+  - Customer portal integration
+{% endif -%}
+  - Invoice and payment tracking
+
+{% endif -%}
+### Settings Architecture
+
+Settings are environment-specific and split across files:
+
+- **`base.py`**: Common settings for all environments
+  - Installed apps and middleware
+  - Database and cache configuration
+  - Static and media file handling
+  - Security settings (CSRF, headers, allowed hosts)
+
+- **`dev.py`**: Development overrides
+  - `DEBUG = True`
+  - Django Debug Toolbar
+  - Permissive CORS for local frontend development
+  - Email backend → Mailpit (console)
+
+- **`test.py`**: Test configuration
+  - In-memory database for speed
+  - Disabled migrations where safe
+  - Test-specific settings
+
+- **`prod.py`**: Production hardening
+  - `DEBUG = False`
+  - Strict security headers (CSP, HSTS{% if security_profile == 'strict' %}, strict mode{% endif %})
+  - Gunicorn WSGI server
+{% if media_storage == 'aws-s3' -%}
+  - AWS S3 for static/media files
+{% endif -%}
+  - Sentry error tracking
+{% if observability_level == 'full' -%}
+  - OpenTelemetry tracing
+{% endif -%}
 
 ### Deployment
 
+{% if 'render' in deployment_targets -%}
+#### Render (PaaS)
+- **Configuration**: `render.yaml` blueprint
+- **Services**: Web, PostgreSQL, Redis
+- **Build**: Automated from GitHub
+- **Scaling**: Horizontal and vertical auto-scaling
+- **Best for**: MVPs, hobby projects, quick deployments
+
+{% endif -%}
+{% if 'flyio' in deployment_targets -%}
+#### Fly.io (Global Edge)
+- **Configuration**: `fly.toml`
+- **Deployment**: 30+ global regions
+- **Database**: Managed Postgres with replication
+- **Scaling**: Auto-scale across regions
+- **Best for**: Global apps, low latency, startups
+
+{% endif -%}
+{% if 'aws-ecs-fargate' in deployment_targets -%}
+#### AWS ECS Fargate (Serverless Containers)
+- **Infrastructure**: Terraform IaC modules
+- **Components**: VPC, ALB, ECS, RDS, ElastiCache
+- **Networking**: Multi-AZ deployment, private subnets
+- **Scaling**: Auto-scaling based on CPU/memory/requests
+- **Monitoring**: CloudWatch logs and metrics
+- **Best for**: AWS-native, serverless, high availability
+
+{% endif -%}
+{% if 'docker' in deployment_targets -%}
+#### Docker (Universal)
+- **Build**: Multi-stage Dockerfile (production-optimized)
+- **Compose**: Development environment setup
+- **Images**: Optimized layers, minimal attack surface
+- **Best for**: Portability, any cloud provider
+
+{% endif -%}
+{% if 'aws-ec2-ansible' in deployment_targets -%}
+#### AWS EC2 (Ansible)
+- **Provisioning**: Ansible playbooks
+- **Web Server**: Caddy with automatic HTTPS
+- **Process Manager**: Systemd for application lifecycle
+- **Deployment**: Rolling updates with zero downtime
+- **Best for**: Full control, traditional VMs, custom configs
+
+{% endif -%}
 {% if 'kubernetes' in deployment_targets -%}
-#### Kubernetes
-- Helm charts for easy deployment
-- Kustomize overlays for environment-specific configs
-- Horizontal Pod Autoscaling
-- CloudNativePG for PostgreSQL
+#### Kubernetes (Enterprise)
+- **Charts**: Helm for templated deployments
+- **Overlays**: Kustomize for environment-specific configs
+- **Features**: HPA, ingress, service mesh ready
+- **Database**: CloudNativePG operator for PostgreSQL
+- **Monitoring**: Prometheus + Grafana stack
+- **Best for**: Enterprise scale, multi-cluster, advanced orchestration
+
+{% endif -%}
+## Data Flow
+
+### Request/Response Flow
+
+```
+User Request
+     ↓
+{% if 'kubernetes' in deployment_targets or 'aws-ecs-fargate' in deployment_targets -%}
+Load Balancer (ALB/Ingress)
+     ↓
+{% endif -%}
+Django Middleware Stack
+     ├─ SecurityMiddleware (headers, SSL redirect)
+     ├─ SessionMiddleware (session management)
+     ├─ AuthenticationMiddleware (user authentication)
+{% if use_teams -%}
+     ├─ TeamContextMiddleware (team scoping)
+{% endif -%}
+     └─ WaffleMiddleware (feature flags)
+     ↓
+URL Router
+     ↓
+View / API Endpoint
+     ├─ Permission Checks
+{% if use_stripe and stripe_mode == 'advanced' -%}
+     ├─ Feature Gating (subscription-based)
+{% endif -%}
+     ├─ Business Logic
+     ├─ Database Queries (PostgreSQL)
+{% if cache == 'redis' -%}
+     ├─ Cache Lookups (Redis)
+{% endif -%}
+{% if use_celery -%}
+     └─ Background Tasks (Celery)
+{% endif -%}
+     ↓
+Serialization / Template Rendering
+     ↓
+Response (JSON{% if frontend != 'none' %} / HTML{% endif %})
+```
+
+{% if use_celery -%}
+### Background Task Flow
+
+```
+View/API triggers task
+     ↓
+Celery.delay() → Redis (broker)
+     ↓
+Celery Worker picks up task
+     ↓
+Task execution
+     ├─ Database operations
+     ├─ External API calls
+     └─ Email sending
+     ↓
+Result stored in Redis (backend)
+     ↓
+Status available via Flower dashboard
+```
+
+{% endif -%}
+{% if use_stripe -%}
+### Payment/Subscription Flow
+
+```
+User subscribes
+     ↓
+Stripe Checkout session created
+     ↓
+User completes payment on Stripe
+     ↓
+Stripe sends webhook → `/{% if stripe_mode == 'advanced' %}djstripe{% else %}billing{% endif %}/webhook/`
+     ↓
+Webhook handler processes event
+     ├─ Create/update subscription
+{% if stripe_mode == 'advanced' -%}
+     ├─ Update feature access
+     ├─ Reset usage counters
+{% endif -%}
+     └─ Send confirmation email
+     ↓
+User has active subscription
+{% if stripe_mode == 'advanced' -%}
+     ↓
+Feature gating allows access to premium features
+{% endif -%}
+```
+
+{% endif -%}
+## Security Architecture
+
+### Authentication & Authorization
+
+1. **User Authentication**
+{% if auth_backend == 'allauth' -%}
+   - Email/password via django-allauth
+   - Social OAuth (Google, GitHub, etc.)
+{% elif auth_backend == 'jwt' -%}
+   - JWT token-based authentication
+   - Token refresh mechanism
+{% else -%}
+   - Session-based (django-allauth)
+   - Token-based (JWT for API)
+{% endif -%}
+{% if use_2fa -%}
+   - Two-factor authentication (TOTP)
 {% endif -%}
 
-{% if 'aws-ec2-ansible' in deployment_targets -%}
-#### AWS EC2
-- Ansible playbooks for provisioning
-- Caddy for reverse proxy with auto-HTTPS
-- Systemd for service management
-{% endif %}
+2. **Authorization**
+{% if use_teams -%}
+   - Team-based permissions (Owner → Admin → Member)
+   - Per-resource access control
+{% endif -%}
+{% if use_stripe and stripe_mode == 'advanced' -%}
+   - Subscription-based feature gating
+{% endif -%}
+   - Django permissions system
+   - Custom decorators for view protection
+
+3. **Security Headers**
+   - Content Security Policy (CSP)
+   - HTTP Strict Transport Security (HSTS)
+   - X-Frame-Options (Clickjacking protection)
+   - X-Content-Type-Options (MIME sniffing protection)
+{% if security_profile == 'strict' -%}
+   - Strict mode: Referrer-Policy, Permissions-Policy
+{% endif -%}
+
+4. **Input Validation**
+   - Django form validation
+{% if api_style != 'none' -%}
+   - DRF serializer validation
+{% endif -%}
+   - CSRF token protection
+{% if security_profile == 'strict' -%}
+   - Rate limiting on authentication endpoints
+{% endif -%}
+
+## Database Design
+
+### Core Tables
+
+- `users_user`: Custom user model (email-based)
+{% if use_teams -%}
+- `teams_team`: Organization/team model
+- `teams_teammember`: Many-to-many with role
+- `teams_teaminvitation`: Pending invitations
+{% endif -%}
+{% if use_stripe -%}
+{% if stripe_mode == 'advanced' -%}
+- `djstripe_*`: Full Stripe object mirroring
+- `billing_subscriptionmetadata`: Extended subscription data
+- `billing_planconfiguration`: Plan features and limits
+- `billing_usagerecord`: Metered billing records
+{% else -%}
+- `billing_stripecustomer`: User → Stripe customer mapping
+- `billing_subscription`: Subscription tracking
+{% endif -%}
+{% endif -%}
+- `waffle_*`: Feature flag tables
+
+### Indexing Strategy
+
+- Foreign keys automatically indexed
+- Email fields (unique + indexed)
+{% if use_teams -%}
+- Team scoping queries optimized
+{% endif -%}
+- Composite indexes for common query patterns
+
+{% if observability_level != 'minimal' -%}
+## Observability
+
+### Logging
+- **Format**: Structured JSON logs
+- **Levels**: DEBUG → INFO → WARNING → ERROR → CRITICAL
+- **Context**: Request ID, user ID{% if use_teams %}, team ID{% endif %}
+{% if observability_level == 'full' -%}
+- **Aggregation**: OpenTelemetry → Logging backend
+{% endif -%}
+
+### Monitoring
+{% if observability_level == 'standard' or observability_level == 'full' -%}
+- **Error Tracking**: Sentry (real-time error alerts)
+{% endif -%}
+{% if observability_level == 'full' -%}
+- **Metrics**: Prometheus (custom metrics + Django metrics)
+- **Dashboards**: Grafana (pre-built dashboards)
+- **Tracing**: OpenTelemetry (distributed request tracing)
+- **APM**: Application performance monitoring
+{% endif -%}
+- **Health Checks**: `/health/` endpoint (database, cache{% if cache == 'redis' %}, Redis{% endif %})
+
+{% endif -%}
+## Performance Optimization
+
+### Caching Strategy
+{% if cache == 'redis' -%}
+- **Backend**: Redis
+- **Cached Data**:
+  - Database query results (per-view caching)
+  - API responses (DRF throttling)
+{% if use_teams -%}
+  - Team permissions (avoid repeated DB lookups)
+{% endif -%}
+  - Template fragments
+- **Cache Invalidation**: Signals on model save/delete
+{% endif -%}
+
+### Database Optimization
+- Connection pooling (production)
+- Select/prefetch related for N+1 prevention
+- Database indexes on frequently queried fields
+- Query optimization with Django Debug Toolbar (dev)
+
+### Static Files
+{% if media_storage == 'aws-s3' -%}
+- **Storage**: AWS S3 with CloudFront CDN
+- **Benefits**: Geo-distributed, auto-scaling, cost-effective
+{% else -%}
+- **Storage**: Local filesystem (development)
+- **Production**: WhiteNoise for efficient static serving
+{% endif -%}
+- **Compression**: Gzip/Brotli enabled
+- **Cache Headers**: Long expiry for static assets
 
 ## Design Decisions
 
-See [Architecture Decision Records](../adr/) for detailed explanations of key architectural choices.
+### Why Split Settings?
+- **Environment isolation**: Dev settings differ from prod
+- **Security**: Secrets never in version control
+- **Flexibility**: Easy to override per-environment
+- **Testing**: Optimized test configuration
+
+### Why Custom User Model?
+- **Email-based**: More modern than username
+- **Future-proof**: Easy to extend without migrations
+- **Django best practice**: Recommended in official docs
+
+{% if dependency_manager == 'uv' -%}
+### Why uv over Poetry?
+- **Speed**: 10-100x faster dependency resolution
+- **Simplicity**: Single binary, no Python dependency
+- **Standards**: Uses pyproject.toml (PEP 621)
+- **Compatibility**: Works with existing Poetry projects
+{% endif -%}
+
+{% if use_celery -%}
+### Why Celery?
+- **Battle-tested**: Production-ready background tasks
+- **Scalable**: Horizontal worker scaling
+- **Monitoring**: Flower dashboard included
+- **Flexible**: Supports periodic tasks, chains, chords
+{% endif -%}
+
+{% if 'kubernetes' in deployment_targets -%}
+### Why Helm + Kustomize?
+- **Helm**: Package management, versioning, rollbacks
+- **Kustomize**: Environment-specific configs (GitOps-friendly)
+- **Together**: Best of both worlds (templating + patching)
+{% endif -%}
+
+## Architecture Decision Records
+
+For detailed explanations of key architectural choices, see:
+
+- [ADR Directory](../adr/)
+- Each ADR documents: Context, Decision, Consequences, Alternatives
+
+## Further Reading
+
+- [Getting Started](../getting-started/installation.md)
+- [Development Guide](../development/testing.md)
+{% if use_teams or use_stripe -%}
+- [SaaS Features](../saas/)
+{% endif -%}
+- [Deployment Guides](../deployment/)
