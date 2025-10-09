@@ -40,17 +40,28 @@ nav:
       - Quick Start: getting-started/quickstart.md
       - Installation: getting-started/installation.md
       - First Project: getting-started/first-project.md
+      - Project Types: getting-started/project-types.md
   - Features:
       - Overview: features/overview.md
       - API Options: features/api-options.md
       - Authentication: features/authentication.md
       - Background Tasks: features/background-tasks.md
       - Frontend Options: features/frontend-options.md
-      - Deployment: features/deployment.md
       - Observability: features/observability.md
+  - SaaS Features:
+      - Overview: saas/overview.md
+      - Teams & Organizations: saas/teams.md
+      - Stripe Integration: saas/stripe.md
+      - Feature Gating: saas/feature-gating.md
+      - User Impersonation: saas/impersonation.md
+      - Feature Flags: saas/feature-flags.md
   - Deployment:
+      - Overview: deployment/overview.md
       - Kubernetes: deployment/kubernetes.md
-      - AWS EC2: deployment/aws-ec2.md
+      - AWS ECS Fargate: deployment/ecs.md
+      - Fly.io: deployment/flyio.md
+      - Render: deployment/render.md
+      - AWS EC2 (Ansible): deployment/aws-ec2.md
       - Docker: deployment/docker.md
   - Contributing:
       - Development: contributing/development.md
