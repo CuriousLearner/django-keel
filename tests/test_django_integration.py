@@ -39,6 +39,12 @@ def test_settings_can_be_imported(generate):
     """Test that Django settings can be imported."""
     project = generate()
 
+    # Create .env file from .env.example
+    env_example = project / ".env.example"
+    env_file = project / ".env"
+    if env_example.exists():
+        env_file.write_text(env_example.read_text())
+
     # Try importing settings
     result = subprocess.run(
         [
@@ -98,12 +104,17 @@ def test_sqlite_dev_postgres_prod_configuration(generate):
     """Test SQLite for dev, PostgreSQL for prod configuration."""
     project = generate(database="sqlite-dev-postgres-prod")
 
-    # Check that dev settings might use SQLite
+    # Check that base settings use PostgreSQL by default
+    base_settings = project / "config/settings/base.py"
+    base_content = base_settings.read_text()
+    assert "DATABASES" in base_content
+    assert 'env.db("DATABASE_URL")' in base_content
+
+    # Dev settings should exist and import from base
     dev_settings = project / "config/settings/dev.py"
-    if dev_settings.exists():
-        content = dev_settings.read_text()
-        # Dev might override database to SQLite
-        assert "sqlite" in content.lower() or "DATABASES" in content
+    assert dev_settings.exists()
+    dev_content = dev_settings.read_text()
+    assert "from .base import *" in dev_content
 
 
 # Static Files Tests
