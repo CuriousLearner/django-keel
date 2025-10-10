@@ -110,9 +110,7 @@ MIDDLEWARE = [
     "django_prometheus.middleware.PrometheusBeforeMiddleware",
 {% endif -%}
     "django.middleware.security.SecurityMiddleware",
-{% if media_storage == 'local-whitenoise' -%}
     "whitenoise.middleware.WhiteNoiseMiddleware",
-{% endif -%}
     "django.contrib.sessions.middleware.SessionMiddleware",
 {% if api_style in ['drf', 'both'] -%}
     "corsheaders.middleware.CorsMiddleware",
@@ -231,10 +229,14 @@ LOCALE_PATHS = [BASE_DIR / "locale"]
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 STATICFILES_DIRS = [BASE_DIR / "static"]
-
-{% if media_storage == 'local-whitenoise' -%}
-STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
-{% endif %}
+STORAGES = {
+    "default": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+    },
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+    },
+}
 
 # Media files
 MEDIA_URL = "/media/"
@@ -252,7 +254,7 @@ AWS_DEFAULT_ACL = "public-read"
 AWS_QUERYSTRING_AUTH = False
 
 # Use S3 for media files
-DEFAULT_FILE_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
+STORAGES["default"]["BACKEND"] = "storages.backends.s3boto3.S3Boto3Storage"
 {% elif media_storage == 'gcp-gcs' -%}
 # Google Cloud Storage
 GS_BUCKET_NAME = env("GS_BUCKET_NAME", default="")
@@ -260,14 +262,14 @@ GS_PROJECT_ID = env("GS_PROJECT_ID", default="")
 GS_DEFAULT_ACL = "publicRead"
 GS_AUTO_CREATE_BUCKET = True
 
-DEFAULT_FILE_STORAGE = "storages.backends.gcloud.GoogleCloudStorage"
+STORAGES["default"]["BACKEND"] = "storages.backends.gcloud.GoogleCloudStorage"
 {% elif media_storage == 'azure-storage' -%}
 # Azure Storage
 AZURE_ACCOUNT_NAME = env("AZURE_ACCOUNT_NAME", default="")
 AZURE_ACCOUNT_KEY = env("AZURE_ACCOUNT_KEY", default="")
 AZURE_CONTAINER = env("AZURE_CONTAINER", default="media")
 
-DEFAULT_FILE_STORAGE = "storages.backends.azure_storage.AzureStorage"
+STORAGES["default"]["BACKEND"] = "storages.backends.azure_storage.AzureStorage"
 {% endif %}
 
 # Default primary key field type

@@ -18,6 +18,7 @@ dependencies = [
     "django-redis>=5.4.0",
 {% endif -%}
     "gunicorn>=22.0.0",
+    "whitenoise[brotli]>=6.6.0",
     "python-json-logger>=2.0.7",
 {% if api_style in ['drf', 'both'] -%}
     "djangorestframework>=3.15.0",
@@ -59,8 +60,6 @@ dependencies = [
     "django-storages[google]>=1.14.0",
 {% elif media_storage == 'azure-storage' -%}
     "django-storages[azure]>=1.14.0",
-{% else -%}
-    "whitenoise[brotli]>=6.6.0",
 {% endif -%}
 {% if use_sentry -%}
     "sentry-sdk[django]>=2.0.0",
