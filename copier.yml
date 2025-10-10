@@ -47,6 +47,11 @@ author_email:
   help: Your email
   default: "your.email@example.com"
 
+git_repository_url:
+  type: str
+  help: Git repository URL (leave empty if not created yet)
+  default: ""
+
 # Tech Stack
 python_version:
   type: str
@@ -54,7 +59,8 @@ python_version:
   choices:
     - "3.12"
     - "3.13"
-  default: "3.13"
+    - "3.14"
+  default: "3.14"
 
 dependency_manager:
   type: str
@@ -257,3 +263,16 @@ license:
     - "BSD-3-Clause"
     - "Proprietary"
   default: "MIT"
+
+# Post-generation tasks
+_tasks:
+  - command: git init
+  - command: git add .
+  - command: |
+      git commit -m "🎉 Initial commit
+
+      Generated with django-keel
+
+      Project: {{ project_name }}
+      Description: {{ project_description }}
+      "

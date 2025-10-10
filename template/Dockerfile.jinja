@@ -21,29 +21,39 @@ WORKDIR /app
 # Install uv
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
-# Copy dependency files
+# Copy dependency files and README (required by hatchling)
 COPY pyproject.toml ./
 COPY uv.lock* ./
+COPY README.md ./
+
+# Copy package directories needed for editable install
+COPY apps/ ./apps/
+COPY config/ ./config/
 
 # Install dependencies
 RUN uv sync --no-dev
 
-# Copy application
+# Copy rest of application
 COPY . .
 
 {% else -%}
 # Install poetry
 RUN pip install poetry==1.7.0
 
-# Copy dependency files
+# Copy dependency files and README (required by hatchling)
 COPY pyproject.toml ./
 COPY poetry.lock* ./
+COPY README.md ./
+
+# Copy package directories needed for editable install
+COPY apps/ ./apps/
+COPY config/ ./config/
 
 # Install dependencies
 RUN poetry config virtualenvs.create false \
     && poetry install --no-dev --no-interaction --no-ansi
 
-# Copy application
+# Copy rest of application
 COPY . .
 {% endif -%}
 

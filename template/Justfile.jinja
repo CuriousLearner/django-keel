@@ -83,7 +83,7 @@ docs-build:
 
 # Install dependencies
 install:
-    {% if dependency_manager == 'uv' %}uv sync{% else %}poetry install{% endif %}
+    {% if dependency_manager == 'uv' %}uv sync --all-extras{% else %}poetry install{% endif %}
 
 # Update dependencies
 update:

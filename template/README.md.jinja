@@ -53,9 +53,10 @@
 {% endif %}
 ### Development Setup
 
+{% if git_repository_url -%}
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/CuriousLearner/django-keel
+   git clone {{ git_repository_url }}
    cd {{ project_slug }}
    ```
 
@@ -107,6 +108,56 @@
    poetry run python manage.py runserver
    {% endif -%}
    ```
+{% else -%}
+1. **Install dependencies**
+   {% if dependency_manager == 'uv' -%}
+   ```bash
+   uv sync
+   ```
+   {% else -%}
+   ```bash
+   poetry install
+   ```
+   {% endif -%}
+
+2. **Set up environment variables**
+   ```bash
+   cp .env.example .env
+   # Edit .env with your settings
+   ```
+
+3. **Start development services**
+   ```bash
+   docker compose up -d
+   ```
+
+4. **Run migrations**
+   ```bash
+   {% if dependency_manager == 'uv' -%}
+   uv run python manage.py migrate
+   {% else -%}
+   poetry run python manage.py migrate
+   {% endif -%}
+   ```
+
+5. **Create superuser**
+   ```bash
+   {% if dependency_manager == 'uv' -%}
+   uv run python manage.py createsuperuser
+   {% else -%}
+   poetry run python manage.py createsuperuser
+   {% endif -%}
+   ```
+
+6. **Start development server**
+   ```bash
+   {% if dependency_manager == 'uv' -%}
+   uv run python manage.py runserver
+   {% else -%}
+   poetry run python manage.py runserver
+   {% endif -%}
+   ```
+{% endif -%}
 
 ### Using Justfile (Recommended)
 

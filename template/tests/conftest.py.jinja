@@ -1,7 +1,14 @@
 """Pytest configuration and fixtures."""
+import os
 import pytest
 from django.conf import settings
 from django.test import Client
+
+
+def pytest_load_initial_conftests(args, early_config, parser):
+    """Override database to use in-memory SQLite for tests."""
+    os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
+
 {% if api_style in ['drf', 'both'] -%}
 from rest_framework.test import APIClient
 {% endif -%}

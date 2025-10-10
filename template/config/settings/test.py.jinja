@@ -1,13 +1,15 @@
 """Test settings."""
 from .base import *  # noqa: F403, F401
 
-# Use in-memory database for tests
-DATABASES = {
+# Use dummy cache for tests (no Redis required)
+CACHES = {
     "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": ":memory:",
+        "BACKEND": "django.core.cache.backends.dummy.DummyCache",
     }
 }
+
+# Use database sessions for tests (since cache is dummy)
+SESSION_ENGINE = "django.contrib.sessions.backends.db"
 
 # Faster password hashing for tests
 PASSWORD_HASHERS = [

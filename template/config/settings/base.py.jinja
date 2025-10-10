@@ -13,6 +13,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 env = environ.Env(
     DEBUG=(bool, False),
     ALLOWED_HOSTS=(list, []),
+    DJANGO_SECRET_KEY=(str, "django-insecure-dev-key-change-in-production"),
+    DATABASE_URL=(str, "sqlite:///db.sqlite3"),
 )
 
 # Read .env file if it exists
