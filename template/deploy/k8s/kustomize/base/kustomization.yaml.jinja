@@ -1,0 +1,18 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: default
+
+resources:
+  - deployment.yaml
+  - service.yaml
+  - configmap.yaml
+  - secret.yaml
+  - postgresql-cluster.yaml
+  - redis.yaml
+  - celery-worker.yaml
+
+images:
+  - name: {{ project_slug }}
+    newName: {{ project_slug }}
+    newTag: latest

@@ -1,0 +1,71 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ project_slug }}-celery-worker
+  labels:
+    app: {{ project_slug }}
+    component: celery-worker
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: {{ project_slug }}
+      component: celery-worker
+  template:
+    metadata:
+      labels:
+        app: {{ project_slug }}
+        component: celery-worker
+    spec:
+      containers:
+        - name: celery-worker
+          image: {{ project_slug }}:latest
+          command: ["uv", "run", "celery", "-A", "config", "worker", "-l", "info"]
+          envFrom:
+            - configMapRef:
+                name: {{ project_slug }}-config
+            - secretRef:
+                name: {{ project_slug }}-secrets
+          resources:
+            limits:
+              cpu: 1000m
+              memory: 512Mi
+            requests:
+              cpu: 250m
+              memory: 256Mi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ project_slug }}-celery-beat
+  labels:
+    app: {{ project_slug }}
+    component: celery-beat
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ project_slug }}
+      component: celery-beat
+  template:
+    metadata:
+      labels:
+        app: {{ project_slug }}
+        component: celery-beat
+    spec:
+      containers:
+        - name: celery-beat
+          image: {{ project_slug }}:latest
+          command: ["uv", "run", "celery", "-A", "config", "beat", "-l", "info", "--scheduler", "django_celery_beat.schedulers:DatabaseScheduler"]
+          envFrom:
+            - configMapRef:
+                name: {{ project_slug }}-config
+            - secretRef:
+                name: {{ project_slug }}-secrets
+          resources:
+            limits:
+              cpu: 500m
+              memory: 256Mi
+            requests:
+              cpu: 100m
+              memory: 128Mi
