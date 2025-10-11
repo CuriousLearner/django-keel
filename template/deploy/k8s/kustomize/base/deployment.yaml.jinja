@@ -55,16 +55,14 @@ spec:
             - name: static-files
               mountPath: /app/staticfiles
           livenessProbe:
-            httpGet:
-              path: /health/
+            tcpSocket:
               port: http
             initialDelaySeconds: 60
             periodSeconds: 10
             timeoutSeconds: 5
             failureThreshold: 3
           readinessProbe:
-            httpGet:
-              path: /ready/
+            tcpSocket:
               port: http
             initialDelaySeconds: 15
             periodSeconds: 10
