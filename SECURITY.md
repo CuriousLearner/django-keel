@@ -13,7 +13,7 @@ We provide security updates for the following versions:
 **Please do not report security vulnerabilities through public GitHub issues.**
 
 Instead, please report them via email to:
-- **Email**: security@django-keel.dev (monitored by maintainers)
+- **Email**: sanyam@sanyamkhurana.com (monitored by maintainers)
 
 Include the following information:
 - Description of the vulnerability
