@@ -5,18 +5,166 @@ This directory contains Kubernetes manifests for deploying {{ project_name }}.
 ## Structure
 
 - `helm/`: Helm chart for the application
-- `kustomize/`: Kustomize overlays for different environments
-- `manifests/`: Raw Kubernetes manifests
-- `operators/`: PostgreSQL operator configuration
+- `kustomize/`: Kustomize configurations
+  - `base/`: Base Kubernetes resources
+  - `overlays/dev/`: Development environment overlay
+  - `overlays/prod/`: Production environment overlay
+- `operators/`: PostgreSQL operator (CloudNativePG) configuration
+- `monitoring/`: Monitoring configurations (Prometheus ServiceMonitor)
+
+## Prerequisites
+
+### Install CloudNativePG Operator
+
+The application uses CloudNativePG for PostgreSQL management. Install it first:
+
+```bash
+kubectl apply -f https://raw.githubusercontent.com/cloudnative-pg/cloudnative-pg/release-1.25/releases/cnpg-1.25.0.yaml
+```
+
+**Note**: You may see a warning about `poolers.postgresql.cnpg.io` having annotations that are too long. This can be safely ignored.
+
+Wait for the operator to be ready:
+
+```bash
+kubectl wait --for=condition=ready --timeout=90s pod -l app.kubernetes.io/name=cloudnative-pg -n cnpg-system
+```
+
+If the operator pod fails to start (especially on some local Kubernetes setups), you can:
+1. Check the operator logs: `kubectl logs -n cnpg-system deployment/cnpg-controller-manager`
+2. Try restarting: `kubectl delete pod -n cnpg-system --all`
+3. As a workaround for local development, you can temporarily modify the configmap to use SQLite or connect to an external PostgreSQL instance
 
 ## Quick Deploy
 
-```bash
-# Using Helm
-helm install {{ project_slug }} ./helm/{{ project_slug }}
+### Using Kustomize
 
-# Using Kustomize
+For development:
+```bash
 kubectl apply -k kustomize/overlays/dev
+```
+
+For production:
+```bash
+kubectl apply -k kustomize/overlays/prod
+```
+
+Or deploy just the base resources:
+```bash
+kubectl apply -k kustomize/base
+```
+
+### Using Helm
+
+```bash
+helm install {{ project_slug }} ./helm/{{ project_slug }}
+```
+
+## Verify Deployment
+
+Check pod status:
+```bash
+kubectl get pods
+```
+
+Check services:
+```bash
+kubectl get svc
+```
+
+View logs:
+```bash
+# Web application
+kubectl logs -f deployment/{{ project_slug }}-web
+
+# Celery worker
+kubectl logs -f deployment/{{ project_slug }}-celery-worker
+
+# PostgreSQL
+kubectl logs -f {{ project_slug }}-pg-1
+```
+
+## Local Development with Minikube
+
+1. Start minikube:
+```bash
+minikube start
+```
+
+2. Build image in minikube's Docker daemon:
+```bash
+eval $(minikube docker-env)
+docker build -t {{ project_slug }}:latest .
+```
+
+3. Install CloudNativePG operator (see Prerequisites above)
+
+4. Deploy:
+```bash
+kubectl apply -k kustomize/overlays/dev
+```
+
+5. Access the application:
+```bash
+kubectl port-forward svc/{{ project_slug }}-web 8000:8000
+```
+
+Then visit http://localhost:8000
+
+## Configuration
+
+### Environment Variables
+
+Edit `kustomize/base/configmap.yaml` to modify environment variables.
+
+### Secrets
+
+Edit `kustomize/base/secret.yaml` to update secret values. Make sure to base64 encode values:
+```bash
+echo -n "your-secret-value" | base64
+```
+
+### Replicas
+
+- **Development**: 1 web replica, 1 worker replica
+- **Production**: 3 web replicas, 2 worker replicas
+
+Adjust replicas in `kustomize/overlays/{dev,prod}/kustomization.yaml`.
+
+## Troubleshooting
+
+### Pods Not Starting
+
+Check pod events:
+```bash
+kubectl describe pod <pod-name>
+```
+
+Check logs:
+```bash
+kubectl logs <pod-name>
+# For init containers
+kubectl logs <pod-name> -c migrate
+```
+
+### Database Connection Issues
+
+Ensure PostgreSQL pod is running:
+```bash
+kubectl get pods | grep {{ project_slug }}-pg
+```
+
+Check PostgreSQL logs:
+```bash
+kubectl logs {{ project_slug }}-pg-1
+```
+
+### Image Pull Errors
+
+For local development with minikube, ensure you've built the image in minikube's Docker daemon:
+```bash
+eval $(minikube docker-env)
+docker build -t {{ project_slug }}:latest .
 ```
 
 See individual directories for detailed documentation.

@@ -13,6 +13,6 @@ resources:
   - celery-worker.yaml
 
 images:
-  - name: {{ project_slug }}
-    newName: {{ project_slug }}
+  - name: {{ project_slug | replace("_", "-") }}
+    newName: {{ project_slug | replace("_", "-") }}
     newTag: latest

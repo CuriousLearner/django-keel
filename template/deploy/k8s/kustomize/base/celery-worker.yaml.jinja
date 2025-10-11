@@ -1,71 +1,87 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ project_slug }}-celery-worker
+  name: {{ project_slug | replace("_", "-") }}-celery-worker
   labels:
-    app: {{ project_slug }}
+    app: {{ project_slug | replace("_", "-") }}
     component: celery-worker
 spec:
   replicas: 2
   selector:
     matchLabels:
-      app: {{ project_slug }}
+      app: {{ project_slug | replace("_", "-") }}
       component: celery-worker
   template:
     metadata:
       labels:
-        app: {{ project_slug }}
+        app: {{ project_slug | replace("_", "-") }}
         component: celery-worker
     spec:
       containers:
         - name: celery-worker
-          image: {{ project_slug }}:latest
-          command: ["uv", "run", "celery", "-A", "config", "worker", "-l", "info"]
+          image: {{ project_slug | replace("_", "-") }}:latest
+          imagePullPolicy: Never
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              {% if dependency_manager == 'uv' -%}
+              uv run celery -A config worker -l info
+              {% else -%}
+              celery -A config worker -l info
+              {% endif -%}
           envFrom:
             - configMapRef:
-                name: {{ project_slug }}-config
+                name: {{ project_slug | replace("_", "-") }}-config
             - secretRef:
-                name: {{ project_slug }}-secrets
+                name: {{ project_slug | replace("_", "-") }}-secrets
           resources:
             limits:
               cpu: 1000m
-              memory: 512Mi
+              memory: 1Gi
             requests:
               cpu: 250m
-              memory: 256Mi
+              memory: 512Mi
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ project_slug }}-celery-beat
+  name: {{ project_slug | replace("_", "-") }}-celery-beat
   labels:
-    app: {{ project_slug }}
+    app: {{ project_slug | replace("_", "-") }}
     component: celery-beat
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: {{ project_slug }}
+      app: {{ project_slug | replace("_", "-") }}
       component: celery-beat
   template:
     metadata:
       labels:
-        app: {{ project_slug }}
+        app: {{ project_slug | replace("_", "-") }}
         component: celery-beat
     spec:
       containers:
         - name: celery-beat
-          image: {{ project_slug }}:latest
-          command: ["uv", "run", "celery", "-A", "config", "beat", "-l", "info", "--scheduler", "django_celery_beat.schedulers:DatabaseScheduler"]
+          image: {{ project_slug | replace("_", "-") }}:latest
+          imagePullPolicy: Never
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              {% if dependency_manager == 'uv' -%}
+              uv run celery -A config beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+              {% else -%}
+              celery -A config beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+              {% endif -%}
           envFrom:
             - configMapRef:
-                name: {{ project_slug }}-config
+                name: {{ project_slug | replace("_", "-") }}-config
             - secretRef:
-                name: {{ project_slug }}-secrets
+                name: {{ project_slug | replace("_", "-") }}-secrets
           resources:
             limits:
               cpu: 500m
-              memory: 256Mi
+              memory: 512Mi
             requests:
               cpu: 100m
-              memory: 128Mi
+              memory: 256Mi

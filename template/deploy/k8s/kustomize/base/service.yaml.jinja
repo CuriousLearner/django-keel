@@ -1,9 +1,9 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ project_slug }}-web
+  name: {{ project_slug | replace("_", "-") }}-web
   labels:
-    app: {{ project_slug }}
+    app: {{ project_slug | replace("_", "-") }}
     component: web
 spec:
   type: ClusterIP
@@ -13,5 +13,5 @@ spec:
       protocol: TCP
       name: http
   selector:
-    app: {{ project_slug }}
+    app: {{ project_slug | replace("_", "-") }}
     component: web

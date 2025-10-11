@@ -1,0 +1,31 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: default
+
+resources:
+  - ../../base
+
+# Production-specific configurations
+replicas:
+  - name: {{ project_slug | replace("_", "-") }}-web
+    count: 3
+  - name: {{ project_slug | replace("_", "-") }}-celery-worker
+    count: 2
+
+# Production-specific patches
+patches:
+  - target:
+      kind: Deployment
+      name: {{ project_slug | replace("_", "-") }}-web
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 3
+  - target:
+      kind: ConfigMap
+      name: {{ project_slug | replace("_", "-") }}-config
+    patch: |-
+      - op: replace
+        path: /data/DEBUG
+        value: "False"

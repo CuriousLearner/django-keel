@@ -1,17 +1,17 @@
 apiVersion: v1
 kind: Secret
 metadata:
-  name: {{ project_slug }}-pg-credentials
+  name: {{ project_slug | replace("_", "-") }}-pg-credentials
 type: kubernetes.io/basic-auth
 stringData:
-  username: {{ project_slug }}_user
+  username: {{ project_slug | replace("_", "-") }}_user
   password: changeme
 
 ---
 apiVersion: postgresql.cnpg.io/v1
 kind: Cluster
 metadata:
-  name: {{ project_slug }}-pg
+  name: {{ project_slug | replace("_", "-") }}-pg
 spec:
   instances: 3
   imageName: ghcr.io/cloudnative-pg/postgresql:16
@@ -26,10 +26,10 @@ spec:
 
   bootstrap:
     initdb:
-      database: {{ project_slug }}_db
-      owner: {{ project_slug }}_user
+      database: {{ project_slug | replace("_", "-") }}_db
+      owner: {{ project_slug | replace("_", "-") }}_user
       secret:
-        name: {{ project_slug }}-pg-credentials
+        name: {{ project_slug | replace("_", "-") }}-pg-credentials
 
   monitoring:
     enablePodMonitor: true

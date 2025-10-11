@@ -73,7 +73,15 @@ EXPOSE 8000
 
 # Run application
 {% if use_channels -%}
-CMD ["{% if dependency_manager == 'uv' %}uv run {% endif %}daphne", "-b", "0.0.0.0", "-p", "8000", "config.asgi:application"]
+{% if dependency_manager == 'uv' -%}
+CMD ["uv", "run", "daphne", "-b", "0.0.0.0", "-p", "8000", "config.asgi:application"]
 {% else -%}
-CMD ["{% if dependency_manager == 'uv' %}uv run {% endif %}gunicorn", "config.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "4"]
+CMD ["daphne", "-b", "0.0.0.0", "-p", "8000", "config.asgi:application"]
+{% endif -%}
+{% else -%}
+{% if dependency_manager == 'uv' -%}
+CMD ["uv", "run", "gunicorn", "config.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "2"]
+{% else -%}
+CMD ["gunicorn", "config.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "2"]
+{% endif -%}
 {% endif -%}

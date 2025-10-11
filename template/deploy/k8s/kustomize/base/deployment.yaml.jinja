@@ -1,58 +1,82 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ project_slug }}-web
+  name: {{ project_slug | replace("_", "-") }}-web
   labels:
-    app: {{ project_slug }}
+    app: {{ project_slug | replace("_", "-") }}
     component: web
 spec:
   replicas: 2
   selector:
     matchLabels:
-      app: {{ project_slug }}
+      app: {{ project_slug | replace("_", "-") }}
       component: web
   template:
     metadata:
       labels:
-        app: {{ project_slug }}
+        app: {{ project_slug | replace("_", "-") }}
         component: web
     spec:
       initContainers:
         - name: migrate
-          image: {{ project_slug }}:latest
-          command: ["uv", "run", "python", "manage.py", "migrate", "--noinput"]
+          image: {{ project_slug | replace("_", "-") }}:latest
+          imagePullPolicy: Never
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              {% if dependency_manager == 'uv' -%}
+              uv run python manage.py migrate --noinput &&
+              uv run python manage.py collectstatic --noinput
+              {% else -%}
+              python manage.py migrate --noinput &&
+              python manage.py collectstatic --noinput
+              {% endif -%}
           envFrom:
             - configMapRef:
-                name: {{ project_slug }}-config
+                name: {{ project_slug | replace("_", "-") }}-config
             - secretRef:
-                name: {{ project_slug }}-secrets
+                name: {{ project_slug | replace("_", "-") }}-secrets
+          volumeMounts:
+            - name: static-files
+              mountPath: /app/staticfiles
       containers:
         - name: web
-          image: {{ project_slug }}:latest
+          image: {{ project_slug | replace("_", "-") }}:latest
+          imagePullPolicy: Never
           ports:
             - containerPort: 8000
               name: http
           envFrom:
             - configMapRef:
-                name: {{ project_slug }}-config
+                name: {{ project_slug | replace("_", "-") }}-config
             - secretRef:
-                name: {{ project_slug }}-secrets
+                name: {{ project_slug | replace("_", "-") }}-secrets
+          volumeMounts:
+            - name: static-files
+              mountPath: /app/staticfiles
           livenessProbe:
             httpGet:
               path: /health/
               port: http
-            initialDelaySeconds: 30
+            initialDelaySeconds: 60
             periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
           readinessProbe:
             httpGet:
               path: /ready/
               port: http
-            initialDelaySeconds: 5
-            periodSeconds: 5
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
           resources:
             limits:
-              cpu: 1000m
-              memory: 512Mi
+              cpu: 2000m
+              memory: 1Gi
             requests:
-              cpu: 250m
-              memory: 256Mi
+              cpu: 500m
+              memory: 512Mi
+      volumes:
+        - name: static-files
+          emptyDir: {}

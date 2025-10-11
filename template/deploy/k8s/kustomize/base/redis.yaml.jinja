@@ -1,20 +1,20 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ project_slug }}-redis
+  name: {{ project_slug | replace("_", "-") }}-redis
   labels:
-    app: {{ project_slug }}
+    app: {{ project_slug | replace("_", "-") }}
     component: redis
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: {{ project_slug }}
+      app: {{ project_slug | replace("_", "-") }}
       component: redis
   template:
     metadata:
       labels:
-        app: {{ project_slug }}
+        app: {{ project_slug | replace("_", "-") }}
         component: redis
     spec:
       containers:
@@ -48,9 +48,9 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ project_slug }}-redis-master
+  name: {{ project_slug | replace("_", "-") }}-redis-master
   labels:
-    app: {{ project_slug }}
+    app: {{ project_slug | replace("_", "-") }}
     component: redis
 spec:
   type: ClusterIP
@@ -60,5 +60,5 @@ spec:
       protocol: TCP
       name: redis
   selector:
-    app: {{ project_slug }}
+    app: {{ project_slug | replace("_", "-") }}
     component: redis
