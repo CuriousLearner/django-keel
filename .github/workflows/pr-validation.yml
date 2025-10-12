@@ -1,0 +1,129 @@
+name: PR Validation
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  validate-pr:
+    name: Validate Pull Request
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check PR title follows conventional commits
+        uses: amannn/action-semantic-pull-request@v5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          types: |
+            feat
+            fix
+            docs
+            style
+            refactor
+            perf
+            test
+            chore
+            revert
+          requireScope: false
+
+      - name: Check for CHANGELOG update
+        run: |
+          if git diff --name-only origin/main...HEAD | grep -q "CHANGELOG.md"; then
+            echo "✅ CHANGELOG.md updated"
+          else
+            echo "⚠️ Warning: CHANGELOG.md not updated"
+            echo "Consider updating CHANGELOG.md for user-facing changes"
+          fi
+
+      - name: Check file sizes
+        run: |
+          find . -type f -size +1M | grep -v ".git" | while read file; do
+            echo "⚠️ Large file detected: $file"
+          done
+
+      - name: Verify no secrets committed
+        run: |
+          if grep -r "sk-" . --include="*.py" --include="*.txt" --include="*.env"; then
+            echo "❌ Potential API key found!"
+            exit 1
+          fi
+          if grep -r "password.*=.*['\"]" . --include="*.py" | grep -v "PASSWORD"; then
+            echo "⚠️ Potential hardcoded password found"
+          fi
+
+  test-all-combinations:
+    name: Test Feature Combinations
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Test all API options
+          - api: drf
+            frontend: none
+          - api: graphql
+            frontend: none
+          - api: both
+            frontend: none
+          - api: none
+            frontend: htmx-tailwind
+
+          # Test all background task options
+          - background_tasks: celery
+          - background_tasks: temporal
+          - background_tasks: both
+          - background_tasks: none
+
+          # Test Stripe modes
+          - use_stripe: basic
+          - use_stripe: advanced
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install Copier
+        run: pip install copier pyyaml
+
+      - name: Generate project with ${{ matrix }}
+        run: |
+          copier copy . ../test-project \
+            --data project_name="Test Project" \
+            --data project_slug=test_project \
+            ${{ matrix.api && format('--data api_style={0}', matrix.api) || '' }} \
+            ${{ matrix.frontend && format('--data frontend={0}', matrix.frontend) || '' }} \
+            ${{ matrix.background_tasks && format('--data background_tasks={0}', matrix.background_tasks) || '' }} \
+            ${{ matrix.use_stripe && format('--data use_stripe=true --data stripe_mode={0}', matrix.use_stripe) || '' }} \
+            --defaults \
+            --trust
+
+      - name: Verify project structure
+        run: |
+          cd ../test-project
+          test -f pyproject.toml
+          test -f README.md
+          python -c "import ast; ast.parse(open('manage.py').read())"
+
+  size-check:
+    name: Check Template Size
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Calculate template size
+        run: |
+          TEMPLATE_SIZE=$(du -sh template/ | cut -f1)
+          echo "Template size: $TEMPLATE_SIZE"
+
+          TOTAL_FILES=$(find template/ -type f | wc -l)
+          echo "Total files: $TOTAL_FILES"
+
+          if [ $TOTAL_FILES -gt 1000 ]; then
+            echo "⚠️ Warning: Template has >1000 files"
+          fi

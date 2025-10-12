@@ -1,0 +1,160 @@
+name: Scheduled Tests
+
+on:
+  schedule:
+    # Run every Monday at 9:00 AM UTC
+    - cron: "0 9 * * 1"
+  workflow_dispatch: # Allow manual triggering
+
+jobs:
+  full-matrix-test:
+    name: Full Test Matrix
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.12", "3.13"]
+        dependency-manager: [uv, poetry]
+        database: [postgresql, mysql, sqlite]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install Copier
+        run: pip install copier
+
+      - name: Generate project
+        run: |
+          copier copy . ../test-project \
+            --data python_version="${{ matrix.python-version }}" \
+            --data dependency_manager="${{ matrix.dependency-manager }}" \
+            --data database="${{ matrix.database }}" \
+            --defaults \
+            --trust
+
+      - name: Verify generation
+        run: |
+          cd ../test-project
+          test -f pyproject.toml
+          echo "✅ Project generated successfully"
+
+  dependency-check:
+    name: Check Dependency Updates
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      - name: Check for outdated packages
+        run: pip list --outdated
+
+      - name: Run pip-audit
+        run: pip-audit --desc
+        continue-on-error: true
+
+  link-checker:
+    name: Check Documentation Links
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check links in README
+        uses: gaurav-nelson/github-action-markdown-link-check@v1
+        with:
+          use-quiet-mode: 'yes'
+          config-file: '.github/workflows/link-check-config.json'
+        continue-on-error: true
+
+  template-consistency:
+    name: Template Consistency Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check for TODO/FIXME comments
+        run: |
+          echo "Checking for TODO/FIXME comments..."
+          grep -r "TODO\|FIXME" template/ --include="*.py" --include="*.jinja" || echo "No TODOs found"
+
+      - name: Check for debug statements
+        run: |
+          echo "Checking for debug statements..."
+          grep -r "print(\|pdb\|breakpoint()" template/ --include="*.py" && exit 1 || echo "No debug statements found"
+
+      - name: Verify all Jinja files are valid
+        run: |
+          pip install jinja2
+          python -c "
+          import sys
+          from jinja2 import Environment, FileSystemLoader, TemplateSyntaxError
+          from pathlib import Path
+
+          errors = []
+          for file in Path('template').rglob('*.jinja'):
+              try:
+                  env = Environment(loader=FileSystemLoader(file.parent))
+                  env.get_template(file.name)
+              except TemplateSyntaxError as e:
+                  errors.append(f'{file}: {e}')
+
+          if errors:
+              print('Jinja syntax errors found:')
+              for error in errors:
+                  print(error)
+              sys.exit(1)
+          print('✅ All Jinja templates are valid')
+          "
+
+  performance-test:
+    name: Template Generation Performance
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install Copier
+        run: pip install copier
+
+      - name: Benchmark template generation
+        run: |
+          echo "Testing generation speed..."
+          time copier copy . ../test-project --defaults --trust
+
+          echo "Project size:"
+          du -sh ../test-project
+
+  notify:
+    name: Notify on Failure
+    needs: [full-matrix-test, dependency-check, link-checker, template-consistency, performance-test]
+    runs-on: ubuntu-latest
+    if: failure()
+    steps:
+      - name: Create issue on failure
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: '🚨 Scheduled tests failed',
+              body: 'Automated weekly tests have failed. Please investigate.\n\nRun: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}',
+              labels: ['automated', 'bug']
+            })
