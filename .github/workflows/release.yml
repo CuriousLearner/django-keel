@@ -42,7 +42,7 @@ jobs:
           cat release_notes.md
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           body_path: release_notes.md
           draft: false
@@ -57,7 +57,7 @@ jobs:
           tar -czf demo-project.tar.gz -C ../ demo-project/
 
       - name: Upload demo project
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           files: demo-project.tar.gz
         env:
