@@ -65,7 +65,7 @@ jobs:
           # Test all API options
           - api: drf
             frontend: none
-          - api: graphql
+          - api: graphql-strawberry
             frontend: none
           - api: both
             frontend: none
