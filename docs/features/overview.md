@@ -456,10 +456,10 @@ uv run python manage.py migrate --fake app_name migration_name
 
 ## Next Steps
 
-- Read the [Architecture Overview](template/docs/architecture/overview.md)
-- Explore [API Documentation](template/docs/api/overview.md)
-- Set up [CI/CD](template/.github/workflows/ci.yml)
-- Configure [Monitoring](template/deploy/k8s/monitoring/)
+- Explore the [API Options](api-options.md) in detail
+- Learn about [Background Tasks](background-tasks.md)
+- Review [Deployment Options](../deployment/overview.md)
+- Check out [Authentication](authentication.md) setup
 
 ---
 
