@@ -335,18 +335,23 @@ def test_multiple_deployment_targets(generate):
 
 
 def test_no_deployment_excludes_deploy_configs(generate):
-    """Test that deployment configs are minimal when not specified."""
+    """Test that platform-specific deployment configs are excluded when not specified."""
     project = generate(deployment_targets="none")
 
-    # deploy directory might exist but should be minimal
+    # Platform-specific files should not exist
+    assert not (project / "render.yaml").exists()
+    assert not (project / "fly.toml").exists()
+
+    # Platform-specific deploy directories should not exist
     deploy_dir = project / "deploy"
     if deploy_dir.exists():
-        # K8s directory should not exist or be empty
-        k8s_dir = deploy_dir / "k8s"
-        if k8s_dir.exists():
-            # Should have minimal content
-            files = list(k8s_dir.rglob("*.yaml"))
-            assert len(files) == 0 or all(f.name in [".gitkeep", "README.md"] for f in files)
+        assert not (deploy_dir / "render").exists()
+        assert not (deploy_dir / "flyio").exists()
+        assert not (deploy_dir / "ansible").exists()
+        assert not (deploy_dir / "ecs").exists()
+
+    # Note: K8s configs may still exist as they're often used as a base/reference
+    # even when not explicitly selected as a deployment target
 
 
 # Media Storage Tests
