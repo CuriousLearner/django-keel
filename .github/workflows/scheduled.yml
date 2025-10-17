@@ -30,7 +30,8 @@ jobs:
 
       - name: Generate project
         run: |
-          copier copy . ../test-project \
+          copier copy . ../test_project \
+            --data project_slug=test_project \
             --data python_version="${{ matrix.python-version }}" \
             --data dependency_manager="${{ matrix.dependency-manager }}" \
             --data database="${{ matrix.database }}" \
@@ -39,7 +40,7 @@ jobs:
 
       - name: Verify generation
         run: |
-          cd ../test-project
+          cd ../test_project
           test -f pyproject.toml
           echo "✅ Project generated successfully"
 
@@ -57,7 +58,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements-dev.txt
+          pip install -e ".[dev]"
 
       - name: Check for outdated packages
         run: pip list --outdated
@@ -136,10 +137,10 @@ jobs:
       - name: Benchmark template generation
         run: |
           echo "Testing generation speed..."
-          time copier copy . ../test-project --defaults --trust
+          time copier copy . ../test_project --data project_slug=test_project --defaults --trust
 
           echo "Project size:"
-          du -sh ../test-project
+          du -sh ../test_project
 
   notify:
     name: Notify on Failure
