@@ -1,7 +1,7 @@
 # Generated migration for custom User model
 import django.contrib.auth.models
-from django.db import migrations, models
 import django.utils.timezone
+from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
