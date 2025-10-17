@@ -36,6 +36,7 @@ dev = [
     "pytest-timeout>=2.2.0",
     "copier>=9.0.0",
     "pyyaml>=6.0.0",
+    "types-PyYAML>=6.0.0",
     "ruff>=0.6.9",
     "mypy>=1.11.2",
     "plumbum>=1.8.0",
@@ -89,6 +90,8 @@ lines-after-imports = 2
 [tool.ruff.lint.per-file-ignores]
 # Test files can use fixtures and have imports that appear unused
 "tests/*" = ["F811"]
+# Django migrations are auto-generated and don't need to follow all rules
+"*/migrations/*" = ["E501", "RUF012"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

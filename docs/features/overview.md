@@ -456,11 +456,11 @@ uv run python manage.py migrate --fake app_name migration_name
 
 ## Next Steps
 
-- Read the [Architecture Overview](template/docs/architecture/overview.md)
-- Explore [API Documentation](template/docs/api/overview.md)
-- Set up [CI/CD](template/.github/workflows/ci.yml)
-- Configure [Monitoring](template/deploy/k8s/monitoring/)
+- Explore the [API Options](api-options.md) in detail
+- Learn about [Background Tasks](background-tasks.md)
+- Review [Deployment Options](../deployment/overview.md)
+- Check out [Authentication](authentication.md) setup
 
 ---
 
-**Questions?** Open an issue or check the [Discussions](https://github.com/CuriousLearner/django-keel/discussions)
+**Questions?** Open an issue or check the [Discussions](https://github.com/CuriousLearner/django-keel/issues)

@@ -298,11 +298,11 @@ Copier will intelligently merge changes, respecting your modifications.
 
 ## 🤝 Contributing
 
-Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for details.
+Contributions are welcome! Please see [CONTRIBUTING.md](https://github.com/CuriousLearner/django-keel/blob/main/CONTRIBUTING.md) for details.
 
 ## 📜 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License - see the [LICENSE](https://github.com/CuriousLearner/django-keel/blob/main/LICENSE) file for details.
 
 ## 🙏 Credits
 
@@ -319,7 +319,7 @@ If you find Django Keel useful, please consider starring the repository!
 ## 📞 Support
 
 - **Issues**: [GitHub Issues](https://github.com/CuriousLearner/django-keel/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/CuriousLearner/django-keel/discussions)
+- **Discussions**: [GitHub Discussions](https://github.com/CuriousLearner/django-keel/issues)
 - **Docs**: Generated in your project's `docs/` directory
 
 ---

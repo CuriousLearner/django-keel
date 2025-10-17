@@ -460,12 +460,10 @@ fly certs create yourdomain.com
 ## Further Reading
 
 - [Fly.io Documentation](https://fly.io/docs/)
-- [Fly.io Django Guide](https://fly.io/docs/languages-and-frameworks/django/)
 - [Fly.io Pricing](https://fly.io/docs/about/pricing/)
 - [Fly.io CLI Reference](https://fly.io/docs/flyctl/)
 
 ## Support
 
 - **Community Forum**: [community.fly.io](https://community.fly.io/)
-- **Discord**: [fly.io/discord](https://fly.io/discord)
 - **Status**: [status.fly.io](https://status.fly.io/)

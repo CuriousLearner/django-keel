@@ -58,7 +58,13 @@ def test_settings_can_be_imported(generate):
 
     # Some import errors are expected without dependencies installed
     # Just check that the files are syntactically correct
-    assert result.returncode == 0 or "ImportError" in result.stderr
+    # Accept success OR specific import errors for missing dependencies
+    if result.returncode != 0:
+        # These are expected import errors when dependencies aren't installed
+        expected_errors = ["ModuleNotFoundError", "ImportError"]
+        assert any(err in result.stderr for err in expected_errors), (
+            f"Unexpected error: {result.stderr}"
+        )
 
 
 def test_manage_py_is_executable(generate):

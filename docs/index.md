@@ -369,7 +369,7 @@ Django Keel is inspired by:
 ## 📞 Community & Support
 
 - **Issues**: [GitHub Issues](https://github.com/CuriousLearner/django-keel/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/CuriousLearner/django-keel/discussions)
+- **Discussions**: [GitHub Discussions](https://github.com/CuriousLearner/django-keel/issues)
 - **Changelog**: [CHANGELOG](CHANGELOG.md)
 
 ---
