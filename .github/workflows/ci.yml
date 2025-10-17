@@ -189,7 +189,7 @@ jobs:
       - name: Check for broken links in docs
         uses: lycheeverse/lychee-action@v2
         with:
-          args: --verbose --no-progress 'docs/**/*.md' 'README.md' --exclude-mail
+          args: --verbose --no-progress 'docs/**/*.md' 'README.md'
           fail: true
         continue-on-error: false
 
