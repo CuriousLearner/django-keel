@@ -160,9 +160,37 @@ jobs:
           head: HEAD
         continue-on-error: true
 
+  docs:
+    name: Documentation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Need full history for git-revision-date plugin
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install mkdocs mkdocs-material mkdocs-git-revision-date-localized-plugin
+
+      - name: Build documentation
+        run: mkdocs build --strict
+
+      - name: Check for broken links in docs
+        uses: lycheeverse/lychee-action@v2
+        with:
+          args: --verbose --no-progress 'docs/**/*.md' 'README.md' --exclude-mail
+          fail: true
+        continue-on-error: false
+
   all-checks:
     name: All Checks Passed
-    needs: [lint, test, test-generation, validate-yaml, security]
+    needs: [lint, test, test-generation, validate-yaml, security, docs]
     runs-on: ubuntu-latest
     steps:
       - name: Confirm all checks passed
