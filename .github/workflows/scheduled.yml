@@ -28,6 +28,11 @@ jobs:
       - name: Install Copier
         run: pip install copier
 
+      - name: Configure git for copier
+        run: |
+          git config --global user.email "ci@django-keel.test"
+          git config --global user.name "Django Keel CI"
+
       - name: Generate project
         run: |
           copier copy . ../test_project \
@@ -133,6 +138,11 @@ jobs:
 
       - name: Install Copier
         run: pip install copier
+
+      - name: Configure git for copier
+        run: |
+          git config --global user.email "ci@django-keel.test"
+          git config --global user.name "Django Keel CI"
 
       - name: Benchmark template generation
         run: |
