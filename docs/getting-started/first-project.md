@@ -262,7 +262,7 @@ uv sync
 
 - Check the [documentation](https://django-keel.readthedocs.io/)
 - Open an [issue](https://github.com/CuriousLearner/django-keel/issues)
-- Start a [discussion](https://github.com/CuriousLearner/django-keel/discussions)
+- Start a [discussion](https://github.com/CuriousLearner/django-keel/issues)
 
 ---
 

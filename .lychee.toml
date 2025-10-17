@@ -1,0 +1,16 @@
+# Lychee link checker configuration
+
+# Exclude localhost URLs and development servers
+exclude = [
+    'http://localhost:*',
+    'http://127.0.0.1:*',
+]
+
+# Accept 200-299 status codes as valid
+accept = [200, 204, 206, 301, 302, 307, 308, 429]
+
+# Retry failed requests
+max_retries = 3
+
+# User agent
+user_agent = "Mozilla/5.0 (compatible; Lychee/1.0)"
