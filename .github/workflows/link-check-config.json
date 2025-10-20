@@ -5,6 +5,9 @@
     },
     {
       "pattern": "^https://django-keel.readthedocs.io"
+    },
+    {
+      "pattern": "^template/"
     }
   ],
   "timeout": "20s",
