@@ -9,7 +9,7 @@ jobs:
     name: Validate Pull Request
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Check PR title follows conventional commits
         uses: amannn/action-semantic-pull-request@v6
@@ -83,7 +83,7 @@ jobs:
           - use_stripe: advanced
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Set up Python
         uses: actions/setup-python@v6
@@ -121,7 +121,7 @@ jobs:
     name: Check Template Size
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Calculate template size
         run: |
