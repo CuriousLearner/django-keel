@@ -15,7 +15,7 @@ jobs:
       matrix:
         python-version: ["3.12", "3.13"]
         dependency-manager: [uv, poetry]
-        database: [postgresql, mysql, sqlite]
+        database: [postgresql, sqlite-dev-postgres-prod]
 
     steps:
       - uses: actions/checkout@v4
