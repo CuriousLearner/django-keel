@@ -1,7 +1,7 @@
 {% if license == 'MIT' -%}
 MIT License
 
-Copyright (c) {{ '%Y' | strftime }} {{ author_name }}
+Copyright (c) {{ now().strftime('%Y') }} {{ author_name }}
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -29,5 +29,5 @@ http://www.apache.org/licenses/
 {% else -%}
 # Proprietary License
 
-Copyright (c) {{ '%Y' | strftime }} {{ author_name }}. All rights reserved.
+Copyright (c) {{ now().strftime('%Y') }} {{ author_name }}. All rights reserved.
 {% endif -%}
