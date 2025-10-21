@@ -10,6 +10,10 @@ Build **SaaS applications**, **API backends**, **web apps**, or **internal tools
 [![Django 5.2](https://img.shields.io/badge/django-5.2-green.svg)](https://www.djangoproject.com/)
 [![Documentation](https://readthedocs.org/projects/django-keel/badge/?version=latest)](https://django-keel.readthedocs.io/en/latest/?badge=latest)
 
+> [!NOTE]
+> **💼 Available for Hire** — Need help with **Backend Development** or **DevOps**? I specialize in Django, Python, Kubernetes, CI/CD, and cloud infrastructure.
+> 📧 Contact: [sanyam@sanyamkhurana.com](mailto:sanyam@sanyamkhurana.com)
+
 Django Keel is a comprehensive Copier template that adapts to your needs—whether you're building a multi-tenant SaaS with billing, a simple API backend, a traditional web app, or an internal corporate tool. One template, infinite possibilities.
 
 **Choose your project type and get smart defaults. Or customize everything yourself.**
