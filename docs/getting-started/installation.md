@@ -11,7 +11,7 @@ Django Keel is a comprehensive Copier template for Django projects that combines
 ## ✨ Features
 
 ### 🎯 Core
-- **Django 5.2** with Python 3.12/3.13
+- **Django 5.2** with Python 3.12/3.13/3.14 support
 - **uv** or **Poetry** for blazing-fast dependency management
 - **12-Factor App** configuration with django-environ
 - **Custom User Model** from day one

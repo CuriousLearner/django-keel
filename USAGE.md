@@ -34,7 +34,7 @@ You'll be asked a series of questions. Here's an example session:
 🎤 Brief project description? An awesome Django application
 🎤 Your name? John Doe
 🎤 Your email? john@example.com
-🎤 Python version? 3.13
+🎤 Python version? 3.14
 🎤 Package manager? uv
 🎤 Database? postgresql
 🎤 Cache backend? redis

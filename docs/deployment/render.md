@@ -43,7 +43,7 @@ services:
     startCommand: "gunicorn config.wsgi:application"
     envVars:
       - key: PYTHON_VERSION
-        value: 3.13
+        value: 3.14
       - key: DJANGO_SETTINGS_MODULE
         value: config.settings.prod
       - key: DATABASE_URL
@@ -272,7 +272,7 @@ Deploy staging separately from production.
 
 **Error: "ModuleNotFoundError"**
 - Check `requirements.txt` includes all dependencies
-- Verify Python version matches (default: 3.13)
+- Verify Python version matches (default: 3.14)
 
 **Error: "collectstatic failed"**
 - Ensure `DJANGO_SETTINGS_MODULE=config.settings.prod`
