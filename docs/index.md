@@ -112,7 +112,7 @@ Visit:
 
 ### 🎯 Core Foundation
 
-- **Django 5.2** with Python 3.12/3.13
+- **Django 5.2** with Python 3.12/3.13/3.14 support
 - **Custom User Model** from day one
 - **Split Settings** (base/dev/test/prod)
 - **12-Factor App** configuration with django-environ
