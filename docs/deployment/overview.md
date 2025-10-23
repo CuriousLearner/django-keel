@@ -462,7 +462,7 @@ Before deploying to production, ensure:
 - [Kubernetes Docs](https://kubernetes.io/docs/)
 
 ### Community
-- [Django Keel Discussions](https://github.com/CuriousLearner/django-keel/issues)
+- [Django Keel Discussions](https://github.com/CuriousLearner/django-keel/discussions)
 - [Django Forum](https://forum.djangoproject.com/)
 - Platform-specific forums (see individual guides)
 
@@ -481,4 +481,4 @@ Before deploying to production, ensure:
 
 ---
 
-**Questions?** Check the [Troubleshooting](#troubleshooting) section or open a [Discussion](https://github.com/CuriousLearner/django-keel/issues).
+**Questions?** Check the [Troubleshooting](#troubleshooting) section or open a [Discussion](https://github.com/CuriousLearner/django-keel/discussions).
