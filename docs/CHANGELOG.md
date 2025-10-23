@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Core Features
 - Copier-based Django project template with flexible configuration options
-- Django 5.2 with Python 3.12/3.13/3.14 support
+- Django 5.2/6.0 with Python 3.12/3.13/3.14 support
 - Multiple package managers: uv, Poetry
 - Split settings structure: base, dev, test, prod
 - 12-Factor App compliance with environment-based configuration
