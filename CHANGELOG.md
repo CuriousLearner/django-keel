@@ -79,5 +79,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Background tasks configuration: `background_tasks` parameter with options: "celery", "temporal", "both", or "none"
+- `copier.yml` UX enhancements:
+  - Choice fields now display user-friendly labels instead of raw values
+  - `project_name` and `project_description` use placeholders with non-empty validators
+  - `deployment_targets` converted to multiselect field
 
 [Unreleased]: https://github.com/CuriousLearner/django-keel/compare/HEAD...HEAD

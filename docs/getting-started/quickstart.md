@@ -28,7 +28,7 @@ copier copy . ../my-api-project \
   --data api_style=drf \
   --data frontend=none \
   --data background_tasks=none \
-  --data deployment_targets=kubernetes
+  --data deployment_targets=[kubernetes]
 ```
 
 ### 2. Quick Test (Minimal Config)
@@ -159,7 +159,7 @@ copier copy ../django-keel ../saas-project \
   --data use_search=postgres-fts \
   --data observability_level=full \
   --data security_profile=strict \
-  --data deployment_targets=kubernetes,ecs,flyio
+  --data deployment_targets=[kubernetes,aws-ecs-fargate,flyio]
 
 cd ../saas-project
 uv sync
