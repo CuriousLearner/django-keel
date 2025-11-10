@@ -104,6 +104,7 @@ jobs:
             --data project_name="Test Project" \
             --data project_slug=test_project \
             --data project_description="A test project" \
+            --data author_name="Django Keel CI" \
             ${{ matrix.api && format('--data api_style={0}', matrix.api) || '' }} \
             ${{ matrix.frontend && format('--data frontend={0}', matrix.frontend) || '' }} \
             ${{ matrix.background_tasks && format('--data background_tasks={0}', matrix.background_tasks) || '' }} \

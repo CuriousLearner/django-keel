@@ -108,6 +108,7 @@ def test_project_name_has_validator(template_dir):
     assert "project_name" in validator
     assert "empty" in validator.lower() or "not project_name" in validator
 
+
 def test_project_description_has_validator(template_dir):
     """Test that project_description field has a non-empty validator."""
     copier_yml = template_dir / "copier.yml"
