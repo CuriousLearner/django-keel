@@ -34,6 +34,22 @@
 {% endif %}
 ## Quick Start
 
+### Initial Setup
+
+After generating this project with django-keel, initialize Git repository:
+
+```bash
+cd {{ project_slug }}
+git init
+git add .
+git commit -m "🎉 Initial commit
+
+Generated with django-keel
+
+Project: {{ project_name }}
+Description: {{ project_description }}"
+```
+
 ### Prerequisites
 
 {% if dependency_manager == 'uv' -%}
