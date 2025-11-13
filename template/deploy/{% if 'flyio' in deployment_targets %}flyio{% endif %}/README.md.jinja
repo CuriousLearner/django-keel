@@ -38,7 +38,7 @@ This directory contains complete deployment automation for Fly.io:
 - **`setup_env.sh`** - Interactive environment configuration
 - **`manage_db.sh`** - Database management utilities
 - **`health_check.py`** - Health check endpoints for monitoring
-- **`.github-workflows-flyio.yml`** - GitHub Actions CI/CD pipeline
+- **`.github/workflows/deploy-flyio.yml`** - GitHub Actions CI/CD pipeline (automatically placed by template)
 - **`fly.toml`** - Fly.io application configuration (in project root)
 
 ## Quick Start
@@ -389,23 +389,15 @@ Features:
 
 ### Setup
 
-1. Copy the GitHub Actions workflow to your project:
+The GitHub Actions workflow is automatically included in your project at `.github/workflows/deploy-flyio.yml` when you select Fly.io as a deployment target.
 
-```bash
-# Create .github/workflows directory
-mkdir -p .github/workflows
-
-# Copy the workflow file
-cp deploy/flyio/.github-workflows-flyio.yml .github/workflows/deploy-flyio.yml
-```
-
-2. Get your Fly.io API token:
+1. Get your Fly.io API token:
 
 ```bash
 fly auth token
 ```
 
-3. Add the token to GitHub Secrets:
+2. Add the token to GitHub Secrets:
    - Go to Settings → Secrets → Actions
    - Add `FLY_API_TOKEN` with your token
 
