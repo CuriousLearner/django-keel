@@ -275,15 +275,5 @@ license:
     Proprietary: Proprietary
   default: "MIT"
 
-# Post-generation tasks
-_tasks:
-  - command: git init
-  - command: git add .
-  - command: |
-      git commit -m "🎉 Initial commit
-
-      Generated with django-keel
-
-      Project: {{ project_name }}
-      Description: {{ project_description }}
-      "
+# Post-generation instructions are now provided in the template's README
+# instead of using _tasks to avoid the "unsafe feature" warning

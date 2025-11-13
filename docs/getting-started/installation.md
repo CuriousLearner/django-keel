@@ -138,6 +138,8 @@ copier copy gh:CuriousLearner/django-keel your-project-name
 # Follow the interactive prompts
 ```
 
+After generation, the project README will include instructions for initializing Git.
+
 ### What Gets Generated
 
 ```
