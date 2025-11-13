@@ -1,28 +1,82 @@
 # AWS ECS Fargate Deployment
 
-Deploy {{ project_name }} to AWS ECS using Fargate for serverless container deployment.
+Deploy {{ project_name }} to AWS ECS using Fargate for serverless container deployment with complete Infrastructure as Code.
 
 ## Overview
 
-This directory contains Terraform configuration for deploying to AWS ECS Fargate:
+This directory contains a complete implementation for deploying to AWS ECS Fargate:
 
-- **Serverless**: No EC2 instances to manage
-- **Auto-scaling**: Scales based on CPU/memory
-- **Load Balanced**: Application Load Balancer included
-- **High Availability**: Multi-AZ deployment
-- **Cost Effective**: Pay only for resources used
+### ✅ What's Included
+
+- **Complete Terraform Configuration**: Full IaC setup with modular architecture
+- **Automated Deployment Script**: One-command deployment with `deploy.sh`
+- **CI/CD Pipeline**: GitHub Actions workflow for automated deployments
+- **Networking**: VPC with public/private subnets, NAT gateways, and VPC endpoints
+- **Database Options**: RDS PostgreSQL or Aurora Serverless v2
+- **Storage**: S3 buckets for static/media files with CDN-ready configuration
+- **Security**: Secrets Manager, IAM roles, security groups
+- **Monitoring**: CloudWatch logs, metrics, and alarms
+- **Auto-scaling**: Target tracking and scheduled scaling
+- **Cost Optimization**: Fargate Spot support, right-sizing recommendations
+
+### 📁 Directory Structure
+
+```
+ecs/
+├── deploy.sh                    # Main deployment script
+├── terraform/
+│   ├── main.tf                  # Main Terraform configuration
+│   ├── variables.tf             # Input variables
+│   ├── outputs.tf               # Output values
+│   ├── network.tf               # VPC and networking
+│   ├── ecs.tf                   # ECS cluster and services
+│   ├── alb.tf                   # Application Load Balancer
+│   ├── database.tf              # RDS/Aurora configuration
+│   ├── storage.tf               # S3 and Redis
+│   ├── security.tf              # Security groups and secrets
+│   ├── ecr.tf                   # Container registry
+│   └── terraform.tfvars.example # Example variables file
+└── .github-workflows-ecs.yml   # GitHub Actions CI/CD
+```
 
 ## Prerequisites
 
 - AWS CLI installed and configured
 - Terraform >= 1.0
 - Docker for building images
-- AWS ECR repository created
-- RDS PostgreSQL database (or use Aurora Serverless)
+- jq for JSON processing
+- Python {{ python_version }} with Django installed
 
 ## Quick Start
 
-### 1. Build and Push Docker Image
+### Option 1: Automated Deployment (Recommended)
+
+Use the deployment script for a fully automated setup:
+
+```bash
+# Make script executable
+chmod +x deploy/ecs/deploy.sh
+
+# Run full deployment
+./deploy/ecs/deploy.sh
+
+# Or with options
+./deploy/ecs/deploy.sh --environment production --region us-west-2
+```
+
+The script will:
+1. Check all dependencies
+2. Create ECR repository
+3. Build and push Docker image
+4. Initialize Terraform
+5. Deploy infrastructure
+6. Run database migrations
+7. Update ECS service
+8. Show deployment information
+
+### Option 2: Manual Deployment
+
+#### 1. Build and Push Docker Image
 
 ```bash
 # Login to ECR
@@ -38,7 +92,7 @@ docker tag {{ project_slug }}:latest <account-id>.dkr.ecr.us-east-1.amazonaws.co
 docker push <account-id>.dkr.ecr.us-east-1.amazonaws.com/{{ project_slug }}:latest
 ```
 
-### 2. Configure Terraform
+#### 2. Configure Terraform
 
 ```bash
 cd deploy/ecs/terraform
@@ -51,14 +105,15 @@ cat > terraform.tfvars <<EOF
 project_name     = "{{ project_slug }}"
 environment      = "production"
 aws_region       = "us-east-1"
-container_image  = "<account-id>.dkr.ecr.us-east-1.amazonaws.com/{{ project_slug }}:latest"
-database_url     = "postgresql://user:pass@rds-endpoint:5432/{{ project_slug }}"
-secret_key       = "your-secret-key-here"
+# ECR repository is automatically created by Terraform
+# container_image is only needed if using external image
+django_secret_key = "$(python -c 'from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())')"
+django_debug      = false
 allowed_hosts    = "{{ project_slug }}.example.com"
 EOF
 ```
 
-### 3. Deploy
+#### 3. Deploy Infrastructure
 
 ```bash
 # Plan deployment
@@ -69,6 +124,53 @@ terraform apply
 
 # Get ALB URL
 terraform output alb_url
+```
+
+## Deployment Script Features
+
+The `deploy.sh` script provides comprehensive deployment automation:
+
+### Interactive Menu
+
+```bash
+./deploy/ecs/deploy.sh
+```
+
+Options:
+1. **Full deployment** - Complete end-to-end deployment
+2. **Build and push** - Docker image management only
+3. **Deploy infrastructure** - Terraform deployment only
+4. **Update ECS service** - Rolling update of running service
+5. **Run migrations** - Database migration management
+6. **Show deployment info** - Display current deployment status
+7. **Generate tfvars** - Create Terraform variables file
+8. **Rollback** - Revert to previous task definition
+9. **Destroy** - Remove all infrastructure
+
+### Command Line Options
+
+```bash
+./deploy/ecs/deploy.sh [options]
+
+Options:
+  -e, --environment ENV    Environment (dev/staging/production)
+  -r, --region REGION      AWS region
+  -t, --image-tag TAG      Docker image tag
+  -y, --auto               Auto approve all prompts
+  -h, --help               Show help message
+```
+
+### Environment-Specific Deployments
+
+```bash
+# Development
+./deploy/ecs/deploy.sh --environment dev --region us-east-1
+
+# Staging
+./deploy/ecs/deploy.sh --environment staging --region us-west-2
+
+# Production
+./deploy/ecs/deploy.sh --environment production --region eu-west-1
 ```
 
 ## Architecture

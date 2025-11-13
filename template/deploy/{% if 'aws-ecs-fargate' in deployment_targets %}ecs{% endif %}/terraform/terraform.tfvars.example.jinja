@@ -1,0 +1,75 @@
+# Example Terraform Variables for {{ project_name }} ECS Deployment
+# Copy this file to terraform.tfvars and update with your values
+
+# Project Configuration
+project_name = "{{ project_slug }}"
+environment  = "production"
+aws_region   = "us-east-1"
+
+# Container Configuration
+# Note: container_image will be automatically set from ECR repository created by Terraform
+# You can override this if using an external image
+# container_image = "override-only-if-needed"
+container_cpu    = 512   # 256, 512, 1024, 2048, 4096
+container_memory = 1024  # Must be compatible with CPU
+
+# Django Configuration
+django_secret_key = "<generate-with-python-manage.py>"
+django_debug      = false
+allowed_hosts     = "{{ project_slug }}.example.com"
+
+# Auto-scaling Configuration
+desired_count = 2
+min_capacity  = 2
+max_capacity  = 10
+
+# Database Configuration
+use_aurora_serverless       = false
+db_instance_class           = "db.t3.micro"
+db_allocated_storage        = 20
+db_backup_retention_period  = 7
+db_deletion_protection      = true
+
+{% if cache == 'redis' -%}
+# Redis Configuration
+enable_redis    = true
+redis_node_type = "cache.t3.micro"
+{% endif %}
+
+{% if use_celery -%}
+# Celery Configuration
+enable_celery       = true
+celery_worker_count = 2
+{% endif %}
+
+{% if use_sentry -%}
+# Sentry Configuration
+sentry_dsn = "https://xxx@xxx.ingest.sentry.io/xxx"
+{% endif %}
+
+{% if use_stripe -%}
+# Stripe Configuration
+stripe_secret_key      = "sk_test_xxx"
+stripe_publishable_key = "pk_test_xxx"
+{% endif %}
+
+# S3 Storage
+create_s3_buckets = true
+
+# Domain Configuration (optional)
+domain_name      = ""  # Leave empty for ALB URL only
+create_dns_zone  = false
+
+# Monitoring
+enable_monitoring = true
+alarm_email      = "alerts@example.com"
+
+# Cost Optimization
+enable_spot_capacity = false  # Set to true for non-production
+
+# Additional Tags
+additional_tags = {
+  Team        = "Engineering"
+  CostCenter  = "Development"
+  Owner       = "DevOps"
+}
