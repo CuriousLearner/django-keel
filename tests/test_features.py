@@ -203,7 +203,7 @@ def test_no_cache_configured(generate):
 
 def test_kubernetes_deployment_generated(generate):
     """Test that Kubernetes manifests are generated."""
-    project = generate(deployment_targets="kubernetes")
+    project = generate(deployment_targets=["kubernetes"])
 
     k8s_dir = project / "deploy/k8s"
     assert k8s_dir.exists()
@@ -216,7 +216,7 @@ def test_kubernetes_deployment_generated(generate):
 
 def test_render_deployment_generated(generate):
     """Test that Render deployment files are generated."""
-    project = generate(deployment_targets="render")
+    project = generate(deployment_targets=["render"])
 
     # Check render.yaml exists in root
     render_yaml = project / "render.yaml"
@@ -239,7 +239,7 @@ def test_render_deployment_generated(generate):
 
 def test_flyio_deployment_generated(generate):
     """Test that Fly.io deployment files are generated."""
-    project = generate(deployment_targets="flyio")
+    project = generate(deployment_targets=["flyio"])
 
     # Check fly.toml exists in root
     fly_toml = project / "fly.toml"
@@ -257,7 +257,7 @@ def test_flyio_deployment_generated(generate):
 
 def test_ecs_deployment_generated(generate):
     """Test that AWS ECS deployment files are generated."""
-    project = generate(deployment_targets="aws-ecs-fargate")
+    project = generate(deployment_targets=["aws-ecs-fargate"])
 
     # Check deploy/ecs directory
     ecs_dir = project / "deploy/ecs"
@@ -274,7 +274,7 @@ def test_ecs_deployment_generated(generate):
 
 def test_docker_deployment_generated(generate):
     """Test that Docker deployment files are generated."""
-    project = generate(deployment_targets="docker")
+    project = generate(deployment_targets=["docker"])
 
     # Check Dockerfile exists
     dockerfile = project / "Dockerfile"
@@ -293,7 +293,7 @@ def test_docker_deployment_generated(generate):
 
 def test_ec2_ansible_deployment_generated(generate):
     """Test that AWS EC2 Ansible playbooks are generated."""
-    project = generate(deployment_targets="aws-ec2-ansible")
+    project = generate(deployment_targets=["aws-ec2-ansible"])
 
     # Check deploy/ansible directory
     ansible_dir = project / "deploy/ansible"
@@ -322,7 +322,7 @@ def test_ec2_ansible_deployment_generated(generate):
 
 def test_multiple_deployment_targets(generate):
     """Test that multiple deployment targets can be specified."""
-    project = generate(deployment_targets="render,flyio,docker")
+    project = generate(deployment_targets=["render", "flyio", "docker"])
 
     # All selected platforms should have their files
     assert (project / "render.yaml").exists()
@@ -336,7 +336,7 @@ def test_multiple_deployment_targets(generate):
 
 def test_no_deployment_excludes_deploy_configs(generate):
     """Test that platform-specific deployment configs are excluded when not specified."""
-    project = generate(deployment_targets="none")
+    project = generate(deployment_targets=[])
 
     # Platform-specific files should not exist
     assert not (project / "render.yaml").exists()
@@ -397,7 +397,7 @@ def test_all_features_enabled_generates_successfully(generate):
         use_teams=True,
         use_i18n=True,
         cache="redis",
-        deployment_targets="kubernetes",
+        deployment_targets=["kubernetes"],
         media_storage="aws-s3",
         observability_level="full",
         use_sentry=True,

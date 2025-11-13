@@ -95,6 +95,9 @@ jobs:
           copier copy . ../test_${{ matrix.project-type }} \
             --data project_name="Test ${{ matrix.project-type }}" \
             --data project_slug="${PROJECT_SLUG}" \
+            --data project_description="A test project for ${{ matrix.project-type }}" \
+            --data author_name="Django Keel CI" \
+            --data author_email="ci@django-keel.test" \
             --data project_type=${{ matrix.project-type }} \
             --defaults \
             --trust

@@ -48,7 +48,7 @@ def copier_answers():
         "use_2fa": False,
         "observability_level": "minimal",
         "use_sentry": False,
-        "deployment_targets": "none",
+        "deployment_targets": ["kubernetes"],
         "media_storage": "local-whitenoise",
         "security_profile": "standard",
         "use_sops": False,

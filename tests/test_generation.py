@@ -95,6 +95,34 @@ def test_project_structure_is_correct(generate):
         assert (project / file_path).exists(), f"Missing file: {file_path}"
 
 
+def test_project_name_has_validator(template_dir):
+    """Test that project_name field has a non-empty validator."""
+    copier_yml = template_dir / "copier.yml"
+
+    with open(copier_yml) as f:
+        config = yaml.safe_load(f)
+
+    assert "project_name" in config
+    assert "validator" in config["project_name"]
+    validator = config["project_name"]["validator"]
+    assert "project_name" in validator
+    assert "empty" in validator.lower() or "not project_name" in validator
+
+
+def test_project_description_has_validator(template_dir):
+    """Test that project_description field has a non-empty validator."""
+    copier_yml = template_dir / "copier.yml"
+
+    with open(copier_yml) as f:
+        config = yaml.safe_load(f)
+
+    assert "project_description" in config
+    assert "validator" in config["project_description"]
+    validator = config["project_description"]["validator"]
+    assert "project_description" in validator
+    assert "empty" in validator.lower() or "not project_description" in validator
+
+
 # Dependency Manager Tests
 
 
