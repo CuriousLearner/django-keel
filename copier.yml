@@ -64,6 +64,14 @@ python_version:
     - "3.12"
   default: "3.14"
 
+django_version:
+  type: str
+  help: Django version
+  choices:
+    - "5.2"
+    - "6.0"
+  default: "6.0"
+
 dependency_manager:
   type: str
   help: Package manager
