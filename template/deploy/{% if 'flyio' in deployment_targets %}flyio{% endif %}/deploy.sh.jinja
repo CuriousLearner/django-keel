@@ -1,0 +1,309 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Fly.io Deployment Script for {{ project_name }}
+# This script handles the complete deployment process to Fly.io
+
+# Color output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+# Configuration
+APP_NAME="{{ project_slug }}"
+REGION="${FLY_REGION:-iad}"  # Default to Washington D.C.
+ENVIRONMENT="${ENVIRONMENT:-production}"
+
+# Functions
+print_status() {
+    echo -e "${GREEN}[INFO]${NC} $1"
+}
+
+print_error() {
+    echo -e "${RED}[ERROR]${NC} $1"
+    exit 1
+}
+
+print_warning() {
+    echo -e "${YELLOW}[WARNING]${NC} $1"
+}
+
+check_dependencies() {
+    print_status "Checking dependencies..."
+
+    if ! command -v fly &> /dev/null; then
+        print_error "Fly CLI not found. Please install: https://fly.io/docs/hands-on/install-flyctl/"
+    fi
+
+    if ! command -v python &> /dev/null; then
+        print_error "Python not found. Please install Python {{ python_version }}"
+    fi
+
+    print_status "All dependencies found"
+}
+
+check_auth() {
+    print_status "Checking Fly.io authentication..."
+
+    if ! fly auth whoami &> /dev/null; then
+        print_error "Not authenticated. Please run: fly auth login"
+    fi
+
+    print_status "Authenticated successfully"
+}
+
+check_app_exists() {
+    print_status "Checking if app exists..."
+
+    if fly apps list | grep -q "^$APP_NAME"; then
+        print_status "App '$APP_NAME' already exists"
+        return 0
+    else
+        print_warning "App '$APP_NAME' does not exist"
+        return 1
+    fi
+}
+
+create_app() {
+    print_status "Creating Fly.io app..."
+
+    fly apps create "$APP_NAME" --org personal || true
+
+    print_status "App created successfully"
+}
+
+setup_postgres() {
+    print_status "Setting up PostgreSQL database..."
+
+    # Check if database already exists
+    if fly postgres list | grep -q "$APP_NAME-db"; then
+        print_status "Database already exists"
+    else
+        print_status "Creating new PostgreSQL database..."
+        fly postgres create \
+            --name "$APP_NAME-db" \
+            --region "$REGION" \
+            --initial-cluster-size 1 \
+            --volume-size 1 \
+            --vm-size shared-cpu-1x
+
+        # Attach database to app
+        print_status "Attaching database to app..."
+        fly postgres attach "$APP_NAME-db" --app "$APP_NAME"
+    fi
+
+    print_status "PostgreSQL setup complete"
+}
+
+{% if cache == 'redis' -%}
+setup_redis() {
+    print_status "Setting up Redis..."
+
+    # Check if Redis already exists
+    if fly redis list | grep -q "$APP_NAME-redis"; then
+        print_status "Redis already exists"
+    else
+        print_status "Creating new Redis instance..."
+        fly redis create \
+            --name "$APP_NAME-redis" \
+            --region "$REGION" \
+            --no-replicas \
+            --plan "Free"
+
+        # Get Redis URL and set it as secret
+        REDIS_URL=$(fly redis status "$APP_NAME-redis" --json | jq -r '.url')
+        fly secrets set REDIS_URL="$REDIS_URL" --app "$APP_NAME"
+    fi
+
+    print_status "Redis setup complete"
+}
+{% endif %}
+
+set_secrets() {
+    print_status "Setting up secrets..."
+
+    # Generate Django secret key if not provided
+    if [ -z "${DJANGO_SECRET_KEY:-}" ]; then
+        DJANGO_SECRET_KEY=$(python -c 'from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())')
+    fi
+
+    # Set required secrets
+    fly secrets set \
+        DJANGO_SECRET_KEY="$DJANGO_SECRET_KEY" \
+        DJANGO_SETTINGS_MODULE="config.settings.prod" \
+        DEBUG="False" \
+        ALLOWED_HOSTS="$APP_NAME.fly.dev" \
+        --app "$APP_NAME"
+
+    {% if use_sentry -%}
+    # Set Sentry DSN if provided
+    if [ -n "${SENTRY_DSN:-}" ]; then
+        fly secrets set SENTRY_DSN="$SENTRY_DSN" --app "$APP_NAME"
+    fi
+    {% endif %}
+
+    {% if media_storage == 'aws-s3' -%}
+    # Set AWS credentials if provided
+    if [ -n "${AWS_ACCESS_KEY_ID:-}" ] && [ -n "${AWS_SECRET_ACCESS_KEY:-}" ]; then
+        fly secrets set \
+            AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID" \
+            AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY" \
+            AWS_STORAGE_BUCKET_NAME="${AWS_STORAGE_BUCKET_NAME:-$APP_NAME-media}" \
+            AWS_S3_REGION_NAME="${AWS_S3_REGION_NAME:-us-east-1}" \
+            --app "$APP_NAME"
+    fi
+    {% endif %}
+
+    {% if use_stripe -%}
+    # Set Stripe keys if provided
+    if [ -n "${STRIPE_PUBLISHABLE_KEY:-}" ] && [ -n "${STRIPE_SECRET_KEY:-}" ]; then
+        fly secrets set \
+            STRIPE_PUBLISHABLE_KEY="$STRIPE_PUBLISHABLE_KEY" \
+            STRIPE_SECRET_KEY="$STRIPE_SECRET_KEY" \
+            --app "$APP_NAME"
+
+        if [ -n "${STRIPE_WEBHOOK_SECRET:-}" ]; then
+            fly secrets set STRIPE_WEBHOOK_SECRET="$STRIPE_WEBHOOK_SECRET" --app "$APP_NAME"
+        fi
+    fi
+    {% endif %}
+
+    print_status "Secrets configured successfully"
+}
+
+deploy_app() {
+    print_status "Deploying application..."
+
+    # Run database migrations as part of release
+    print_status "Running migrations..."
+
+    # Deploy the app
+    if [ "$ENVIRONMENT" = "production" ]; then
+        fly deploy --strategy rolling --wait-timeout 300
+    else
+        fly deploy --wait-timeout 300
+    fi
+
+    print_status "Deployment complete"
+}
+
+setup_autoscaling() {
+    print_status "Configuring autoscaling..."
+
+    if [ "$ENVIRONMENT" = "production" ]; then
+        fly autoscale set min=2 max=10 --app "$APP_NAME"
+    else
+        fly autoscale set min=1 max=3 --app "$APP_NAME"
+    fi
+
+    print_status "Autoscaling configured"
+}
+
+setup_custom_domain() {
+    if [ -n "${CUSTOM_DOMAIN:-}" ]; then
+        print_status "Setting up custom domain: $CUSTOM_DOMAIN"
+
+        # Add certificate for custom domain
+        fly certs add "$CUSTOM_DOMAIN" --app "$APP_NAME"
+
+        # Update allowed hosts
+        fly secrets set ALLOWED_HOSTS="$APP_NAME.fly.dev,$CUSTOM_DOMAIN,www.$CUSTOM_DOMAIN" --app "$APP_NAME"
+
+        print_status "Custom domain configured. Please update your DNS records:"
+        fly certs show "$CUSTOM_DOMAIN" --app "$APP_NAME"
+    fi
+}
+
+show_status() {
+    print_status "Deployment Summary:"
+    echo "======================================"
+    fly status --app "$APP_NAME"
+    echo "======================================"
+    echo ""
+    print_status "Your app is available at: https://$APP_NAME.fly.dev"
+
+    if [ -n "${CUSTOM_DOMAIN:-}" ]; then
+        print_status "Custom domain: https://$CUSTOM_DOMAIN"
+    fi
+
+    echo ""
+    print_status "Useful commands:"
+    echo "  View logs:        fly logs --app $APP_NAME"
+    echo "  SSH to app:       fly ssh console --app $APP_NAME"
+    echo "  Open dashboard:   fly dashboard --app $APP_NAME"
+    echo "  Scale app:        fly scale count 3 --app $APP_NAME"
+}
+
+# Main execution
+main() {
+    echo "======================================"
+    echo "Fly.io Deployment for $APP_NAME"
+    echo "Environment: $ENVIRONMENT"
+    echo "Region: $REGION"
+    echo "======================================"
+    echo ""
+
+    check_dependencies
+    check_auth
+
+    if ! check_app_exists; then
+        create_app
+        setup_postgres
+        {% if cache == 'redis' -%}
+        setup_redis
+        {% endif %}
+        set_secrets
+    fi
+
+    deploy_app
+
+    if [ "$ENVIRONMENT" = "production" ]; then
+        setup_autoscaling
+    fi
+
+    setup_custom_domain
+
+    show_status
+
+    print_status "Deployment completed successfully!"
+}
+
+# Parse command line arguments
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --app)
+            APP_NAME="$2"
+            shift 2
+            ;;
+        --region)
+            REGION="$2"
+            shift 2
+            ;;
+        --env|--environment)
+            ENVIRONMENT="$2"
+            shift 2
+            ;;
+        --custom-domain)
+            CUSTOM_DOMAIN="$2"
+            shift 2
+            ;;
+        --help)
+            echo "Usage: $0 [options]"
+            echo ""
+            echo "Options:"
+            echo "  --app NAME           App name (default: $APP_NAME)"
+            echo "  --region REGION      Deployment region (default: $REGION)"
+            echo "  --env ENVIRONMENT    Environment (production/staging, default: production)"
+            echo "  --custom-domain DOMAIN  Custom domain to configure"
+            echo "  --help               Show this help message"
+            exit 0
+            ;;
+        *)
+            print_error "Unknown option: $1"
+            ;;
+    esac
+done
+
+# Run main function
+main
