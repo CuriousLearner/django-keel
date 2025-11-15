@@ -420,9 +420,9 @@ The GitHub Actions workflow provides:
 graph LR
     PR[Pull Request] --> Test[Run Tests]
     Test --> Preview[Deploy Preview]
-    
+
     Main[Merge to Main] --> Staging[Deploy Staging]
-    
+
     Prod[Merge to Production] --> Backup[Backup DB]
     Backup --> Deploy[Deploy Production]
     Deploy --> Scale[Auto-scale]

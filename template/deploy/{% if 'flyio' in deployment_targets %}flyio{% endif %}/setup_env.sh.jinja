@@ -51,7 +51,7 @@ check_env_file() {
 # Create environment file
 create_env_file() {
     print_status "Creating $ENV_FILE..."
-    
+
     cat > "$ENV_FILE" << 'EOF'
 # Fly.io Environment Configuration for {{ project_name }}
 # Generated on $(date)
@@ -101,7 +101,7 @@ export DEFAULT_FROM_EMAIL="noreply@{{ project_slug }}.fly.dev"
 # Custom Domain (optional)
 export CUSTOM_DOMAIN=""
 EOF
-    
+
     print_status "$ENV_FILE created. Please edit it with your values."
 }
 
@@ -109,22 +109,22 @@ EOF
 interactive_setup() {
     print_status "Starting interactive environment setup..."
     echo ""
-    
+
     # App name
     print_prompt "Enter app name (default: $APP_NAME):"
     read -r input_app_name
     APP_NAME="${input_app_name:-$APP_NAME}"
-    
+
     # Environment
     print_prompt "Enter environment (production/staging) [default: production]:"
     read -r ENVIRONMENT
     ENVIRONMENT="${ENVIRONMENT:-production}"
-    
+
     # Region
     print_prompt "Enter deployment region (iad/lhr/syd/sin/etc.) [default: iad]:"
     read -r FLY_REGION
     FLY_REGION="${FLY_REGION:-iad}"
-    
+
     # Generate Django secret key
     print_prompt "Generate new Django secret key? (y/n) [default: y]:"
     read -n 1 -r
@@ -136,23 +136,23 @@ interactive_setup() {
         print_prompt "Enter Django secret key:"
         read -r DJANGO_SECRET_KEY
     fi
-    
+
     # Custom domain
     print_prompt "Enter custom domain (optional, press enter to skip):"
     read -r CUSTOM_DOMAIN
-    
+
     if [ -n "$CUSTOM_DOMAIN" ]; then
         ALLOWED_HOSTS="$APP_NAME.fly.dev,$CUSTOM_DOMAIN,www.$CUSTOM_DOMAIN"
     else
         ALLOWED_HOSTS="$APP_NAME.fly.dev"
     fi
-    
+
     {% if use_sentry -%}
     # Sentry
     print_prompt "Enter Sentry DSN (optional, press enter to skip):"
     read -r SENTRY_DSN
     {% endif %}
-    
+
     {% if media_storage == 'aws-s3' -%}
     # AWS S3
     print_prompt "Configure AWS S3 for media storage? (y/n) [default: n]:"
@@ -161,21 +161,21 @@ interactive_setup() {
     if [[ $REPLY =~ ^[Yy]$ ]]; then
         print_prompt "Enter AWS Access Key ID:"
         read -r AWS_ACCESS_KEY_ID
-        
+
         print_prompt "Enter AWS Secret Access Key:"
         read -rs AWS_SECRET_ACCESS_KEY
         echo
-        
+
         print_prompt "Enter S3 bucket name [default: $APP_NAME-media]:"
         read -r AWS_STORAGE_BUCKET_NAME
         AWS_STORAGE_BUCKET_NAME="${AWS_STORAGE_BUCKET_NAME:-$APP_NAME-media}"
-        
+
         print_prompt "Enter AWS region [default: us-east-1]:"
         read -r AWS_S3_REGION_NAME
         AWS_S3_REGION_NAME="${AWS_S3_REGION_NAME:-us-east-1}"
     fi
     {% endif %}
-    
+
     {% if use_stripe -%}
     # Stripe
     print_prompt "Configure Stripe? (y/n) [default: n]:"
@@ -184,17 +184,17 @@ interactive_setup() {
     if [[ $REPLY =~ ^[Yy]$ ]]; then
         print_prompt "Enter Stripe Publishable Key:"
         read -r STRIPE_PUBLISHABLE_KEY
-        
+
         print_prompt "Enter Stripe Secret Key:"
         read -rs STRIPE_SECRET_KEY
         echo
-        
+
         print_prompt "Enter Stripe Webhook Secret (optional):"
         read -rs STRIPE_WEBHOOK_SECRET
         echo
     fi
     {% endif %}
-    
+
     # Save to env file
     save_env_file
 }
@@ -202,7 +202,7 @@ interactive_setup() {
 # Save environment to file
 save_env_file() {
     print_status "Saving environment to $ENV_FILE..."
-    
+
     cat > "$ENV_FILE" << EOF
 # Fly.io Environment Configuration for {{ project_name }}
 # Generated on $(date)
@@ -240,10 +240,10 @@ export STRIPE_WEBHOOK_SECRET="${STRIPE_WEBHOOK_SECRET:-}"
 # Custom Domain
 export CUSTOM_DOMAIN="${CUSTOM_DOMAIN:-}"
 EOF
-    
+
     chmod 600 "$ENV_FILE"
     print_status "Environment saved to $ENV_FILE"
-    
+
     # Add to .gitignore
     if ! grep -q "$ENV_FILE" .gitignore 2>/dev/null; then
         echo "$ENV_FILE" >> .gitignore
@@ -254,31 +254,31 @@ EOF
 # Apply environment to Fly.io
 apply_to_fly() {
     print_status "Applying environment to Fly.io app..."
-    
+
     if [ ! -f "$ENV_FILE" ]; then
         print_error "$ENV_FILE not found. Run setup first."
     fi
-    
+
     source "$ENV_FILE"
-    
+
     # Check if app exists
     if ! fly apps list | grep -q "^$APP_NAME"; then
         print_error "App $APP_NAME does not exist. Run deploy.sh first."
     fi
-    
+
     # Build secrets command
     local secrets_cmd="fly secrets set"
     secrets_cmd="$secrets_cmd DJANGO_SECRET_KEY='$DJANGO_SECRET_KEY'"
     secrets_cmd="$secrets_cmd DJANGO_SETTINGS_MODULE='config.settings.prod'"
     secrets_cmd="$secrets_cmd DEBUG='False'"
     secrets_cmd="$secrets_cmd ALLOWED_HOSTS='$ALLOWED_HOSTS'"
-    
+
     {% if use_sentry -%}
     if [ -n "${SENTRY_DSN:-}" ]; then
         secrets_cmd="$secrets_cmd SENTRY_DSN='$SENTRY_DSN'"
     fi
     {% endif %}
-    
+
     {% if media_storage == 'aws-s3' -%}
     if [ -n "${AWS_ACCESS_KEY_ID:-}" ]; then
         secrets_cmd="$secrets_cmd AWS_ACCESS_KEY_ID='$AWS_ACCESS_KEY_ID'"
@@ -287,7 +287,7 @@ apply_to_fly() {
         secrets_cmd="$secrets_cmd AWS_S3_REGION_NAME='$AWS_S3_REGION_NAME'"
     fi
     {% endif %}
-    
+
     {% if use_stripe -%}
     if [ -n "${STRIPE_SECRET_KEY:-}" ]; then
         secrets_cmd="$secrets_cmd STRIPE_PUBLISHABLE_KEY='$STRIPE_PUBLISHABLE_KEY'"
@@ -297,12 +297,12 @@ apply_to_fly() {
         fi
     fi
     {% endif %}
-    
+
     secrets_cmd="$secrets_cmd --app $APP_NAME"
-    
+
     # Apply secrets
     eval "$secrets_cmd"
-    
+
     print_status "Secrets applied successfully"
 }
 
@@ -310,16 +310,16 @@ apply_to_fly() {
 show_config() {
     print_status "Current Fly.io configuration:"
     echo ""
-    
+
     if [ -f "$ENV_FILE" ]; then
         print_status "Local environment ($ENV_FILE):"
         grep -E "^export " "$ENV_FILE" | sed 's/export /  /' | sed 's/=.*/=<set>/'
     else
         print_warning "No local environment file found"
     fi
-    
+
     echo ""
-    
+
     # Check if app exists
     if fly apps list | grep -q "^$APP_NAME"; then
         print_status "Remote secrets (Fly.io):"
@@ -344,7 +344,7 @@ main_menu() {
     echo ""
     print_prompt "Select option (1-6):"
     read -r option
-    
+
     case $option in
         1)
             interactive_setup
@@ -372,7 +372,7 @@ main_menu() {
             print_error "Invalid option"
             ;;
     esac
-    
+
     echo ""
     print_prompt "Press any key to continue..."
     read -n 1 -s

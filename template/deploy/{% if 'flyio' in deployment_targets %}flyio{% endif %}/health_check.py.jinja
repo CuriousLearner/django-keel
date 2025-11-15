@@ -16,12 +16,12 @@ logger = logging.getLogger(__name__)
 class HealthCheckView(View):
     """
     Health check endpoint for Fly.io.
-    
+
     Returns:
         - 200 OK: All checks pass
         - 503 Service Unavailable: One or more checks fail
     """
-    
+
     def get(self, request, *args, **kwargs):
         """
         Perform health checks and return status.
@@ -30,7 +30,7 @@ class HealthCheckView(View):
             'status': 'healthy',
             'checks': {}
         }
-        
+
         # Database check
         try:
             with connection.cursor() as cursor:
@@ -41,7 +41,7 @@ class HealthCheckView(View):
             logger.error(f"Database health check failed: {e}")
             checks['checks']['database'] = 'failed'
             checks['status'] = 'unhealthy'
-        
+
         {% if cache == 'redis' -%}
         # Cache check
         try:
@@ -53,7 +53,7 @@ class HealthCheckView(View):
             checks['checks']['cache'] = 'failed'
             # Cache failure is a warning, not critical
         {% endif %}
-        
+
         {% if media_storage == 'aws-s3' -%}
         # S3 check (optional, non-critical)
         try:
@@ -66,23 +66,23 @@ class HealthCheckView(View):
             checks['checks']['storage'] = 'warning'
             # Storage issues are warnings, not critical
         {% endif %}
-        
+
         # Determine HTTP status
         if checks['status'] == 'unhealthy':
             status_code = 503
         else:
             status_code = 200
-        
+
         return JsonResponse(checks, status=status_code)
 
 
 class ReadinessCheckView(View):
     """
     Readiness check endpoint for Fly.io.
-    
+
     Checks if the application is ready to receive traffic.
     """
-    
+
     def get(self, request, *args, **kwargs):
         """
         Check if app is ready to receive traffic.
@@ -92,7 +92,7 @@ class ReadinessCheckView(View):
             'ready': True,
             'checks': {}
         }
-        
+
         # Check database migrations
         try:
             from django.db.migrations.executor import MigrationExecutor
@@ -107,7 +107,7 @@ class ReadinessCheckView(View):
             logger.error(f"Migration check failed: {e}")
             checks['checks']['migrations'] = 'failed'
             ready = False
-        
+
         {% if use_celery -%}
         # Check Celery workers (optional)
         try:
@@ -122,20 +122,20 @@ class ReadinessCheckView(View):
             logger.warning(f"Celery check failed: {e}")
             checks['checks']['celery'] = 'unknown'
         {% endif %}
-        
+
         checks['ready'] = ready
         status_code = 200 if ready else 503
-        
+
         return JsonResponse(checks, status=status_code)
 
 
 class LivenessCheckView(View):
     """
     Liveness check endpoint for Fly.io.
-    
+
     Simple check to verify the application is running.
     """
-    
+
     def get(self, request, *args, **kwargs):
         """
         Simple liveness check.

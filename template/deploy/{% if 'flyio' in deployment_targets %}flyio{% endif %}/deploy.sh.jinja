@@ -31,31 +31,31 @@ print_warning() {
 
 check_dependencies() {
     print_status "Checking dependencies..."
-    
+
     if ! command -v fly &> /dev/null; then
         print_error "Fly CLI not found. Please install: https://fly.io/docs/hands-on/install-flyctl/"
     fi
-    
+
     if ! command -v python &> /dev/null; then
         print_error "Python not found. Please install Python {{ python_version }}"
     fi
-    
+
     print_status "All dependencies found"
 }
 
 check_auth() {
     print_status "Checking Fly.io authentication..."
-    
+
     if ! fly auth whoami &> /dev/null; then
         print_error "Not authenticated. Please run: fly auth login"
     fi
-    
+
     print_status "Authenticated successfully"
 }
 
 check_app_exists() {
     print_status "Checking if app exists..."
-    
+
     if fly apps list | grep -q "^$APP_NAME"; then
         print_status "App '$APP_NAME' already exists"
         return 0
@@ -67,15 +67,15 @@ check_app_exists() {
 
 create_app() {
     print_status "Creating Fly.io app..."
-    
+
     fly apps create "$APP_NAME" --org personal || true
-    
+
     print_status "App created successfully"
 }
 
 setup_postgres() {
     print_status "Setting up PostgreSQL database..."
-    
+
     # Check if database already exists
     if fly postgres list | grep -q "$APP_NAME-db"; then
         print_status "Database already exists"
@@ -87,19 +87,19 @@ setup_postgres() {
             --initial-cluster-size 1 \
             --volume-size 1 \
             --vm-size shared-cpu-1x
-        
+
         # Attach database to app
         print_status "Attaching database to app..."
         fly postgres attach "$APP_NAME-db" --app "$APP_NAME"
     fi
-    
+
     print_status "PostgreSQL setup complete"
 }
 
 {% if cache == 'redis' -%}
 setup_redis() {
     print_status "Setting up Redis..."
-    
+
     # Check if Redis already exists
     if fly redis list | grep -q "$APP_NAME-redis"; then
         print_status "Redis already exists"
@@ -110,24 +110,24 @@ setup_redis() {
             --region "$REGION" \
             --no-replicas \
             --plan "Free"
-        
+
         # Get Redis URL and set it as secret
         REDIS_URL=$(fly redis status "$APP_NAME-redis" --json | jq -r '.url')
         fly secrets set REDIS_URL="$REDIS_URL" --app "$APP_NAME"
     fi
-    
+
     print_status "Redis setup complete"
 }
 {% endif %}
 
 set_secrets() {
     print_status "Setting up secrets..."
-    
+
     # Generate Django secret key if not provided
     if [ -z "${DJANGO_SECRET_KEY:-}" ]; then
         DJANGO_SECRET_KEY=$(python -c 'from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())')
     fi
-    
+
     # Set required secrets
     fly secrets set \
         DJANGO_SECRET_KEY="$DJANGO_SECRET_KEY" \
@@ -135,14 +135,14 @@ set_secrets() {
         DEBUG="False" \
         ALLOWED_HOSTS="$APP_NAME.fly.dev" \
         --app "$APP_NAME"
-    
+
     {% if use_sentry -%}
     # Set Sentry DSN if provided
     if [ -n "${SENTRY_DSN:-}" ]; then
         fly secrets set SENTRY_DSN="$SENTRY_DSN" --app "$APP_NAME"
     fi
     {% endif %}
-    
+
     {% if media_storage == 'aws-s3' -%}
     # Set AWS credentials if provided
     if [ -n "${AWS_ACCESS_KEY_ID:-}" ] && [ -n "${AWS_SECRET_ACCESS_KEY:-}" ]; then
@@ -154,7 +154,7 @@ set_secrets() {
             --app "$APP_NAME"
     fi
     {% endif %}
-    
+
     {% if use_stripe -%}
     # Set Stripe keys if provided
     if [ -n "${STRIPE_PUBLISHABLE_KEY:-}" ] && [ -n "${STRIPE_SECRET_KEY:-}" ]; then
@@ -162,54 +162,54 @@ set_secrets() {
             STRIPE_PUBLISHABLE_KEY="$STRIPE_PUBLISHABLE_KEY" \
             STRIPE_SECRET_KEY="$STRIPE_SECRET_KEY" \
             --app "$APP_NAME"
-        
+
         if [ -n "${STRIPE_WEBHOOK_SECRET:-}" ]; then
             fly secrets set STRIPE_WEBHOOK_SECRET="$STRIPE_WEBHOOK_SECRET" --app "$APP_NAME"
         fi
     fi
     {% endif %}
-    
+
     print_status "Secrets configured successfully"
 }
 
 deploy_app() {
     print_status "Deploying application..."
-    
+
     # Run database migrations as part of release
     print_status "Running migrations..."
-    
+
     # Deploy the app
     if [ "$ENVIRONMENT" = "production" ]; then
         fly deploy --strategy rolling --wait-timeout 300
     else
         fly deploy --wait-timeout 300
     fi
-    
+
     print_status "Deployment complete"
 }
 
 setup_autoscaling() {
     print_status "Configuring autoscaling..."
-    
+
     if [ "$ENVIRONMENT" = "production" ]; then
         fly autoscale set min=2 max=10 --app "$APP_NAME"
     else
         fly autoscale set min=1 max=3 --app "$APP_NAME"
     fi
-    
+
     print_status "Autoscaling configured"
 }
 
 setup_custom_domain() {
     if [ -n "${CUSTOM_DOMAIN:-}" ]; then
         print_status "Setting up custom domain: $CUSTOM_DOMAIN"
-        
+
         # Add certificate for custom domain
         fly certs add "$CUSTOM_DOMAIN" --app "$APP_NAME"
-        
+
         # Update allowed hosts
         fly secrets set ALLOWED_HOSTS="$APP_NAME.fly.dev,$CUSTOM_DOMAIN,www.$CUSTOM_DOMAIN" --app "$APP_NAME"
-        
+
         print_status "Custom domain configured. Please update your DNS records:"
         fly certs show "$CUSTOM_DOMAIN" --app "$APP_NAME"
     fi
@@ -222,11 +222,11 @@ show_status() {
     echo "======================================"
     echo ""
     print_status "Your app is available at: https://$APP_NAME.fly.dev"
-    
+
     if [ -n "${CUSTOM_DOMAIN:-}" ]; then
         print_status "Custom domain: https://$CUSTOM_DOMAIN"
     fi
-    
+
     echo ""
     print_status "Useful commands:"
     echo "  View logs:        fly logs --app $APP_NAME"
@@ -243,10 +243,10 @@ main() {
     echo "Region: $REGION"
     echo "======================================"
     echo ""
-    
+
     check_dependencies
     check_auth
-    
+
     if ! check_app_exists; then
         create_app
         setup_postgres
@@ -255,17 +255,17 @@ main() {
         {% endif %}
         set_secrets
     fi
-    
+
     deploy_app
-    
+
     if [ "$ENVIRONMENT" = "production" ]; then
         setup_autoscaling
     fi
-    
+
     setup_custom_domain
-    
+
     show_status
-    
+
     print_status "Deployment completed successfully!"
 }
 
