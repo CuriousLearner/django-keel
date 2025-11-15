@@ -1,37 +1,171 @@
-name: Feature request
-description: Suggest an enhancement or new option
-labels: [enhancement]
+name: Feature Request
+description: Suggest an enhancement or new feature for Django Keel
+title: "[Feature]: "
+labels: ["enhancement", "triage"]
 body:
-  - type: input
+  - type: markdown
     attributes:
-      label: Title
-      description: Brief summary of the feature
-    validations: { required: true }
-  - type: textarea
-    attributes:
-      label: Problem / use case
-      description: What problem does this solve? Why would this be useful?
-    validations: { required: true }
-  - type: textarea
-    attributes:
-      label: Proposed solution
-      description: Describe the option(s), defaults, and docs changes you envision
-      placeholder: |
-        Example:
-        - Add `api: fastapi` option
-        - Default to `api: drf` for backward compatibility
-        - Update docs with FastAPI integration details
+      value: |
+        Thanks for suggesting a feature! Please provide as much detail as possible to help us understand your request.
+
   - type: dropdown
+    id: feature-category
     attributes:
-      label: Category
-      description: Which area does this relate to?
+      label: Feature Category
+      description: Which area does this feature relate to?
       options:
-        - Core
-        - API
-        - Frontend
-        - Observability
+        - Core template structure
+        - API (DRF/GraphQL)
+        - Frontend (HTMX/Next.js)
+        - Authentication/Authorization
+        - Background tasks (Celery/Temporal)
+        - Observability (Sentry/OpenTelemetry/Prometheus)
         - Security
-        - Deploy
-        - DX (Developer Experience)
+        - SaaS features (Teams/Stripe/Feature flags)
+        - Database/Cache
+        - Deployment (K8s/ECS/Fly.io/Render/EC2)
+        - CI/CD
+        - Developer Experience (DX)
         - Documentation
+        - Testing
         - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem-description
+    attributes:
+      label: Problem / Use Case
+      description: |
+        Describe the problem you're trying to solve or the use case this feature would enable.
+        Why would this be useful? Who would benefit from it?
+      placeholder: |
+        Currently, when building [type of project], I need to [describe challenge].
+        This is a common need for [describe users/scenarios].
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposed-solution
+    attributes:
+      label: Proposed Solution
+      description: |
+        Describe the feature you'd like to see added. Be as specific as possible.
+        Consider template options, defaults, generated code, and documentation.
+      placeholder: |
+        I propose adding:
+        - New Copier prompt: `feature_x: [option1, option2, none]`
+        - Default value: `feature_x: option1`
+        - Generated files: [list files/structure]
+        - Documentation updates: [what needs to be documented]
+
+        Example configuration:
+        ```yaml
+        feature_x: option1
+        ```
+    validations:
+      required: true
+
+  - type: textarea
+    id: example-usage
+    attributes:
+      label: Example Usage
+      description: |
+        Show how developers would use this feature once implemented.
+        Include code examples, configuration, or workflow descriptions.
+      placeholder: |
+        ```python
+        # Example code showing how this would be used
+        ```
+
+        Or describe the workflow:
+        1. Developer selects `feature_x: option1` during generation
+        2. Generated project includes...
+        3. Developer can then...
+      render: markdown
+
+  - type: textarea
+    id: alternatives-considered
+    attributes:
+      label: Alternatives Considered
+      description: |
+        Have you considered any alternative solutions or workarounds?
+        What are the pros/cons compared to your proposed solution?
+      placeholder: |
+        - Alternative 1: [description] - Pros: ..., Cons: ...
+        - Alternative 2: [description] - Pros: ..., Cons: ...
+        - Current workaround: [if applicable]
+
+  - type: dropdown
+    id: project-type-applicability
+    attributes:
+      label: Applicable Project Types
+      description: Which project types would benefit from this feature?
+      multiple: true
+      options:
+        - All project types
+        - SaaS
+        - API
+        - Web App
+        - Internal Tool
+        - Custom only
+
+  - type: dropdown
+    id: breaking-change
+    attributes:
+      label: Breaking Change?
+      description: Would this feature require breaking changes to existing projects?
+      options:
+        - No (fully backward compatible)
+        - Maybe (depends on implementation)
+        - Yes (breaking change required)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority / Impact
+      description: How important is this feature to you and your use case?
+      options:
+        - Critical (Blocking my project)
+        - High (Significant productivity improvement)
+        - Medium (Nice to have)
+        - Low (Minor enhancement)
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional Context
+      description: |
+        Add any other context, screenshots, links to similar implementations,
+        or references that would help understand this feature request.
+      placeholder: |
+        - Related issues: #123, #456
+        - Similar feature in other templates: [link]
+        - Related documentation: [link]
+        - Screenshots/mockups: [attach here]
+
+  - type: checkboxes
+    id: contribution
+    attributes:
+      label: Contribution
+      description: Are you willing to help implement this feature?
+      options:
+        - label: I'd be willing to submit a PR for this feature
+        - label: I can help with documentation
+        - label: I can help with testing
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Pre-submission Checklist
+      options:
+        - label: I've searched existing issues to ensure this isn't a duplicate
+          required: true
+        - label: I've reviewed the documentation to confirm this feature doesn't exist
+          required: true
+        - label: This feature aligns with Django Keel's goals (production-ready, flexible templates)
+          required: true

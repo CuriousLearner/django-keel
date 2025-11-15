@@ -1,0 +1,121 @@
+name: Documentation Issue
+description: Report missing, incorrect, or unclear documentation
+title: "[Docs]: "
+labels: ["documentation", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve our documentation! Clear docs are essential for a great developer experience.
+
+  - type: dropdown
+    id: doc-type
+    attributes:
+      label: Documentation Type
+      description: What type of documentation issue is this?
+      options:
+        - Missing documentation
+        - Incorrect/outdated information
+        - Unclear or confusing explanation
+        - Broken links
+        - Code examples not working
+        - Typo or grammar issue
+        - Missing code examples
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: doc-location
+    attributes:
+      label: Documentation Location
+      description: Where is the documentation issue?
+      options:
+        - README.md
+        - ReadTheDocs (main documentation)
+        - Generated project docs
+        - Inline code comments
+        - Copier prompt help text
+        - CHANGELOG.md
+        - CONTRIBUTING.md
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: issue-description
+    attributes:
+      label: Issue Description
+      description: |
+        Describe the documentation problem clearly.
+        If reporting incorrect information, explain what's wrong and what's correct.
+      placeholder: |
+        The documentation states [X], but actually [Y] happens.
+        Or: The [feature] is not documented anywhere.
+    validations:
+      required: true
+
+  - type: textarea
+    id: current-content
+    attributes:
+      label: Current Documentation
+      description: |
+        If applicable, paste the current documentation that needs improvement.
+        Include the page URL or file path.
+      placeholder: |
+        File: docs/deployment/kubernetes.md
+        Section: "Database Configuration"
+
+        Current text:
+        ```
+        Paste current documentation here
+        ```
+
+  - type: textarea
+    id: suggested-improvement
+    attributes:
+      label: Suggested Improvement
+      description: |
+        What changes would you suggest? Provide specific text, examples, or structure improvements.
+      placeholder: |
+        Suggested text:
+        ```
+        Improved documentation here
+        ```
+
+        Or describe what should be added:
+        - Add section explaining [X]
+        - Include example showing [Y]
+        - Link to related documentation about [Z]
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional Context
+      description: |
+        When did you encounter this issue? What were you trying to do?
+        Was this during initial setup, deployment, or using a specific feature?
+      placeholder: |
+        I was trying to [action] and looked for documentation about [topic].
+        The current docs didn't explain [specific aspect].
+
+  - type: dropdown
+    id: audience
+    attributes:
+      label: Target Audience
+      description: Who would benefit most from this documentation improvement?
+      options:
+        - New users (getting started)
+        - Experienced Django developers
+        - DevOps/deployment engineers
+        - All users
+        - Contributors
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: contribution
+    attributes:
+      label: Contribution
+      options:
+        - label: I'd be willing to submit a PR to improve this documentation
