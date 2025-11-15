@@ -39,7 +39,7 @@ ecs/
 │   ├── ecr.tf                   # Container registry
 │   ├── monitoring.tf            # CloudWatch alarms and dashboard
 │   └── terraform.tfvars.example # Example variables file
-└── .github-workflows-ecs.yml   # GitHub Actions CI/CD
+└── ../../.github/workflows/deploy-ecs.yml   # GitHub Actions CI/CD
 ```
 
 ## Prerequisites
@@ -478,7 +478,7 @@ aws logs tail /ecs/{{ project_slug }}-{environment} --follow --filter-pattern "c
 
 ### GitHub Actions
 
-The included workflow (`.github-workflows-ecs.yml`) provides:
+The included workflow (`.github/workflows/deploy-ecs.yml`) provides:
 
 **Features:**
 - Automated testing on pull requests

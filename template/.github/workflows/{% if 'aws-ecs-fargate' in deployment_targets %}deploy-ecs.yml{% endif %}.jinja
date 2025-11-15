@@ -163,10 +163,9 @@ jobs:
           # Run migration task and capture task ARN
           TASK_ARN=$(aws ecs run-task \
             --cluster {{ project_slug }}-staging-cluster \
-            --task-definition {{ project_slug }}-staging-app \
+            --task-definition {{ project_slug }}-staging-migrate \
             --launch-type FARGATE \
             --network-configuration "awsvpcConfiguration={subnets=[{% raw %}${{ secrets.STAGING_SUBNET_IDS }}{% endraw %}],securityGroups=[{% raw %}${{ secrets.STAGING_SECURITY_GROUP_ID }}{% endraw %}],assignPublicIp=DISABLED}" \
-            --overrides '{"containerOverrides":[{"name":"{{ project_slug }}","command":["python","manage.py","migrate","--noinput"]}]}' \
             --query 'tasks[0].taskArn' \
             --output text)
 
@@ -273,10 +272,9 @@ jobs:
           # Run migration task and capture task ARN
           TASK_ARN=$(aws ecs run-task \
             --cluster {{ project_slug }}-production-cluster \
-            --task-definition {% raw %}${{ steps.task-def.outputs.task-def }}{% endraw %} \
+            --task-definition {{ project_slug }}-production-migrate \
             --launch-type FARGATE \
             --network-configuration "awsvpcConfiguration={subnets=[{% raw %}${{ secrets.PRODUCTION_SUBNET_IDS }}{% endraw %}],securityGroups=[{% raw %}${{ secrets.PRODUCTION_SECURITY_GROUP_ID }}{% endraw %}],assignPublicIp=DISABLED}" \
-            --overrides '{"containerOverrides":[{"name":"{{ project_slug }}","command":["python","manage.py","migrate","--noinput"]}]}' \
             --query 'tasks[0].taskArn' \
             --output text)
 
