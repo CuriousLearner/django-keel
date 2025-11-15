@@ -57,11 +57,11 @@ check_dependencies() {
     if ! command -v jq &> /dev/null; then
         missing_deps+=("jq")
     fi
-
+{% raw %}
     if [ ${#missing_deps[@]} -gt 0 ]; then
         print_error "Missing dependencies: ${missing_deps[*]}"
     fi
-
+{% endraw %}
     print_status "All dependencies found"
 }
 
