@@ -39,40 +39,40 @@ print_prompt() {
 # Check dependencies
 check_dependencies() {
     print_status "Checking dependencies..."
-    
+
     local missing_deps=()
-    
+
     if ! command -v aws &> /dev/null; then
         missing_deps+=("aws-cli")
     fi
-    
+
     if ! command -v terraform &> /dev/null; then
         missing_deps+=("terraform")
     fi
-    
+
     if ! command -v docker &> /dev/null; then
         missing_deps+=("docker")
     fi
-    
+
     if ! command -v jq &> /dev/null; then
         missing_deps+=("jq")
     fi
-    
+
     if [ ${#missing_deps[@]} -gt 0 ]; then
         print_error "Missing dependencies: ${missing_deps[*]}"
     fi
-    
+
     print_status "All dependencies found"
 }
 
 # Check AWS credentials
 check_aws_credentials() {
     print_status "Checking AWS credentials..."
-    
+
     if ! aws sts get-caller-identity &> /dev/null; then
         print_error "AWS credentials not configured. Run: aws configure"
     fi
-    
+
     AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
     print_status "AWS Account: $AWS_ACCOUNT_ID"
 }
@@ -80,13 +80,13 @@ check_aws_credentials() {
 # Initialize Terraform
 init_terraform() {
     print_status "Initializing Terraform..."
-    
+
     cd "$TERRAFORM_DIR"
-    
+
     # Initialize with backend config if S3 backend is used
     if grep -q "backend \"s3\"" main.tf; then
         BACKEND_BUCKET="${PROJECT_NAME}-terraform-state-${AWS_ACCOUNT_ID}"
-        
+
         # Create S3 bucket for state if it doesn't exist
         if ! aws s3api head-bucket --bucket "$BACKEND_BUCKET" 2>/dev/null; then
             print_status "Creating S3 bucket for Terraform state..."
@@ -94,18 +94,18 @@ init_terraform() {
                 --bucket "$BACKEND_BUCKET" \
                 --region "$AWS_REGION" \
                 $([ "$AWS_REGION" != "us-east-1" ] && echo "--create-bucket-configuration LocationConstraint=$AWS_REGION" || echo "")
-            
+
             # Enable versioning
             aws s3api put-bucket-versioning \
                 --bucket "$BACKEND_BUCKET" \
                 --versioning-configuration Status=Enabled
-            
+
             # Enable encryption
             aws s3api put-bucket-encryption \
                 --bucket "$BACKEND_BUCKET" \
                 --server-side-encryption-configuration '{"Rules": [{"ApplyServerSideEncryptionByDefault": {"SSEAlgorithm": "AES256"}}]}'
         fi
-        
+
         terraform init \
             -backend-config="bucket=$BACKEND_BUCKET" \
             -backend-config="key=ecs-fargate/terraform.tfstate" \
@@ -113,7 +113,7 @@ init_terraform() {
     else
         terraform init
     fi
-    
+
     cd - > /dev/null
     print_status "Terraform initialized"
 }
@@ -121,22 +121,22 @@ init_terraform() {
 # Get or create ECR repository
 get_ecr_repository() {
     print_status "Getting ECR repository..."
-    
+
     # First check if Terraform already created the repository
     ECR_REPO_NAME="${PROJECT_NAME}-${ENVIRONMENT}"
-    
+
     # Try to get repository URL from Terraform output first
     if [ -d "$TERRAFORM_DIR" ] && [ -f "$TERRAFORM_DIR/terraform.tfstate" ]; then
         cd "$TERRAFORM_DIR"
         ECR_URI=$(terraform output -raw ecr_repository_url 2>/dev/null || echo "")
         cd - > /dev/null
-        
+
         if [ -n "$ECR_URI" ]; then
             print_status "Using ECR repository from Terraform: $ECR_URI"
             return
         fi
     fi
-    
+
     # If not found in Terraform, check if it exists in AWS
     if aws ecr describe-repositories --repository-names "$ECR_REPO_NAME" --region "$AWS_REGION" &> /dev/null; then
         ECR_URI=$(aws ecr describe-repositories \
@@ -155,46 +155,46 @@ get_ecr_repository() {
 # Build Docker image
 build_docker_image() {
     print_status "Building Docker image..."
-    
+
     # Check if Dockerfile exists
     if [ ! -f "Dockerfile" ]; then
         print_error "Dockerfile not found in current directory"
     fi
-    
+
     docker build \
         --platform linux/amd64 \
         --tag "${PROJECT_NAME}:${IMAGE_TAG}" \
         --build-arg ENVIRONMENT="$ENVIRONMENT" \
         .
-    
+
     print_status "Docker image built successfully"
 }
 
 # Push to ECR
 push_to_ecr() {
     print_status "Pushing image to ECR..."
-    
+
     # Login to ECR
     aws ecr get-login-password --region "$AWS_REGION" | \
         docker login --username AWS --password-stdin "$ECR_URI"
-    
+
     # Tag image
     docker tag "${PROJECT_NAME}:${IMAGE_TAG}" "${ECR_URI}:${IMAGE_TAG}"
     docker tag "${PROJECT_NAME}:${IMAGE_TAG}" "${ECR_URI}:latest"
-    
+
     # Push image
     docker push "${ECR_URI}:${IMAGE_TAG}"
     docker push "${ECR_URI}:latest"
-    
+
     print_status "Image pushed to ECR"
 }
 
 # Generate Terraform variables
 generate_tfvars() {
     print_status "Generating Terraform variables..."
-    
+
     local tfvars_file="${TERRAFORM_DIR}/terraform.tfvars"
-    
+
     if [ -f "$tfvars_file" ]; then
         print_warning "terraform.tfvars already exists"
         print_prompt "Overwrite? (y/n):"
@@ -203,10 +203,10 @@ generate_tfvars() {
             return
         fi
     fi
-    
+
     # Generate Django secret key
     DJANGO_SECRET_KEY=$(python3 -c 'from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())')
-    
+
     cat > "$tfvars_file" << EOF
 # Terraform variables for ${PROJECT_NAME} ${ENVIRONMENT}
 # Generated on $(date)
@@ -262,7 +262,7 @@ additional_tags = {
   DeployedAt = "$(date -u +%Y-%m-%d_%H:%M:%S)"
 }
 EOF
-    
+
     chmod 600 "$tfvars_file"
     print_status "Variables file created: $tfvars_file"
     print_warning "Please review and update the variables as needed"
@@ -271,36 +271,36 @@ EOF
 # Deploy with Terraform
 deploy_terraform() {
     print_status "Deploying infrastructure with Terraform..."
-    
+
     cd "$TERRAFORM_DIR"
-    
+
     # Validate configuration
     print_status "Validating Terraform configuration..."
     terraform validate
-    
+
     # Plan deployment
     print_status "Planning deployment..."
     terraform plan -out=tfplan
-    
+
     # Show plan summary
     terraform show -no-color tfplan | grep -E "^  # |^Plan:"
-    
+
     print_prompt "Do you want to apply this plan? (yes/no):"
     read -r response
-    
+
     if [ "$response" != "yes" ]; then
         print_status "Deployment cancelled"
         rm tfplan
         return 1
     fi
-    
+
     # Apply plan
     print_status "Applying Terraform plan..."
     terraform apply tfplan
-    
+
     rm tfplan
     cd - > /dev/null
-    
+
     print_status "Infrastructure deployed successfully"
 }
 
@@ -365,25 +365,25 @@ run_migrations() {
 # Update ECS service
 update_ecs_service() {
     print_status "Updating ECS service..."
-    
+
     local cluster_name="${PROJECT_NAME}-${ENVIRONMENT}-cluster"
     local service_name="${PROJECT_NAME}-${ENVIRONMENT}-app"
-    
+
     aws ecs update-service \
         --cluster "$cluster_name" \
         --service "$service_name" \
         --force-new-deployment \
         --region "$AWS_REGION"
-    
+
     print_status "ECS service update initiated"
-    
+
     # Wait for service to stabilize
     print_status "Waiting for service to stabilize..."
     aws ecs wait services-stable \
         --cluster "$cluster_name" \
         --services "$service_name" \
         --region "$AWS_REGION"
-    
+
     print_status "Service deployed successfully"
 }
 
@@ -391,16 +391,16 @@ update_ecs_service() {
 show_deployment_info() {
     print_status "Deployment Information:"
     echo "======================================"
-    
+
     cd "$TERRAFORM_DIR"
-    
+
     # Get outputs
     local alb_url=$(terraform output -raw alb_url 2>/dev/null || echo "N/A")
     local ecr_url=$(terraform output -raw ecr_repository_url 2>/dev/null || echo "N/A")
     local log_group=$(terraform output -raw cloudwatch_log_group 2>/dev/null || echo "N/A")
-    
+
     cd - > /dev/null
-    
+
     echo "Application URL: $alb_url"
     echo "ECR Repository: $ecr_url"
     echo "CloudWatch Logs: $log_group"
@@ -415,24 +415,24 @@ show_deployment_info() {
 # Rollback deployment
 rollback() {
     print_warning "Rolling back deployment..."
-    
+
     local cluster_name="${PROJECT_NAME}-${ENVIRONMENT}-cluster"
     local service_name="${PROJECT_NAME}-${ENVIRONMENT}-app"
-    
+
     # Get previous task definition
     local prev_task_def=$(aws ecs describe-services \
         --cluster "$cluster_name" \
         --services "$service_name" \
         --query "services[0].deployments[1].taskDefinition" \
         --output text)
-    
+
     if [ "$prev_task_def" != "null" ] && [ -n "$prev_task_def" ]; then
         aws ecs update-service \
             --cluster "$cluster_name" \
             --service "$service_name" \
             --task-definition "$prev_task_def" \
             --force-new-deployment
-        
+
         print_status "Rollback initiated to: $prev_task_def"
     else
         print_error "No previous deployment found to rollback to"
@@ -466,19 +466,19 @@ full_deployment() {
     check_dependencies
     check_aws_credentials
     init_terraform
-    
+
     # Deploy infrastructure first (which creates ECR)
     if [ ! -f "${TERRAFORM_DIR}/terraform.tfvars" ]; then
         generate_tfvars
     fi
-    
+
     deploy_terraform
-    
+
     # Now build and push to the ECR created by Terraform
     get_ecr_repository
     build_docker_image
     push_to_ecr
-    
+
     # Update service with new image
     update_ecs_service
     run_migrations
@@ -490,12 +490,12 @@ destroy_infrastructure() {
     print_warning "This will destroy all infrastructure!"
     print_prompt "Type 'DESTROY' to confirm:"
     read -r confirmation
-    
+
     if [ "$confirmation" != "DESTROY" ]; then
         print_status "Destruction cancelled"
         return
     fi
-    
+
     cd "$TERRAFORM_DIR"
     terraform destroy
     cd - > /dev/null
@@ -544,10 +544,10 @@ else
     while true; do
         show_menu
         read -r option
-        
+
         case $option in
             1) full_deployment ;;
-            2) 
+            2)
                 check_dependencies
                 check_aws_credentials
                 get_ecr_repository
@@ -569,7 +569,7 @@ else
             10) exit 0 ;;
             *) print_error "Invalid option" ;;
         esac
-        
+
         echo ""
         print_prompt "Press any key to continue..."
         read -n 1 -s

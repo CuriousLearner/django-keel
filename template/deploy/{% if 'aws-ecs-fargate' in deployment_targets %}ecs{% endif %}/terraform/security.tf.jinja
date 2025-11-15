@@ -5,7 +5,7 @@ resource "aws_security_group" "app" {
   name_prefix = "${local.name_prefix}-app-"
   vpc_id      = aws_vpc.main.id
   description = "Security group for ECS tasks"
-  
+
   ingress {
     from_port       = local.container_port
     to_port         = local.container_port
@@ -13,7 +13,7 @@ resource "aws_security_group" "app" {
     security_groups = [aws_security_group.alb.id]
     description     = "HTTP from ALB"
   }
-  
+
   egress {
     from_port   = 0
     to_port     = 0
@@ -21,14 +21,14 @@ resource "aws_security_group" "app" {
     cidr_blocks = ["0.0.0.0/0"]
     description = "Allow all outbound traffic"
   }
-  
+
   tags = merge(
     local.common_tags,
     {
       Name = "${local.name_prefix}-app-sg"
     }
   )
-  
+
   lifecycle {
     create_before_destroy = true
   }
@@ -70,7 +70,7 @@ resource "aws_secretsmanager_secret" "stripe_secret_key" {
 
 resource "aws_secretsmanager_secret_version" "stripe_secret_key" {
   count = var.stripe_secret_key != "" ? 1 : 0
-  
+
   secret_id     = aws_secretsmanager_secret.stripe_secret_key[0].id
   secret_string = var.stripe_secret_key
 }
@@ -94,7 +94,7 @@ resource "aws_secretsmanager_secret" "sentry_dsn" {
 
 resource "aws_secretsmanager_secret_version" "sentry_dsn" {
   count = var.sentry_dsn != "" ? 1 : 0
-  
+
   secret_id     = aws_secretsmanager_secret.sentry_dsn[0].id
   secret_string = var.sentry_dsn
 }

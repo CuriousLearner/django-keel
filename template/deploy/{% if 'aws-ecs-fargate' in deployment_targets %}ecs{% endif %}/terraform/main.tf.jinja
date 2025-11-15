@@ -2,7 +2,7 @@
 
 terraform {
   required_version = ">= 1.0"
-  
+
   required_providers {
     aws = {
       source  = "hashicorp/aws"
@@ -13,7 +13,7 @@ terraform {
       version = "~> 3.1"
     }
   }
-  
+
   # Optional: Configure backend for state storage
   # backend "s3" {
   #   bucket = "{{ project_slug }}-terraform-state"
@@ -24,7 +24,7 @@ terraform {
 
 provider "aws" {
   region = var.aws_region
-  
+
   default_tags {
     tags = {
       Project     = var.project_name

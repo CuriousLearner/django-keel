@@ -87,19 +87,19 @@ output "deployment_instructions" {
   description = "Instructions for deploying the application"
   value = <<-EOT
     Deployment Instructions:
-    
+
     1. Build and push Docker image:
        aws ecr get-login-password --region ${var.aws_region} | docker login --username AWS --password-stdin ${aws_ecr_repository.app.repository_url}
        docker build -t ${var.project_name} .
        docker tag ${var.project_name}:latest ${aws_ecr_repository.app.repository_url}:latest
        docker push ${aws_ecr_repository.app.repository_url}:latest
-    
+
     2. Update ECS service:
        aws ecs update-service --cluster ${aws_ecs_cluster.main.name} --service ${aws_ecs_service.app.name} --force-new-deployment
-    
+
     3. Access the application:
        ${var.domain_name != "" ? "https://${var.domain_name}" : "https://${aws_lb.main.dns_name}"}
-    
+
     4. View logs:
        aws logs tail /ecs/${local.name_prefix} --follow
   EOT
