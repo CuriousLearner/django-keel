@@ -10,13 +10,6 @@ import pytest
 import yaml
 
 
-@pytest.fixture(scope="session", autouse=True)
-def configure_git():
-    """Configure git for copier post-generation tasks."""
-    subprocess.run(["git", "config", "--global", "user.email", "test@django-keel.test"], check=True)
-    subprocess.run(["git", "config", "--global", "user.name", "Django Keel Test"], check=True)
-
-
 @pytest.fixture(scope="session")
 def template_dir() -> Path:
     """Return the path to the django-keel template directory."""
