@@ -1,0 +1,339 @@
+name: Deploy to Fly.io
+
+on:
+  push:
+    branches:
+      - main
+      - production
+  pull_request:
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - production
+          - staging
+
+env:
+  FLY_API_TOKEN: {% raw %}${{ secrets.FLY_API_TOKEN }}{% endraw %}
+  PYTHON_VERSION: '{{ python_version }}'
+
+jobs:
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: {% raw %}${{ env.PYTHON_VERSION }}{% endraw %}
+
+      {% if dependency_manager == 'uv' -%}
+      - name: Install uv
+        uses: astral-sh/setup-uv@v2
+
+      - name: Install dependencies
+        run: |
+          uv sync --frozen
+
+      - name: Run tests
+        run: |
+          uv run pytest
+      {% else -%}
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+        with:
+          version: 1.7.0
+
+      - name: Install dependencies
+        run: |
+          poetry install
+
+      - name: Run tests
+        run: |
+          poetry run pytest
+      {% endif %}
+
+      - name: Run linting
+        run: |
+          {% if dependency_manager == 'uv' -%}
+          uv run ruff check .
+          {% else -%}
+          poetry run ruff check .
+          {% endif %}
+
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Fly.io CLI
+        uses: superfly/flyctl-actions/setup-flyctl@master
+
+      - name: Deploy to Staging
+        run: |
+          flyctl deploy \
+            --app {{ project_slug }}-staging \
+            --config fly.toml \
+            --build-arg ENVIRONMENT=staging \
+            --strategy rolling \
+            --wait-timeout 300
+
+      - name: Run smoke tests
+        run: |
+          # Wait for deployment to stabilize
+          sleep 30
+
+          # Check health endpoint
+          curl -f https://{{ project_slug }}-staging.fly.dev/health/ || exit 1
+
+          # Run basic smoke tests
+          flyctl ssh console --app {{ project_slug }}-staging -C "python manage.py check --deploy"
+
+      - name: Notify deployment
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const status = {% raw %}${{ job.status }}{% endraw %} === 'success' ? '✅' : '❌';
+            const message = `${status} Staging deployment {% raw %}${{ job.status }}{% endraw %}`;
+
+            github.rest.repos.createCommitStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              sha: context.sha,
+              state: {% raw %}${{ job.status }}{% endraw %},
+              description: message,
+              context: 'fly.io/staging'
+            });
+
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    if: |
+      (github.ref == 'refs/heads/production' && github.event_name == 'push') ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'production')
+
+    environment:
+      name: production
+      url: https://{{ project_slug }}.fly.dev
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Fly.io CLI
+        uses: superfly/flyctl-actions/setup-flyctl@master
+
+      - name: Backup database
+        run: |
+          # Create database backup before deployment
+          flyctl postgres backup create --app {{ project_slug }}-db
+
+      - name: Deploy to Production
+        run: |
+          flyctl deploy \
+            --app {{ project_slug }} \
+            --config fly.toml \
+            --build-arg ENVIRONMENT=production \
+            --strategy canary \
+            --wait-timeout 600
+
+      - name: Verify deployment
+        run: |
+          # Wait for deployment to stabilize
+          sleep 60
+
+          # Check health endpoint
+          curl -f https://{{ project_slug }}.fly.dev/health/ || exit 1
+
+          # Run deployment checks
+          flyctl ssh console --app {{ project_slug }} -C "python manage.py check --deploy"
+
+          # Check migrations
+          flyctl ssh console --app {{ project_slug }} -C "python manage.py showmigrations --list | grep '\[X\]'"
+
+      - name: Scale production
+        if: success()
+        run: |
+          # Ensure minimum production capacity
+          flyctl scale count 2 --app {{ project_slug }}
+
+          # Set autoscaling
+          flyctl autoscale set min=2 max=10 --app {{ project_slug }}
+
+      - name: Rollback on failure
+        if: failure()
+        run: |
+          echo "Deployment failed, initiating rollback..."
+          flyctl deploy --app {{ project_slug }} --image-label stable
+
+      {% if use_sentry -%}
+      - name: Create Sentry release
+        if: success()
+        uses: getsentry/action-release@v1
+        env:
+          SENTRY_AUTH_TOKEN: {% raw %}${{ secrets.SENTRY_AUTH_TOKEN }}{% endraw %}
+          SENTRY_ORG: {% raw %}${{ secrets.SENTRY_ORG }}{% endraw %}
+          SENTRY_PROJECT: {{ project_slug }}
+        with:
+          environment: production
+          version: {% raw %}${{ github.sha }}{% endraw %}
+      {% endif %}
+
+      - name: Notify deployment
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const status = {% raw %}${{ job.status }}{% endraw %} === 'success' ? '✅' : '❌';
+            const message = `${status} Production deployment {% raw %}${{ job.status }}{% endraw %}`;
+
+            github.rest.repos.createCommitStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              sha: context.sha,
+              state: {% raw %}${{ job.status }}{% endraw %},
+              description: message,
+              context: 'fly.io/production'
+            });
+
+  preview:
+    name: Deploy Preview
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+
+    environment:
+      name: preview-pr-{% raw %}${{ github.event.number }}{% endraw %}
+      url: https://{{ project_slug }}-pr-{% raw %}${{ github.event.number }}{% endraw %}.fly.dev
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Fly.io CLI
+        uses: superfly/flyctl-actions/setup-flyctl@master
+
+      - name: Generate preview app name
+        id: app-name
+        run: |
+          echo "name={{ project_slug }}-pr-{% raw %}${{ github.event.number }}{% endraw %}" >> $GITHUB_OUTPUT
+
+      - name: Create or update preview app
+        run: |
+          # Check if app exists
+          if flyctl apps list | grep -q "{% raw %}${{ steps.app-name.outputs.name }}{% endraw %}"; then
+            echo "Preview app exists, updating..."
+          else
+            echo "Creating new preview app..."
+            flyctl apps create {% raw %}${{ steps.app-name.outputs.name }}{% endraw %} --org personal
+
+            # Create small database for preview
+            flyctl postgres create \
+              --name {% raw %}${{ steps.app-name.outputs.name }}{% endraw %}-db \
+              --initial-cluster-size 1 \
+              --vm-size shared-cpu-1x \
+              --volume-size 1
+
+            # Attach database
+            flyctl postgres attach {% raw %}${{ steps.app-name.outputs.name }}{% endraw %}-db \
+              --app {% raw %}${{ steps.app-name.outputs.name }}{% endraw %}
+
+            # Set basic secrets
+            flyctl secrets set \
+              DJANGO_SECRET_KEY="preview-{% raw %}${{ github.event.number }}{% endraw %}-{% raw %}${{ github.sha }}{% endraw %}" \
+              DEBUG=False \
+              ALLOWED_HOSTS="{% raw %}${{ steps.app-name.outputs.name }}{% endraw %}.fly.dev" \
+              --app {% raw %}${{ steps.app-name.outputs.name }}{% endraw %}
+          fi
+
+      - name: Deploy preview
+        run: |
+          flyctl deploy \
+            --app {% raw %}${{ steps.app-name.outputs.name }}{% endraw %} \
+            --config fly.toml \
+            --build-arg ENVIRONMENT=preview \
+            --strategy immediate
+
+      - name: Comment on PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const url = 'https://{% raw %}${{ steps.app-name.outputs.name }}{% endraw %}.fly.dev';
+            const body = `### 🚀 Preview Deployment Ready!\n\n` +
+              `Your preview is available at: ${url}\n\n` +
+              `**Preview Details:**\n` +
+              `- App: {% raw %}${{ steps.app-name.outputs.name }}{% endraw %}\n` +
+              `- Commit: {% raw %}${{ github.sha }}{% endraw %}\n` +
+              `- Updated: ${new Date().toUTCString()}\n\n` +
+              `This preview will be automatically cleaned up when the PR is closed.`;
+
+            // Find existing comment
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+
+            const botComment = comments.find(comment =>
+              comment.user.type === 'Bot' &&
+              comment.body.includes('Preview Deployment Ready')
+            );
+
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: body
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: body
+              });
+            }
+
+  cleanup-preview:
+    name: Cleanup Preview
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' && github.event.action == 'closed'
+
+    steps:
+      - name: Setup Fly.io CLI
+        uses: superfly/flyctl-actions/setup-flyctl@master
+
+      - name: Delete preview app
+        run: |
+          APP_NAME="{{ project_slug }}-pr-{% raw %}${{ github.event.number }}{% endraw %}"
+
+          # Delete app
+          flyctl apps destroy $APP_NAME --yes || true
+
+          # Delete database
+          flyctl postgres destroy $APP_NAME-db --yes || true
+
+      - name: Comment on PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const body = `### 🧹 Preview Deployment Cleaned Up\n\n` +
+              `The preview deployment for this PR has been removed.`;
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: body
+            });

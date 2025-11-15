@@ -28,15 +28,70 @@ Fly.io provides:
   iwr https://fly.io/install.ps1 -useb | iex
   ```
 
+## Deployment Scripts
+
+This directory contains complete deployment automation for Fly.io:
+
+### 📁 Files
+
+- **`deploy.sh`** - Main deployment script with full automation
+- **`setup_env.sh`** - Interactive environment configuration
+- **`manage_db.sh`** - Database management utilities
+- **`health_check.py`** - Health check endpoints for monitoring
+- **`.github/workflows/deploy-flyio.yml`** - GitHub Actions CI/CD pipeline (automatically placed by template)
+- **`fly.toml`** - Fly.io application configuration (in project root)
+
 ## Quick Start
 
-### 1. Login to Fly.io
+### Option 1: Automated Deployment (Recommended)
+
+Use the deployment script for a fully automated setup:
+
+```bash
+# Make scripts executable
+chmod +x deploy/flyio/*.sh
+
+# Run deployment
+./deploy/flyio/deploy.sh
+
+# Or with custom options
+./deploy/flyio/deploy.sh --app my-app --region lhr --env production
+```
+
+The script will:
+1. Check dependencies and authentication
+2. Create the Fly.io app if needed
+3. Set up PostgreSQL database
+4. Configure Redis (if enabled)
+5. Set all required secrets
+6. Deploy the application
+7. Configure autoscaling (production only)
+8. Set up custom domain (if provided)
+
+### Option 2: Interactive Setup
+
+Use the environment setup script for guided configuration:
+
+```bash
+# Run interactive setup
+./deploy/flyio/setup_env.sh
+
+# This will guide you through:
+# - App configuration
+# - Secret generation
+# - Service credentials
+# - Custom domain setup
+```
+
+### Option 3: Manual Setup
+
+#### 1. Login to Fly.io
 
 ```bash
 fly auth login
 ```
 
-### 2. Launch Application
+#### 2. Launch Application
 
 ```bash
 # From your project directory
@@ -54,7 +109,7 @@ The `fly launch` command will:
 - Create app on Fly.io
 - Deploy your application
 
-### 3. Set Secrets
+#### 3. Set Secrets
 
 ```bash
 # Required secrets
@@ -305,9 +360,154 @@ fly deploy --process temporal_worker
 
 {% endif -%}
 
-## CI/CD
+## Database Management
 
-### GitHub Actions
+Use the database management script for maintenance tasks:
+
+```bash
+# Interactive menu
+./deploy/flyio/manage_db.sh
+
+# Direct commands
+./deploy/flyio/manage_db.sh backup          # Create backup
+./deploy/flyio/manage_db.sh restore         # Restore from backup
+./deploy/flyio/manage_db.sh migrate         # Run migrations
+./deploy/flyio/manage_db.sh status          # Check status
+./deploy/flyio/manage_db.sh shell           # Django shell
+./deploy/flyio/manage_db.sh dbshell         # Database shell
+```
+
+Features:
+- Automated backups (local and Fly.io snapshots)
+- Database restore with safety checks
+- Migration management
+- Django superuser creation
+- Data export/import (fixtures)
+- Database reset with backup
+
+## CI/CD with GitHub Actions
+
+### Setup
+
+The GitHub Actions workflow is automatically included in your project at `.github/workflows/deploy-flyio.yml` when you select Fly.io as a deployment target.
+
+1. Get your Fly.io API token:
+
+```bash
+fly auth token
+```
+
+2. Add the token to GitHub Secrets:
+   - Go to Settings → Secrets → Actions
+   - Add `FLY_API_TOKEN` with your token
+
+### Features
+
+The GitHub Actions workflow provides:
+
+- **Automated Testing**: Runs tests on pull requests
+- **Staging Deployment**: Auto-deploy to staging on merge to main
+- **Production Deployment**: Deploy to production on merge to production branch
+- **Preview Environments**: Creates preview apps for each pull request
+- **Automatic Cleanup**: Removes preview apps when PRs are closed
+- **Database Backups**: Creates backups before production deployments
+- **Rollback on Failure**: Automatic rollback if deployment fails
+- **Deployment Notifications**: Status updates on commits
+
+### Deployment Workflow
+
+```mermaid
+graph LR
+    PR[Pull Request] --> Test[Run Tests]
+    Test --> Preview[Deploy Preview]
+
+    Main[Merge to Main] --> Staging[Deploy Staging]
+
+    Prod[Merge to Production] --> Backup[Backup DB]
+    Backup --> Deploy[Deploy Production]
+    Deploy --> Scale[Auto-scale]
+```
+
+## Health Monitoring
+
+The deployment includes comprehensive health checks:
+
+### Endpoints
+
+- `/health/` - Main health check (database, cache, storage)
+- `/health/ready/` - Readiness check (migrations, workers)
+- `/health/live/` - Simple liveness check
+
+### Integration
+
+Add to your Django URLs:
+
+```python
+# config/urls.py
+from deploy.flyio.health_check import HealthCheckView, ReadinessCheckView, LivenessCheckView
+
+urlpatterns = [
+    # ... other patterns
+    path('health/', HealthCheckView.as_view(), name='health'),
+    path('health/ready/', ReadinessCheckView.as_view(), name='readiness'),
+    path('health/live/', LivenessCheckView.as_view(), name='liveness'),
+]
+```
+
+## Advanced Features
+
+### Environment Management
+
+The `setup_env.sh` script provides:
+
+- Interactive environment configuration
+- Secret generation and management
+- Environment file creation (`.env.fly`)
+- Direct application to Fly.io
+- Configuration validation
+
+```bash
+# Interactive setup
+./deploy/flyio/setup_env.sh
+
+# Direct commands
+./deploy/flyio/setup_env.sh setup    # Interactive setup
+./deploy/flyio/setup_env.sh apply    # Apply to Fly.io
+./deploy/flyio/setup_env.sh show     # Show configuration
+./deploy/flyio/setup_env.sh template # Create template
+```
+
+### Multi-Environment Setup
+
+Deploy to multiple environments:
+
+```bash
+# Staging
+./deploy/flyio/deploy.sh --app myapp-staging --env staging
+
+# Production
+./deploy/flyio/deploy.sh --app myapp --env production
+
+# Preview
+./deploy/flyio/deploy.sh --app myapp-pr-123 --env preview
+```
+
+### Custom Domains
+
+Set up custom domains with the deployment script:
+
+```bash
+./deploy/flyio/deploy.sh --custom-domain example.com
+```
+
+This will:
+1. Add SSL certificate
+2. Update ALLOWED_HOSTS
+3. Show DNS configuration
+
+## Previous Documentation
+
+### GitHub Actions (Manual)
 
 ```yaml
 name: Deploy to Fly.io

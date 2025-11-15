@@ -84,11 +84,6 @@ jobs:
           python -m pip install --upgrade pip
           pip install copier
 
-      - name: Configure git for copier
-        run: |
-          git config --global user.email "ci@django-keel.test"
-          git config --global user.name "Django Keel CI"
-
       - name: Generate ${{ matrix.project-type }} project
         run: |
           PROJECT_SLUG=$(echo "test_${{ matrix.project-type }}" | sed 's/-/_/g')
