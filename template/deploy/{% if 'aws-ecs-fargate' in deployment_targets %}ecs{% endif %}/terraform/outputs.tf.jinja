@@ -1,0 +1,106 @@
+# Terraform Outputs
+
+output "alb_url" {
+  description = "URL of the Application Load Balancer"
+  value       = "https://${aws_lb.main.dns_name}"
+}
+
+output "alb_dns_name" {
+  description = "DNS name of the Application Load Balancer"
+  value       = aws_lb.main.dns_name
+}
+
+output "ecr_repository_url" {
+  description = "URL of the ECR repository"
+  value       = aws_ecr_repository.app.repository_url
+}
+
+output "ecs_cluster_name" {
+  description = "Name of the ECS cluster"
+  value       = aws_ecs_cluster.main.name
+}
+
+output "ecs_service_name" {
+  description = "Name of the ECS service"
+  value       = aws_ecs_service.app.name
+}
+
+output "ecs_migrate_task_definition" {
+  description = "ARN of the migration task definition"
+  value       = aws_ecs_task_definition.migrate.arn
+}
+
+output "database_endpoint" {
+  description = "Database endpoint"
+  value       = local.database_endpoint
+  sensitive   = true
+}
+
+output "database_name" {
+  description = "Database name"
+  value       = local.db_name
+}
+
+output "static_bucket_name" {
+  description = "Name of the S3 bucket for static files"
+  value       = var.create_s3_buckets ? aws_s3_bucket.static[0].id : null
+}
+
+output "media_bucket_name" {
+  description = "Name of the S3 bucket for media files"
+  value       = var.create_s3_buckets ? aws_s3_bucket.media[0].id : null
+}
+
+{% if cache == 'redis' -%}
+output "redis_endpoint" {
+  description = "Redis endpoint"
+  value       = var.enable_redis ? aws_elasticache_cluster.redis[0].cache_nodes[0].address : null
+}
+
+output "redis_port" {
+  description = "Redis port"
+  value       = var.enable_redis ? aws_elasticache_cluster.redis[0].cache_nodes[0].port : null
+}
+{% endif %}
+
+output "vpc_id" {
+  description = "ID of the VPC"
+  value       = aws_vpc.main.id
+}
+
+output "private_subnet_ids" {
+  description = "IDs of the private subnets"
+  value       = aws_subnet.private[*].id
+}
+
+output "cloudwatch_log_group" {
+  description = "CloudWatch log group name"
+  value       = aws_cloudwatch_log_group.app.name
+}
+
+output "domain_nameservers" {
+  description = "Nameservers for the domain (if Route53 zone created)"
+  value       = var.create_dns_zone ? aws_route53_zone.main[0].name_servers : null
+}
+
+output "deployment_instructions" {
+  description = "Instructions for deploying the application"
+  value = <<-EOT
+    Deployment Instructions:
+
+    1. Build and push Docker image:
+       aws ecr get-login-password --region ${var.aws_region} | docker login --username AWS --password-stdin ${aws_ecr_repository.app.repository_url}
+       docker build -t ${var.project_name} .
+       docker tag ${var.project_name}:latest ${aws_ecr_repository.app.repository_url}:latest
+       docker push ${aws_ecr_repository.app.repository_url}:latest
+
+    2. Update ECS service:
+       aws ecs update-service --cluster ${aws_ecs_cluster.main.name} --service ${aws_ecs_service.app.name} --force-new-deployment
+
+    3. Access the application:
+       ${var.domain_name != "" ? "https://${var.domain_name}" : "https://${aws_lb.main.dns_name}"}
+
+    4. View logs:
+       aws logs tail /ecs/${local.name_prefix} --follow
+  EOT
+}

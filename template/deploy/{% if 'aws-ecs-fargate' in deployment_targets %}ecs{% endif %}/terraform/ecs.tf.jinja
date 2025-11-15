@@ -1,0 +1,593 @@
+# ECS Cluster and Services
+
+# Local variables for container definitions
+locals {
+  # Common environment variables for all containers
+  common_environment = [
+    {
+      name  = "DJANGO_SETTINGS_MODULE"
+      value = "config.settings.prod"
+    },
+    {
+      name  = "ALLOWED_HOSTS"
+      value = var.allowed_hosts
+    },
+    {
+      name  = "DEBUG"
+      value = tostring(var.django_debug)
+    },
+    {
+      name  = "AWS_S3_REGION_NAME"
+      value = var.aws_region
+    }
+  ]
+
+  # S3 bucket environment variables
+  s3_environment = var.create_s3_buckets ? [
+    {
+      name  = "AWS_STORAGE_BUCKET_NAME_STATIC"
+      value = aws_s3_bucket.static[0].id
+    },
+    {
+      name  = "AWS_STORAGE_BUCKET_NAME_MEDIA"
+      value = aws_s3_bucket.media[0].id
+    }
+  ] : []
+
+  # Common secrets for all containers
+  common_secrets = [
+    {
+      name      = "DATABASE_URL"
+      valueFrom = aws_secretsmanager_secret.database_url.arn
+    },
+    {
+      name      = "SECRET_KEY"
+      valueFrom = aws_secretsmanager_secret.django_secret_key.arn
+    }
+  ]
+
+  # Common log configuration
+  log_configuration = {
+    logDriver = "awslogs"
+    options = {
+      "awslogs-group"         = aws_cloudwatch_log_group.app.name
+      "awslogs-region"        = var.aws_region
+      "awslogs-stream-prefix" = "ecs"
+    }
+  }
+
+{% if cache == 'redis' -%}
+  # Redis environment variables
+  redis_environment = var.enable_redis ? [
+    {
+      name  = "REDIS_URL"
+      value = "redis://${aws_elasticache_cluster.redis[0].cache_nodes[0].address}:${aws_elasticache_cluster.redis[0].cache_nodes[0].port}/0"
+    }
+  ] : []
+{% endif %}
+}
+
+# ECS Cluster
+resource "aws_ecs_cluster" "main" {
+  name = "${local.name_prefix}-cluster"
+
+  setting {
+    name  = "containerInsights"
+    value = var.enable_monitoring ? "enabled" : "disabled"
+  }
+
+  tags = local.common_tags
+}
+
+# ECS Cluster Capacity Providers
+resource "aws_ecs_cluster_capacity_providers" "main" {
+  cluster_name = aws_ecs_cluster.main.name
+
+  capacity_providers = var.enable_spot_capacity ? ["FARGATE", "FARGATE_SPOT"] : ["FARGATE"]
+
+  default_capacity_provider_strategy {
+    capacity_provider = "FARGATE"
+    weight            = var.enable_spot_capacity ? 1 : 100
+    base              = var.enable_spot_capacity ? 2 : 0
+  }
+
+  dynamic "default_capacity_provider_strategy" {
+    for_each = var.enable_spot_capacity ? [1] : []
+    content {
+      capacity_provider = "FARGATE_SPOT"
+      weight            = 4
+    }
+  }
+}
+
+# Task Execution Role
+resource "aws_iam_role" "task_execution" {
+  name = "${local.name_prefix}-task-execution-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Principal = {
+          Service = "ecs-tasks.amazonaws.com"
+        }
+        Action = "sts:AssumeRole"
+      }
+    ]
+  })
+
+  tags = local.common_tags
+}
+
+# Attach managed policy to task execution role
+resource "aws_iam_role_policy_attachment" "task_execution" {
+  role       = aws_iam_role.task_execution.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
+}
+
+# Additional policy for Secrets Manager and Systems Manager
+resource "aws_iam_role_policy" "task_execution_secrets" {
+  name = "${local.name_prefix}-task-execution-secrets"
+  role = aws_iam_role.task_execution.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "secretsmanager:GetSecretValue",
+          "ssm:GetParameters",
+          "ssm:GetParameter"
+        ]
+        Resource = [
+          "arn:aws:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:${local.name_prefix}-*",
+          "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter/${local.name_prefix}/*"
+        ]
+      }
+    ]
+  })
+}
+
+# Task Role
+resource "aws_iam_role" "task" {
+  name = "${local.name_prefix}-task-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Principal = {
+          Service = "ecs-tasks.amazonaws.com"
+        }
+        Action = "sts:AssumeRole"
+      }
+    ]
+  })
+
+  tags = local.common_tags
+}
+
+# Task role policy for S3 access
+resource "aws_iam_role_policy" "task_s3" {
+  count = var.create_s3_buckets ? 1 : 0
+
+  name = "${local.name_prefix}-task-s3"
+  role = aws_iam_role.task.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "s3:GetObject",
+          "s3:PutObject",
+          "s3:DeleteObject",
+          "s3:ListBucket"
+        ]
+        Resource = [
+          aws_s3_bucket.static[0].arn,
+          "${aws_s3_bucket.static[0].arn}/*",
+          aws_s3_bucket.media[0].arn,
+          "${aws_s3_bucket.media[0].arn}/*"
+        ]
+      }
+    ]
+  })
+}
+
+# CloudWatch Log Group
+resource "aws_cloudwatch_log_group" "app" {
+  name              = "/ecs/${local.name_prefix}"
+  retention_in_days = var.environment == "production" ? 30 : 7
+
+  tags = local.common_tags
+}
+
+# Task Definition for Django App
+resource "aws_ecs_task_definition" "app" {
+  family                   = "${local.name_prefix}-app"
+  network_mode             = "awsvpc"
+  requires_compatibilities = ["FARGATE"]
+  cpu                      = var.container_cpu
+  memory                   = var.container_memory
+  execution_role_arn       = aws_iam_role.task_execution.arn
+  task_role_arn            = aws_iam_role.task.arn
+
+  container_definitions = jsonencode([
+    {
+      name  = local.container_name
+      image = var.container_image != "" ? var.container_image : "${aws_ecr_repository.app.repository_url}:latest"
+
+      portMappings = [
+        {
+          containerPort = local.container_port
+          protocol      = "tcp"
+        }
+      ]
+
+      environment = concat(
+        local.common_environment,
+        local.s3_environment,
+        [
+          {
+            name  = "PORT"
+            value = tostring(local.container_port)
+          }
+        ]
+      )
+
+      secrets = local.common_secrets
+
+      logConfiguration = merge(
+        local.log_configuration,
+        {
+          options = merge(
+            local.log_configuration.options,
+            {
+              "awslogs-stream-prefix" = "app"
+            }
+          )
+        }
+      )
+
+      healthCheck = {
+        command     = ["CMD-SHELL", "curl -f http://localhost:${local.container_port}/health/ || exit 1"]
+        interval    = 30
+        timeout     = 5
+        retries     = 3
+        startPeriod = 60
+      }
+
+      essential = true
+    }
+  ])
+
+  tags = local.common_tags
+}
+
+# ECS Service
+resource "aws_ecs_service" "app" {
+  name            = "${local.name_prefix}-app"
+  cluster         = aws_ecs_cluster.main.id
+  task_definition = aws_ecs_task_definition.app.arn
+  desired_count   = var.desired_count
+  launch_type     = var.enable_spot_capacity ? null : "FARGATE"
+
+  dynamic "capacity_provider_strategy" {
+    for_each = var.enable_spot_capacity ? [1] : []
+    content {
+      capacity_provider = "FARGATE"
+      weight            = 1
+      base              = 2
+    }
+  }
+
+  dynamic "capacity_provider_strategy" {
+    for_each = var.enable_spot_capacity ? [1] : []
+    content {
+      capacity_provider = "FARGATE_SPOT"
+      weight            = 4
+    }
+  }
+
+  network_configuration {
+    subnets          = aws_subnet.private[*].id
+    security_groups  = [aws_security_group.app.id]
+    assign_public_ip = false
+  }
+
+  load_balancer {
+    target_group_arn = aws_lb_target_group.app.arn
+    container_name   = local.container_name
+    container_port   = local.container_port
+  }
+
+  health_check_grace_period_seconds = 120
+
+  deployment_controller {
+    type = "ECS"
+  }
+
+  deployment_circuit_breaker {
+    enable   = true
+    rollback = true
+  }
+
+  depends_on = [
+    aws_lb_listener.http,
+    aws_iam_role_policy.task_execution_secrets
+  ]
+
+  tags = local.common_tags
+
+  lifecycle {
+    ignore_changes = [desired_count]
+  }
+}
+
+{% if use_celery -%}
+# Task Definition for Celery Worker
+resource "aws_ecs_task_definition" "celery_worker" {
+  count = var.enable_celery ? 1 : 0
+
+  family                   = "${local.name_prefix}-celery-worker"
+  network_mode             = "awsvpc"
+  requires_compatibilities = ["FARGATE"]
+  cpu                      = var.container_cpu
+  memory                   = var.container_memory
+  execution_role_arn       = aws_iam_role.task_execution.arn
+  task_role_arn            = aws_iam_role.task.arn
+
+  container_definitions = jsonencode([
+    {
+      name  = "celery-worker"
+      image = var.container_image != "" ? var.container_image : "${aws_ecr_repository.app.repository_url}:latest"
+
+      command = ["celery", "-A", "config", "worker", "-l", "info"]
+
+      environment = concat(
+        local.common_environment,
+        local.s3_environment,
+{% if cache == 'redis' -%}
+        local.redis_environment,
+{% endif -%}
+        [
+          {
+            name  = "C_FORCE_ROOT"
+            value = "true"
+          }
+        ]
+      )
+
+      secrets = local.common_secrets
+
+      logConfiguration = merge(
+        local.log_configuration,
+        {
+          options = merge(
+            local.log_configuration.options,
+            {
+              "awslogs-stream-prefix" = "celery-worker"
+            }
+          )
+        }
+      )
+
+      essential = true
+    }
+  ])
+
+  tags = local.common_tags
+}
+
+# ECS Service for Celery Worker
+resource "aws_ecs_service" "celery_worker" {
+  count = var.enable_celery ? 1 : 0
+
+  name            = "${local.name_prefix}-celery-worker"
+  cluster         = aws_ecs_cluster.main.id
+  task_definition = aws_ecs_task_definition.celery_worker[0].arn
+  desired_count   = var.celery_worker_count
+  launch_type     = "FARGATE"
+
+  network_configuration {
+    subnets          = aws_subnet.private[*].id
+    security_groups  = [aws_security_group.app.id]
+    assign_public_ip = false
+  }
+
+  deployment_controller {
+    type = "ECS"
+  }
+
+  tags = local.common_tags
+}
+
+# Task Definition for Celery Beat
+resource "aws_ecs_task_definition" "celery_beat" {
+  count = var.enable_celery ? 1 : 0
+
+  family                   = "${local.name_prefix}-celery-beat"
+  network_mode             = "awsvpc"
+  requires_compatibilities = ["FARGATE"]
+  cpu                      = 256
+  memory                   = 512
+  execution_role_arn       = aws_iam_role.task_execution.arn
+  task_role_arn            = aws_iam_role.task.arn
+
+  container_definitions = jsonencode([
+    {
+      name  = "celery-beat"
+      image = var.container_image != "" ? var.container_image : "${aws_ecr_repository.app.repository_url}:latest"
+
+      command = ["celery", "-A", "config", "beat", "-l", "info"]
+
+      environment = concat(
+        local.common_environment,
+        local.s3_environment,
+{% if cache == 'redis' -%}
+        local.redis_environment,
+{% endif -%}
+        [
+          {
+            name  = "C_FORCE_ROOT"
+            value = "true"
+          }
+        ]
+      )
+
+      secrets = local.common_secrets
+
+      logConfiguration = merge(
+        local.log_configuration,
+        {
+          options = merge(
+            local.log_configuration.options,
+            {
+              "awslogs-stream-prefix" = "celery-beat"
+            }
+          )
+        }
+      )
+
+      essential = true
+    }
+  ])
+
+  tags = local.common_tags
+}
+
+# ECS Service for Celery Beat
+resource "aws_ecs_service" "celery_beat" {
+  count = var.enable_celery ? 1 : 0
+
+  name            = "${local.name_prefix}-celery-beat"
+  cluster         = aws_ecs_cluster.main.id
+  task_definition = aws_ecs_task_definition.celery_beat[0].arn
+  desired_count   = 1  # Only one beat scheduler should run
+  launch_type     = "FARGATE"
+
+  network_configuration {
+    subnets          = aws_subnet.private[*].id
+    security_groups  = [aws_security_group.app.id]
+    assign_public_ip = false
+  }
+
+  deployment_controller {
+    type = "ECS"
+  }
+
+  tags = local.common_tags
+}
+{% endif %}
+
+# Task Definition for Database Migrations
+resource "aws_ecs_task_definition" "migrate" {
+  family                   = "${local.name_prefix}-migrate"
+  network_mode             = "awsvpc"
+  requires_compatibilities = ["FARGATE"]
+  cpu                      = 256
+  memory                   = 512
+  execution_role_arn       = aws_iam_role.task_execution.arn
+  task_role_arn            = aws_iam_role.task.arn
+
+  container_definitions = jsonencode([
+    {
+      name  = "migrate"
+      image = var.container_image != "" ? var.container_image : "${aws_ecr_repository.app.repository_url}:latest"
+
+      command = ["python", "manage.py", "migrate", "--noinput"]
+
+      environment = concat(
+        local.common_environment,
+        local.s3_environment
+      )
+
+      secrets = local.common_secrets
+
+      logConfiguration = merge(
+        local.log_configuration,
+        {
+          options = merge(
+            local.log_configuration.options,
+            {
+              "awslogs-stream-prefix" = "migrate"
+            }
+          )
+        }
+      )
+
+      essential = true
+    }
+  ])
+
+  tags = local.common_tags
+}
+
+# Auto-scaling for ECS Service
+resource "aws_appautoscaling_target" "app" {
+  max_capacity       = var.max_capacity
+  min_capacity       = var.min_capacity
+  resource_id        = "service/${aws_ecs_cluster.main.name}/${aws_ecs_service.app.name}"
+  scalable_dimension = "ecs:service:DesiredCount"
+  service_namespace  = "ecs"
+}
+
+# Auto-scaling policy - Target Tracking on CPU
+resource "aws_appautoscaling_policy" "app_cpu" {
+  name               = "${local.name_prefix}-cpu-autoscaling"
+  policy_type        = "TargetTrackingScaling"
+  resource_id        = aws_appautoscaling_target.app.resource_id
+  scalable_dimension = aws_appautoscaling_target.app.scalable_dimension
+  service_namespace  = aws_appautoscaling_target.app.service_namespace
+
+  target_tracking_scaling_policy_configuration {
+    predefined_metric_specification {
+      predefined_metric_type = "ECSServiceAverageCPUUtilization"
+    }
+    target_value       = 70.0
+    scale_in_cooldown  = 300
+    scale_out_cooldown = 60
+  }
+}
+
+# Auto-scaling policy - Target Tracking on Memory
+resource "aws_appautoscaling_policy" "app_memory" {
+  name               = "${local.name_prefix}-memory-autoscaling"
+  policy_type        = "TargetTrackingScaling"
+  resource_id        = aws_appautoscaling_target.app.resource_id
+  scalable_dimension = aws_appautoscaling_target.app.scalable_dimension
+  service_namespace  = aws_appautoscaling_target.app.service_namespace
+
+  target_tracking_scaling_policy_configuration {
+    predefined_metric_specification {
+      predefined_metric_type = "ECSServiceAverageMemoryUtilization"
+    }
+    target_value       = 80.0
+    scale_in_cooldown  = 300
+    scale_out_cooldown = 60
+  }
+}
+
+# Auto-scaling policy - Target Tracking on ALB Request Count
+resource "aws_appautoscaling_policy" "app_requests" {
+  name               = "${local.name_prefix}-requests-autoscaling"
+  policy_type        = "TargetTrackingScaling"
+  resource_id        = aws_appautoscaling_target.app.resource_id
+  scalable_dimension = aws_appautoscaling_target.app.scalable_dimension
+  service_namespace  = aws_appautoscaling_target.app.service_namespace
+
+  target_tracking_scaling_policy_configuration {
+    predefined_metric_specification {
+      predefined_metric_type = "ALBRequestCountPerTarget"
+      resource_label         = "${aws_lb.main.arn_suffix}/${aws_lb_target_group.app.arn_suffix}"
+    }
+    target_value       = 1000.0
+    scale_in_cooldown  = 300
+    scale_out_cooldown = 60
+  }
+}

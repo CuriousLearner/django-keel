@@ -1,0 +1,320 @@
+# CloudWatch Alarms and Monitoring
+
+# SNS Topic for CloudWatch Alarms
+resource "aws_sns_topic" "alarms" {
+  count = var.enable_monitoring && var.alarm_email != "" ? 1 : 0
+
+  name = "${local.name_prefix}-alarms"
+
+  tags = local.common_tags
+}
+
+# SNS Topic Subscription
+resource "aws_sns_topic_subscription" "alarms_email" {
+  count = var.enable_monitoring && var.alarm_email != "" ? 1 : 0
+
+  topic_arn = aws_sns_topic.alarms[0].arn
+  protocol  = "email"
+  endpoint  = var.alarm_email
+}
+
+# ECS Service CPU Utilization Alarm
+resource "aws_cloudwatch_metric_alarm" "ecs_cpu_high" {
+  count = var.enable_monitoring ? 1 : 0
+
+  alarm_name          = "${local.name_prefix}-ecs-cpu-high"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 2
+  metric_name         = "CPUUtilization"
+  namespace           = "AWS/ECS"
+  period              = 300
+  statistic           = "Average"
+  threshold           = 80
+  alarm_description   = "ECS service CPU utilization is above 80%"
+  treat_missing_data  = "notBreaching"
+
+  dimensions = {
+    ClusterName = aws_ecs_cluster.main.name
+    ServiceName = aws_ecs_service.app.name
+  }
+
+  alarm_actions = var.alarm_email != "" ? [aws_sns_topic.alarms[0].arn] : []
+
+  tags = local.common_tags
+}
+
+# ECS Service Memory Utilization Alarm
+resource "aws_cloudwatch_metric_alarm" "ecs_memory_high" {
+  count = var.enable_monitoring ? 1 : 0
+
+  alarm_name          = "${local.name_prefix}-ecs-memory-high"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 2
+  metric_name         = "MemoryUtilization"
+  namespace           = "AWS/ECS"
+  period              = 300
+  statistic           = "Average"
+  threshold           = 85
+  alarm_description   = "ECS service memory utilization is above 85%"
+  treat_missing_data  = "notBreaching"
+
+  dimensions = {
+    ClusterName = aws_ecs_cluster.main.name
+    ServiceName = aws_ecs_service.app.name
+  }
+
+  alarm_actions = var.alarm_email != "" ? [aws_sns_topic.alarms[0].arn] : []
+
+  tags = local.common_tags
+}
+
+# ALB Target Health Alarm
+resource "aws_cloudwatch_metric_alarm" "alb_unhealthy_targets" {
+  count = var.enable_monitoring ? 1 : 0
+
+  alarm_name          = "${local.name_prefix}-alb-unhealthy-targets"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 2
+  metric_name         = "UnHealthyHostCount"
+  namespace           = "AWS/ApplicationELB"
+  period              = 60
+  statistic           = "Average"
+  threshold           = 0
+  alarm_description   = "ALB has unhealthy targets"
+  treat_missing_data  = "notBreaching"
+
+  dimensions = {
+    LoadBalancer = aws_lb.main.arn_suffix
+    TargetGroup  = aws_lb_target_group.app.arn_suffix
+  }
+
+  alarm_actions = var.alarm_email != "" ? [aws_sns_topic.alarms[0].arn] : []
+
+  tags = local.common_tags
+}
+
+# ALB 5XX Errors Alarm
+resource "aws_cloudwatch_metric_alarm" "alb_5xx_errors" {
+  count = var.enable_monitoring ? 1 : 0
+
+  alarm_name          = "${local.name_prefix}-alb-5xx-errors"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 2
+  metric_name         = "HTTPCode_Target_5XX_Count"
+  namespace           = "AWS/ApplicationELB"
+  period              = 300
+  statistic           = "Sum"
+  threshold           = 10
+  alarm_description   = "ALB is receiving too many 5XX errors from targets"
+  treat_missing_data  = "notBreaching"
+
+  dimensions = {
+    LoadBalancer = aws_lb.main.arn_suffix
+    TargetGroup  = aws_lb_target_group.app.arn_suffix
+  }
+
+  alarm_actions = var.alarm_email != "" ? [aws_sns_topic.alarms[0].arn] : []
+
+  tags = local.common_tags
+}
+
+# ALB Response Time Alarm
+resource "aws_cloudwatch_metric_alarm" "alb_response_time" {
+  count = var.enable_monitoring ? 1 : 0
+
+  alarm_name          = "${local.name_prefix}-alb-response-time-high"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 2
+  metric_name         = "TargetResponseTime"
+  namespace           = "AWS/ApplicationELB"
+  period              = 300
+  statistic           = "Average"
+  threshold           = 2
+  alarm_description   = "ALB target response time is above 2 seconds"
+  treat_missing_data  = "notBreaching"
+
+  dimensions = {
+    LoadBalancer = aws_lb.main.arn_suffix
+  }
+
+  alarm_actions = var.alarm_email != "" ? [aws_sns_topic.alarms[0].arn] : []
+
+  tags = local.common_tags
+}
+
+# RDS CPU Utilization Alarm
+resource "aws_cloudwatch_metric_alarm" "rds_cpu_high" {
+  count = var.enable_monitoring && !var.use_aurora_serverless ? 1 : 0
+
+  alarm_name          = "${local.name_prefix}-rds-cpu-high"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 2
+  metric_name         = "CPUUtilization"
+  namespace           = "AWS/RDS"
+  period              = 300
+  statistic           = "Average"
+  threshold           = 80
+  alarm_description   = "RDS CPU utilization is above 80%"
+  treat_missing_data  = "notBreaching"
+
+  dimensions = {
+    DBInstanceIdentifier = aws_db_instance.postgres[0].id
+  }
+
+  alarm_actions = var.alarm_email != "" ? [aws_sns_topic.alarms[0].arn] : []
+
+  tags = local.common_tags
+}
+
+# RDS Free Storage Space Alarm
+resource "aws_cloudwatch_metric_alarm" "rds_free_storage_low" {
+  count = var.enable_monitoring && !var.use_aurora_serverless ? 1 : 0
+
+  alarm_name          = "${local.name_prefix}-rds-storage-low"
+  comparison_operator = "LessThanThreshold"
+  evaluation_periods  = 1
+  metric_name         = "FreeStorageSpace"
+  namespace           = "AWS/RDS"
+  period              = 300
+  statistic           = "Average"
+  threshold           = 5000000000  # 5 GB in bytes
+  alarm_description   = "RDS free storage space is below 5GB"
+  treat_missing_data  = "notBreaching"
+
+  dimensions = {
+    DBInstanceIdentifier = aws_db_instance.postgres[0].id
+  }
+
+  alarm_actions = var.alarm_email != "" ? [aws_sns_topic.alarms[0].arn] : []
+
+  tags = local.common_tags
+}
+
+# RDS Connection Count Alarm
+resource "aws_cloudwatch_metric_alarm" "rds_connection_count_high" {
+  count = var.enable_monitoring && !var.use_aurora_serverless ? 1 : 0
+
+  alarm_name          = "${local.name_prefix}-rds-connections-high"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 2
+  metric_name         = "DatabaseConnections"
+  namespace           = "AWS/RDS"
+  period              = 300
+  statistic           = "Average"
+  threshold           = 80
+  alarm_description   = "RDS database connections are high"
+  treat_missing_data  = "notBreaching"
+
+  dimensions = {
+    DBInstanceIdentifier = aws_db_instance.postgres[0].id
+  }
+
+  alarm_actions = var.alarm_email != "" ? [aws_sns_topic.alarms[0].arn] : []
+
+  tags = local.common_tags
+}
+
+{% if cache == 'redis' -%}
+# Redis CPU Utilization Alarm
+resource "aws_cloudwatch_metric_alarm" "redis_cpu_high" {
+  count = var.enable_monitoring && var.enable_redis ? 1 : 0
+
+  alarm_name          = "${local.name_prefix}-redis-cpu-high"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 2
+  metric_name         = "CPUUtilization"
+  namespace           = "AWS/ElastiCache"
+  period              = 300
+  statistic           = "Average"
+  threshold           = 75
+  alarm_description   = "Redis CPU utilization is above 75%"
+  treat_missing_data  = "notBreaching"
+
+  dimensions = {
+    CacheClusterId = aws_elasticache_cluster.redis[0].id
+  }
+
+  alarm_actions = var.alarm_email != "" ? [aws_sns_topic.alarms[0].arn] : []
+
+  tags = local.common_tags
+}
+
+# Redis Memory Utilization Alarm
+resource "aws_cloudwatch_metric_alarm" "redis_memory_high" {
+  count = var.enable_monitoring && var.enable_redis ? 1 : 0
+
+  alarm_name          = "${local.name_prefix}-redis-memory-high"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 2
+  metric_name         = "DatabaseMemoryUsagePercentage"
+  namespace           = "AWS/ElastiCache"
+  period              = 300
+  statistic           = "Average"
+  threshold           = 80
+  alarm_description   = "Redis memory utilization is above 80%"
+  treat_missing_data  = "notBreaching"
+
+  dimensions = {
+    CacheClusterId = aws_elasticache_cluster.redis[0].id
+  }
+
+  alarm_actions = var.alarm_email != "" ? [aws_sns_topic.alarms[0].arn] : []
+
+  tags = local.common_tags
+}
+{% endif %}
+
+# CloudWatch Dashboard
+resource "aws_cloudwatch_dashboard" "main" {
+  count = var.enable_monitoring ? 1 : 0
+
+  dashboard_name = "${local.name_prefix}-dashboard"
+
+  dashboard_body = jsonencode({
+    widgets = [
+      {
+        type = "metric"
+        properties = {
+          metrics = [
+            ["AWS/ECS", "CPUUtilization", { stat = "Average", period = 300, label = "CPU" }],
+            [".", "MemoryUtilization", { stat = "Average", period = 300, label = "Memory" }]
+          ]
+          view    = "timeSeries"
+          stacked = false
+          region  = var.aws_region
+          title   = "ECS Service Metrics"
+          period  = 300
+        }
+      },
+      {
+        type = "metric"
+        properties = {
+          metrics = [
+            ["AWS/ApplicationELB", "RequestCount", { stat = "Sum", period = 300, label = "Requests" }],
+            [".", "HTTPCode_Target_5XX_Count", { stat = "Sum", period = 300, label = "5XX Errors" }],
+            [".", "TargetResponseTime", { stat = "Average", period = 300, label = "Response Time" }]
+          ]
+          view    = "timeSeries"
+          stacked = false
+          region  = var.aws_region
+          title   = "ALB Metrics"
+          period  = 300
+        }
+      },
+      {
+        type = "metric"
+        properties = {
+          metrics = [
+            ["AWS/RDS", "CPUUtilization", { stat = "Average", period = 300, label = "CPU" }],
+            [".", "DatabaseConnections", { stat = "Average", period = 300, label = "Connections" }]
+          ]
+          view    = "timeSeries"
+          stacked = false
+          region  = var.aws_region
+          title   = "Database Metrics"
+          period  = 300
+        }
+      }
+    ]
+  })
+}

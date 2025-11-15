@@ -1,0 +1,258 @@
+# VPC and networking configuration
+
+# VPC
+resource "aws_vpc" "main" {
+  cidr_block           = "10.0.0.0/16"
+  enable_dns_hostnames = true
+  enable_dns_support   = true
+
+  tags = merge(
+    local.common_tags,
+    {
+      Name = "${local.name_prefix}-vpc"
+    }
+  )
+}
+
+# Internet Gateway
+resource "aws_internet_gateway" "main" {
+  vpc_id = aws_vpc.main.id
+
+  tags = merge(
+    local.common_tags,
+    {
+      Name = "${local.name_prefix}-igw"
+    }
+  )
+}
+
+# Public Subnets
+resource "aws_subnet" "public" {
+  count = length(local.azs)
+
+  vpc_id                  = aws_vpc.main.id
+  cidr_block              = "10.0.${count.index + 1}.0/24"
+  availability_zone       = local.azs[count.index]
+  map_public_ip_on_launch = true
+
+  tags = merge(
+    local.common_tags,
+    {
+      Name = "${local.name_prefix}-public-${local.azs[count.index]}"
+      Type = "Public"
+    }
+  )
+}
+
+# Private Subnets for application
+resource "aws_subnet" "private" {
+  count = length(local.azs)
+
+  vpc_id            = aws_vpc.main.id
+  cidr_block        = "10.0.${count.index + 10}.0/24"
+  availability_zone = local.azs[count.index]
+
+  tags = merge(
+    local.common_tags,
+    {
+      Name = "${local.name_prefix}-private-${local.azs[count.index]}"
+      Type = "Private"
+    }
+  )
+}
+
+# Private Subnets for database
+resource "aws_subnet" "database" {
+  count = length(local.azs)
+
+  vpc_id            = aws_vpc.main.id
+  cidr_block        = "10.0.${count.index + 20}.0/24"
+  availability_zone = local.azs[count.index]
+
+  tags = merge(
+    local.common_tags,
+    {
+      Name = "${local.name_prefix}-database-${local.azs[count.index]}"
+      Type = "Database"
+    }
+  )
+}
+
+# Elastic IPs for NAT Gateways
+resource "aws_eip" "nat" {
+  count  = local.nat_gateway_count
+  domain = "vpc"
+
+  tags = merge(
+    local.common_tags,
+    {
+      Name = "${local.name_prefix}-nat-eip-${count.index + 1}"
+    }
+  )
+
+  depends_on = [aws_internet_gateway.main]
+}
+
+# NAT Gateways
+resource "aws_nat_gateway" "main" {
+  count = local.nat_gateway_count
+
+  subnet_id     = aws_subnet.public[count.index].id
+  allocation_id = aws_eip.nat[count.index].id
+
+  tags = merge(
+    local.common_tags,
+    {
+      Name = "${local.name_prefix}-nat-${count.index + 1}"
+    }
+  )
+
+  depends_on = [aws_internet_gateway.main]
+}
+
+# Route table for public subnets
+resource "aws_route_table" "public" {
+  vpc_id = aws_vpc.main.id
+
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = aws_internet_gateway.main.id
+  }
+
+  tags = merge(
+    local.common_tags,
+    {
+      Name = "${local.name_prefix}-public-rt"
+    }
+  )
+}
+
+# Route tables for private subnets
+resource "aws_route_table" "private" {
+  count  = local.nat_gateway_count
+  vpc_id = aws_vpc.main.id
+
+  route {
+    cidr_block     = "0.0.0.0/0"
+    nat_gateway_id = aws_nat_gateway.main[count.index].id
+  }
+
+  tags = merge(
+    local.common_tags,
+    {
+      Name = "${local.name_prefix}-private-rt-${count.index + 1}"
+    }
+  )
+}
+
+# Route table for database subnets (no internet access)
+resource "aws_route_table" "database" {
+  vpc_id = aws_vpc.main.id
+
+  tags = merge(
+    local.common_tags,
+    {
+      Name = "${local.name_prefix}-database-rt"
+    }
+  )
+}
+
+# Route table associations for public subnets
+resource "aws_route_table_association" "public" {
+  count = length(local.azs)
+
+  subnet_id      = aws_subnet.public[count.index].id
+  route_table_id = aws_route_table.public.id
+}
+
+# Route table associations for private subnets
+resource "aws_route_table_association" "private" {
+  count = length(local.azs)
+
+  subnet_id      = aws_subnet.private[count.index].id
+  route_table_id = aws_route_table.private[min(count.index, local.nat_gateway_count - 1)].id
+}
+
+# Route table associations for database subnets
+resource "aws_route_table_association" "database" {
+  count = length(local.azs)
+
+  subnet_id      = aws_subnet.database[count.index].id
+  route_table_id = aws_route_table.database.id
+}
+
+# VPC Endpoints for AWS services (cost optimization)
+resource "aws_vpc_endpoint" "s3" {
+  vpc_id       = aws_vpc.main.id
+  service_name = "com.amazonaws.${var.aws_region}.s3"
+
+  tags = merge(
+    local.common_tags,
+    {
+      Name = "${local.name_prefix}-s3-endpoint"
+    }
+  )
+}
+
+resource "aws_vpc_endpoint" "ecr_dkr" {
+  vpc_id              = aws_vpc.main.id
+  service_name        = "com.amazonaws.${var.aws_region}.ecr.dkr"
+  vpc_endpoint_type   = "Interface"
+  subnet_ids          = aws_subnet.private[*].id
+  security_group_ids  = [aws_security_group.vpc_endpoints.id]
+  private_dns_enabled = true
+
+  tags = merge(
+    local.common_tags,
+    {
+      Name = "${local.name_prefix}-ecr-dkr-endpoint"
+    }
+  )
+}
+
+resource "aws_vpc_endpoint" "ecr_api" {
+  vpc_id              = aws_vpc.main.id
+  service_name        = "com.amazonaws.${var.aws_region}.ecr.api"
+  vpc_endpoint_type   = "Interface"
+  subnet_ids          = aws_subnet.private[*].id
+  security_group_ids  = [aws_security_group.vpc_endpoints.id]
+  private_dns_enabled = true
+
+  tags = merge(
+    local.common_tags,
+    {
+      Name = "${local.name_prefix}-ecr-api-endpoint"
+    }
+  )
+}
+
+# Security group for VPC endpoints
+resource "aws_security_group" "vpc_endpoints" {
+  name_prefix = "${local.name_prefix}-vpc-endpoints-"
+  vpc_id      = aws_vpc.main.id
+
+  ingress {
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = [aws_vpc.main.cidr_block]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = merge(
+    local.common_tags,
+    {
+      Name = "${local.name_prefix}-vpc-endpoints-sg"
+    }
+  )
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}

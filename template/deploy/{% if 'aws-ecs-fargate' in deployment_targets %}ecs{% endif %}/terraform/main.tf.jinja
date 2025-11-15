@@ -1,0 +1,76 @@
+# Main Terraform configuration for {{ project_name }} ECS Fargate deployment
+
+terraform {
+  required_version = ">= 1.0"
+
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"
+    }
+    random = {
+      source  = "hashicorp/random"
+      version = "~> 3.1"
+    }
+  }
+
+  # Optional: Configure backend for state storage
+  # backend "s3" {
+  #   bucket = "{{ project_slug }}-terraform-state"
+  #   key    = "ecs-fargate/terraform.tfstate"
+  #   region = "us-east-1"
+  # }
+}
+
+provider "aws" {
+  region = var.aws_region
+
+  default_tags {
+    tags = {
+      Project     = var.project_name
+      Environment = var.environment
+      ManagedBy   = "Terraform"
+    }
+  }
+}
+
+# Data sources
+data "aws_availability_zones" "available" {
+  state = "available"
+}
+
+data "aws_caller_identity" "current" {}
+
+# Generate random suffix for unique resource names
+resource "random_id" "suffix" {
+  byte_length = 4
+}
+
+# Local variables
+locals {
+  name_prefix = "${var.project_name}-${var.environment}"
+
+  # Common tags
+  common_tags = {
+    Project     = var.project_name
+    Environment = var.environment
+    ManagedBy   = "Terraform"
+    CreatedAt   = timestamp()
+  }
+
+  # Container configuration
+  container_name = var.project_name
+  container_port = 8000
+
+  # Database configuration
+  db_name     = replace(var.project_name, "-", "_")
+  db_username = "postgres"
+
+  # Availability zones
+  azs = slice(data.aws_availability_zones.available.names, 0, var.az_count)
+
+  # NAT Gateway configuration
+  # Production: one NAT gateway per AZ for high availability
+  # Non-production: single NAT gateway to save costs
+  nat_gateway_count = var.environment == "production" ? length(local.azs) : 1
+}

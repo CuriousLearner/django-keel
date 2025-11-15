@@ -1,0 +1,201 @@
+# Database Configuration (RDS PostgreSQL or Aurora Serverless)
+
+# Security Group for Database
+resource "aws_security_group" "database" {
+  name_prefix = "${local.name_prefix}-db-"
+  vpc_id      = aws_vpc.main.id
+  description = "Security group for RDS database"
+
+  ingress {
+    from_port       = 5432
+    to_port         = 5432
+    protocol        = "tcp"
+    security_groups = [aws_security_group.app.id]
+    description     = "PostgreSQL from app"
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+    description = "Allow all outbound traffic"
+  }
+
+  tags = merge(
+    local.common_tags,
+    {
+      Name = "${local.name_prefix}-db-sg"
+    }
+  )
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+# DB Subnet Group
+resource "aws_db_subnet_group" "main" {
+  name       = "${local.name_prefix}-db-subnet-group"
+  subnet_ids = aws_subnet.database[*].id
+
+  tags = merge(
+    local.common_tags,
+    {
+      Name = "${local.name_prefix}-db-subnet-group"
+    }
+  )
+}
+
+# Random password for database
+resource "random_password" "database" {
+  length  = 32
+  special = true
+  override_special = "!#$%&*()-_=+[]{}<>:?"
+}
+
+# Option 1: RDS PostgreSQL
+resource "aws_db_instance" "postgres" {
+  count = !var.use_aurora_serverless ? 1 : 0
+
+  identifier     = "${local.name_prefix}-postgres"
+  engine         = "postgres"
+  engine_version = "15.4"
+
+  instance_class    = var.db_instance_class
+  allocated_storage = var.db_allocated_storage
+  storage_type      = "gp3"
+  storage_encrypted = true
+
+  db_name  = local.db_name
+  username = local.db_username
+  password = random_password.database.result
+
+  vpc_security_group_ids = [aws_security_group.database.id]
+  db_subnet_group_name   = aws_db_subnet_group.main.name
+
+  backup_retention_period = var.db_backup_retention_period
+  backup_window          = "03:00-04:00"
+  maintenance_window     = "sun:04:00-sun:05:00"
+
+  deletion_protection       = var.db_deletion_protection
+  skip_final_snapshot       = var.environment != "production"
+  final_snapshot_identifier = var.environment == "production" ? "${local.name_prefix}-rds-final-snapshot" : null
+
+  auto_minor_version_upgrade = true
+
+  performance_insights_enabled = var.environment == "production"
+  performance_insights_retention_period = var.environment == "production" ? 7 : null
+
+  enabled_cloudwatch_logs_exports = ["postgresql"]
+
+  tags = merge(
+    local.common_tags,
+    {
+      Name = "${local.name_prefix}-postgres"
+    }
+  )
+}
+
+# Option 2: Aurora Serverless v2
+resource "aws_rds_cluster" "aurora" {
+  count = var.use_aurora_serverless ? 1 : 0
+
+  cluster_identifier = "${local.name_prefix}-aurora"
+  engine             = "aurora-postgresql"
+  engine_mode        = "provisioned"
+  engine_version     = "15.3"
+
+  database_name   = local.db_name
+  master_username = local.db_username
+  master_password = random_password.database.result
+
+  vpc_security_group_ids = [aws_security_group.database.id]
+  db_subnet_group_name   = aws_db_subnet_group.main.name
+
+  backup_retention_period = var.db_backup_retention_period
+  preferred_backup_window = "03:00-04:00"
+  preferred_maintenance_window = "sun:04:00-sun:05:00"
+
+  deletion_protection       = var.db_deletion_protection
+  skip_final_snapshot       = var.environment != "production"
+  final_snapshot_identifier = var.environment == "production" ? "${local.name_prefix}-aurora-final-snapshot" : null
+
+  storage_encrypted = true
+
+  enabled_cloudwatch_logs_exports = ["postgresql"]
+
+  serverlessv2_scaling_configuration {
+    min_capacity = var.environment == "production" ? 0.5 : 0.5
+    max_capacity = var.environment == "production" ? 4 : 1
+  }
+
+  tags = merge(
+    local.common_tags,
+    {
+      Name = "${local.name_prefix}-aurora"
+    }
+  )
+}
+
+# Aurora Serverless Instance
+resource "aws_rds_cluster_instance" "aurora" {
+  count = var.use_aurora_serverless ? 2 : 0
+
+  identifier         = "${local.name_prefix}-aurora-${count.index + 1}"
+  cluster_identifier = aws_rds_cluster.aurora[0].id
+  instance_class     = "db.serverless"
+  engine             = aws_rds_cluster.aurora[0].engine
+  engine_version     = aws_rds_cluster.aurora[0].engine_version
+
+  performance_insights_enabled = var.environment == "production"
+
+  tags = merge(
+    local.common_tags,
+    {
+      Name = "${local.name_prefix}-aurora-${count.index + 1}"
+    }
+  )
+}
+
+# Database URL for connection
+locals {
+  database_endpoint = var.use_aurora_serverless ? aws_rds_cluster.aurora[0].endpoint : aws_db_instance.postgres[0].address
+  database_url = "postgresql://${local.db_username}:${urlencode(random_password.database.result)}@${local.database_endpoint}:5432/${local.db_name}"
+}
+
+# Store database URL in Secrets Manager
+resource "aws_secretsmanager_secret" "database_url" {
+  name                         = "${local.name_prefix}-database-url"
+  name_recovery_window_in_days = var.environment == "production" ? 30 : 0
+
+  tags = merge(
+    local.common_tags,
+    {
+      Name = "${local.name_prefix}-database-url"
+    }
+  )
+}
+
+resource "aws_secretsmanager_secret_version" "database_url" {
+  secret_id     = aws_secretsmanager_secret.database_url.id
+  secret_string = local.database_url
+}
+
+# Store database password separately
+resource "aws_secretsmanager_secret" "database_password" {
+  name                         = "${local.name_prefix}-database-password"
+  name_recovery_window_in_days = var.environment == "production" ? 30 : 0
+
+  tags = merge(
+    local.common_tags,
+    {
+      Name = "${local.name_prefix}-database-password"
+    }
+  )
+}
+
+resource "aws_secretsmanager_secret_version" "database_password" {
+  secret_id     = aws_secretsmanager_secret.database_password.id
+  secret_string = random_password.database.result
+}

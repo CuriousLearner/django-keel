@@ -1,0 +1,222 @@
+# Input variables for ECS Fargate deployment
+
+variable "project_name" {
+  description = "Name of the project"
+  type        = string
+  default     = "{{ project_slug }}"
+}
+
+variable "environment" {
+  description = "Environment name (dev, staging, production)"
+  type        = string
+  default     = "production"
+
+  validation {
+    condition     = contains(["dev", "staging", "production"], var.environment)
+    error_message = "Environment must be dev, staging, or production."
+  }
+}
+
+variable "aws_region" {
+  description = "AWS region for deployment"
+  type        = string
+  default     = "us-east-1"
+}
+
+variable "az_count" {
+  description = "Number of availability zones to use"
+  type        = number
+  default     = 2
+
+  validation {
+    condition     = var.az_count >= 2 && var.az_count <= 3
+    error_message = "AZ count must be between 2 and 3."
+  }
+}
+
+# Container configuration
+variable "container_image" {
+  description = "Docker image for the application (leave empty to use ECR repository created by Terraform)"
+  type        = string
+  default     = ""
+}
+
+variable "container_cpu" {
+  description = "CPU units for the container (256, 512, 1024, 2048, 4096)"
+  type        = number
+  default     = 512
+}
+
+variable "container_memory" {
+  description = "Memory for the container in MB"
+  type        = number
+  default     = 1024
+}
+
+variable "desired_count" {
+  description = "Desired number of tasks"
+  type        = number
+  default     = 2
+}
+
+variable "min_capacity" {
+  description = "Minimum number of tasks for auto-scaling"
+  type        = number
+  default     = 2
+}
+
+variable "max_capacity" {
+  description = "Maximum number of tasks for auto-scaling"
+  type        = number
+  default     = 10
+}
+
+# Database configuration
+variable "use_aurora_serverless" {
+  description = "Use Aurora Serverless v2 instead of RDS"
+  type        = bool
+  default     = false
+}
+
+variable "db_instance_class" {
+  description = "Database instance class"
+  type        = string
+  default     = "db.t3.micro"
+}
+
+variable "db_allocated_storage" {
+  description = "Allocated storage for RDS in GB"
+  type        = number
+  default     = 20
+}
+
+variable "db_backup_retention_period" {
+  description = "Database backup retention period in days"
+  type        = number
+  default     = 7
+}
+
+variable "db_deletion_protection" {
+  description = "Enable deletion protection for the database"
+  type        = bool
+  default     = true
+}
+
+# Application configuration
+variable "django_secret_key" {
+  description = "Django secret key"
+  type        = string
+  sensitive   = true
+}
+
+variable "django_debug" {
+  description = "Django debug mode"
+  type        = bool
+  default     = false
+}
+
+variable "allowed_hosts" {
+  description = "Django allowed hosts"
+  type        = string
+}
+
+# Optional services
+{% if cache == 'redis' -%}
+variable "enable_redis" {
+  description = "Enable Redis for caching"
+  type        = bool
+  default     = true
+}
+
+variable "redis_node_type" {
+  description = "Redis node type"
+  type        = string
+  default     = "cache.t3.micro"
+}
+{% endif %}
+
+{% if use_celery -%}
+variable "enable_celery" {
+  description = "Enable Celery workers"
+  type        = bool
+  default     = true
+}
+
+variable "celery_worker_count" {
+  description = "Number of Celery workers"
+  type        = number
+  default     = 1
+}
+{% endif %}
+
+{% if use_sentry -%}
+variable "sentry_dsn" {
+  description = "Sentry DSN for error tracking"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+{% endif %}
+
+{% if use_stripe -%}
+variable "stripe_secret_key" {
+  description = "Stripe secret key"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "stripe_publishable_key" {
+  description = "Stripe publishable key"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+{% endif %}
+
+# S3 configuration for static/media files
+variable "create_s3_buckets" {
+  description = "Create S3 buckets for static and media files"
+  type        = bool
+  default     = true
+}
+
+# Domain configuration
+variable "domain_name" {
+  description = "Domain name for the application (optional)"
+  type        = string
+  default     = ""
+}
+
+variable "create_dns_zone" {
+  description = "Create Route53 hosted zone for the domain"
+  type        = bool
+  default     = false
+}
+
+# Monitoring
+variable "enable_monitoring" {
+  description = "Enable CloudWatch monitoring and alarms"
+  type        = bool
+  default     = true
+}
+
+variable "alarm_email" {
+  description = "Email address for CloudWatch alarms"
+  type        = string
+  default     = ""
+}
+
+# Cost optimization
+variable "enable_spot_capacity" {
+  description = "Use Fargate Spot for cost savings (non-production)"
+  type        = bool
+  default     = false
+}
+
+# Tags
+variable "additional_tags" {
+  description = "Additional tags to apply to resources"
+  type        = map(string)
+  default     = {}
+}

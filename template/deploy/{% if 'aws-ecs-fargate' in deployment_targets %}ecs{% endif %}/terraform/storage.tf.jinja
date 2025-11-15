@@ -1,0 +1,255 @@
+# S3 Storage for Static and Media Files
+
+# S3 Bucket for Static Files
+resource "aws_s3_bucket" "static" {
+  count = var.create_s3_buckets ? 1 : 0
+
+  bucket = "${local.name_prefix}-static-${random_id.suffix.hex}"
+
+  tags = merge(
+    local.common_tags,
+    {
+      Name = "${local.name_prefix}-static"
+      Type = "Static"
+    }
+  )
+}
+
+# S3 Bucket for Media Files
+resource "aws_s3_bucket" "media" {
+  count = var.create_s3_buckets ? 1 : 0
+
+  bucket = "${local.name_prefix}-media-${random_id.suffix.hex}"
+
+  tags = merge(
+    local.common_tags,
+    {
+      Name = "${local.name_prefix}-media"
+      Type = "Media"
+    }
+  )
+}
+
+# Public Access Configuration for Static Files
+# Note: We allow public policies to enable GetObject access via bucket policy
+resource "aws_s3_bucket_public_access_block" "static" {
+  count = var.create_s3_buckets ? 1 : 0
+
+  bucket = aws_s3_bucket.static[0].id
+
+  block_public_acls       = true
+  block_public_policy     = false
+  ignore_public_acls      = true
+  restrict_public_buckets = false
+}
+
+# Public Access Block for Media Files
+resource "aws_s3_bucket_public_access_block" "media" {
+  count = var.create_s3_buckets ? 1 : 0
+
+  bucket = aws_s3_bucket.media[0].id
+
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
+
+# Server-side Encryption for Static Files
+resource "aws_s3_bucket_server_side_encryption_configuration" "static" {
+  count = var.create_s3_buckets ? 1 : 0
+
+  bucket = aws_s3_bucket.static[0].id
+
+  rule {
+    apply_server_side_encryption_by_default {
+      sse_algorithm = "AES256"
+    }
+  }
+}
+
+# Bucket Policy for Static Files (Public Read)
+resource "aws_s3_bucket_policy" "static" {
+  count = var.create_s3_buckets ? 1 : 0
+
+  bucket = aws_s3_bucket.static[0].id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "PublicReadGetObject"
+        Effect = "Allow"
+        Principal = "*"
+        Action   = "s3:GetObject"
+        Resource = "${aws_s3_bucket.static[0].arn}/*"
+      }
+    ]
+  })
+
+  depends_on = [aws_s3_bucket_public_access_block.static]
+}
+
+# Bucket Versioning for Media Files
+resource "aws_s3_bucket_versioning" "media" {
+  count = var.create_s3_buckets ? 1 : 0
+
+  bucket = aws_s3_bucket.media[0].id
+
+  versioning_configuration {
+    status = var.environment == "production" ? "Enabled" : "Suspended"
+  }
+}
+
+# Server-side Encryption for Media Files
+resource "aws_s3_bucket_server_side_encryption_configuration" "media" {
+  count = var.create_s3_buckets ? 1 : 0
+
+  bucket = aws_s3_bucket.media[0].id
+
+  rule {
+    apply_server_side_encryption_by_default {
+      sse_algorithm = "AES256"
+    }
+  }
+}
+
+# CORS Configuration for Static Files
+resource "aws_s3_bucket_cors_configuration" "static" {
+  count = var.create_s3_buckets ? 1 : 0
+
+  bucket = aws_s3_bucket.static[0].id
+
+  cors_rule {
+    allowed_headers = ["*"]
+    allowed_methods = ["GET", "HEAD"]
+    allowed_origins = var.domain_name != "" ? ["https://${var.domain_name}", "https://www.${var.domain_name}"] : ["*"]
+    expose_headers  = ["ETag"]
+    max_age_seconds = 3600
+  }
+}
+
+# CORS Configuration for Media Files
+resource "aws_s3_bucket_cors_configuration" "media" {
+  count = var.create_s3_buckets ? 1 : 0
+
+  bucket = aws_s3_bucket.media[0].id
+
+  cors_rule {
+    allowed_headers = ["*"]
+    allowed_methods = ["GET", "HEAD", "PUT", "POST", "DELETE"]
+    allowed_origins = var.domain_name != "" ? ["https://${var.domain_name}", "https://www.${var.domain_name}"] : ["*"]
+    expose_headers  = ["ETag"]
+    max_age_seconds = 3600
+  }
+}
+
+# Lifecycle Policy for Media Files
+resource "aws_s3_bucket_lifecycle_configuration" "media" {
+  count = var.create_s3_buckets ? 1 : 0
+
+  bucket = aws_s3_bucket.media[0].id
+
+  rule {
+    id     = "transition-old-files"
+    status = "Enabled"
+
+    transition {
+      days          = 90
+      storage_class = "STANDARD_IA"
+    }
+
+    transition {
+      days          = 180
+      storage_class = "GLACIER"
+    }
+  }
+
+  rule {
+    id     = "delete-incomplete-uploads"
+    status = "Enabled"
+
+    abort_incomplete_multipart_upload {
+      days_after_initiation = 7
+    }
+  }
+}
+
+{% if cache == 'redis' -%}
+# ElastiCache Redis for caching
+resource "aws_elasticache_subnet_group" "redis" {
+  count = var.enable_redis ? 1 : 0
+
+  name       = "${local.name_prefix}-redis-subnet-group"
+  subnet_ids = aws_subnet.private[*].id
+
+  tags = merge(
+    local.common_tags,
+    {
+      Name = "${local.name_prefix}-redis-subnet-group"
+    }
+  )
+}
+
+# Security Group for Redis
+resource "aws_security_group" "redis" {
+  count = var.enable_redis ? 1 : 0
+
+  name_prefix = "${local.name_prefix}-redis-"
+  vpc_id      = aws_vpc.main.id
+  description = "Security group for Redis"
+
+  ingress {
+    from_port       = 6379
+    to_port         = 6379
+    protocol        = "tcp"
+    security_groups = [aws_security_group.app.id]
+    description     = "Redis from app"
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+    description = "Allow all outbound traffic"
+  }
+
+  tags = merge(
+    local.common_tags,
+    {
+      Name = "${local.name_prefix}-redis-sg"
+    }
+  )
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+# ElastiCache Redis Cluster
+resource "aws_elasticache_cluster" "redis" {
+  count = var.enable_redis ? 1 : 0
+
+  cluster_id           = "${local.name_prefix}-redis"
+  engine              = "redis"
+  node_type           = var.redis_node_type
+  num_cache_nodes     = 1
+  parameter_group_name = "default.redis7"
+  engine_version      = "7.0"
+  port                = 6379
+
+  subnet_group_name  = aws_elasticache_subnet_group.redis[0].name
+  security_group_ids = [aws_security_group.redis[0].id]
+
+  snapshot_retention_limit = var.environment == "production" ? 5 : 0
+  snapshot_window         = "03:00-05:00"
+
+  tags = merge(
+    local.common_tags,
+    {
+      Name = "${local.name_prefix}-redis"
+    }
+  )
+}
+{% endif %}

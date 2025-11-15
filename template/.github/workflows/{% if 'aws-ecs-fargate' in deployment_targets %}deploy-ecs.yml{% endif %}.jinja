@@ -1,0 +1,452 @@
+name: Deploy to AWS ECS Fargate
+
+on:
+  push:
+    branches:
+      - main
+      - production
+  pull_request:
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REPOSITORY: {{ project_slug }}
+  PYTHON_VERSION: '{{ python_version }}'
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: {% raw %}${{ env.PYTHON_VERSION }}{% endraw %}
+
+      {% if dependency_manager == 'uv' -%}
+      - name: Install uv
+        uses: astral-sh/setup-uv@v2
+
+      - name: Install dependencies
+        run: |
+          uv sync --frozen
+
+      - name: Run tests
+        run: |
+          uv run pytest
+
+      - name: Run linting
+        run: |
+          uv run ruff check .
+      {% else -%}
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+        with:
+          version: 1.7.0
+
+      - name: Install dependencies
+        run: |
+          poetry install
+
+      - name: Run tests
+        run: |
+          poetry run pytest
+
+      - name: Run linting
+        run: |
+          poetry run ruff check .
+      {% endif %}
+
+  build-and-push:
+    name: Build and Push Docker Image
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/production'
+    outputs:
+      image: {% raw %}${{ steps.image.outputs.image }}{% endraw %}
+      image-tag: {% raw %}${{ steps.image.outputs.tag }}{% endraw %}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: {% raw %}${{ secrets.AWS_ACCESS_KEY_ID }}{% endraw %}
+          aws-secret-access-key: {% raw %}${{ secrets.AWS_SECRET_ACCESS_KEY }}{% endraw %}
+          aws-region: {% raw %}${{ env.AWS_REGION }}{% endraw %}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Generate image metadata
+        id: image
+        run: |
+          ECR_REGISTRY={% raw %}${{ steps.login-ecr.outputs.registry }}{% endraw %}
+          IMAGE_TAG={% raw %}${{ github.sha }}{% endraw %}
+          IMAGE=$ECR_REGISTRY/{% raw %}${{ env.ECR_REPOSITORY }}{% endraw %}:$IMAGE_TAG
+          echo "image=$IMAGE" >> $GITHUB_OUTPUT
+          echo "tag=$IMAGE_TAG" >> $GITHUB_OUTPUT
+          echo "registry=$ECR_REGISTRY" >> $GITHUB_OUTPUT
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          platforms: linux/amd64
+          push: true
+          tags: |
+            {% raw %}${{ steps.image.outputs.image }}{% endraw %}
+            {% raw %}${{ steps.image.outputs.registry }}{% endraw %}/{% raw %}${{ env.ECR_REPOSITORY }}{% endraw %}:latest
+            {% raw %}${{ steps.image.outputs.registry }}{% endraw %}/{% raw %}${{ env.ECR_REPOSITORY }}{% endraw %}:{% raw %}${{ github.ref_name }}{% endraw %}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            ENVIRONMENT={% raw %}${{ github.ref == 'refs/heads/production' && 'production' || 'staging' }}{% endraw %}
+
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    if: github.ref == 'refs/heads/main'
+    environment:
+      name: staging
+      url: https://{{ project_slug }}-staging.{% raw %}${{ env.AWS_REGION }}{% endraw %}.elb.amazonaws.com
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: {% raw %}${{ secrets.AWS_ACCESS_KEY_ID }}{% endraw %}
+          aws-secret-access-key: {% raw %}${{ secrets.AWS_SECRET_ACCESS_KEY }}{% endraw %}
+          aws-region: {% raw %}${{ env.AWS_REGION }}{% endraw %}
+
+      - name: Update ECS task definition
+        id: task-def
+        run: |
+          # Download current task definition
+          aws ecs describe-task-definition \
+            --task-definition {{ project_slug }}-staging-app \
+            --query taskDefinition > task-definition.json
+
+          # Update image
+          jq '.containerDefinitions[0].image = "{% raw %}${{ needs.build-and-push.outputs.image }}{% endraw %}"' task-definition.json > updated-task-definition.json
+
+          # Register new task definition
+          aws ecs register-task-definition --cli-input-json file://updated-task-definition.json
+
+      - name: Run database migrations
+        run: |
+          # Run migration task and capture task ARN
+          TASK_ARN=$(aws ecs run-task \
+            --cluster {{ project_slug }}-staging-cluster \
+            --task-definition {{ project_slug }}-staging-migrate \
+            --launch-type FARGATE \
+            --network-configuration "awsvpcConfiguration={subnets=[{% raw %}${{ secrets.STAGING_SUBNET_IDS }}{% endraw %}],securityGroups=[{% raw %}${{ secrets.STAGING_SECURITY_GROUP_ID }}{% endraw %}],assignPublicIp=DISABLED}" \
+            --query 'tasks[0].taskArn' \
+            --output text)
+
+          # Wait for migration task to complete
+          echo "Waiting for migration task $TASK_ARN to complete..."
+          aws ecs wait tasks-stopped \
+            --cluster {{ project_slug }}-staging-cluster \
+            --tasks "$TASK_ARN"
+
+          # Check if task completed successfully
+          EXIT_CODE=$(aws ecs describe-tasks \
+            --cluster {{ project_slug }}-staging-cluster \
+            --tasks "$TASK_ARN" \
+            --query 'tasks[0].containers[0].exitCode' \
+            --output text)
+
+          if [ "$EXIT_CODE" != "0" ]; then
+            echo "Migration task failed with exit code $EXIT_CODE"
+            exit 1
+          fi
+
+      - name: Deploy to ECS
+        id: deploy-staging
+        run: |
+          aws ecs update-service \
+            --cluster {{ project_slug }}-staging-cluster \
+            --service {{ project_slug }}-staging-app \
+            --force-new-deployment
+
+          # Wait for service to stabilize (with timeout)
+          echo "Waiting for service to stabilize..."
+          aws ecs wait services-stable \
+            --cluster {{ project_slug }}-staging-cluster \
+            --services {{ project_slug }}-staging-app \
+            --max-attempts 30
+
+          echo "Service deployment completed"
+
+      - name: Run smoke tests
+        run: |
+          # Get ALB URL
+          ALB_URL=$(aws elbv2 describe-load-balancers \
+            --names {{ project_slug }}-staging-alb \
+            --query 'LoadBalancers[0].DNSName' \
+            --output text)
+
+          # Wait for health endpoint to be ready (retry for up to 5 minutes)
+          echo "Waiting for application to be ready..."
+          for i in {1..30}; do
+            if curl -f -s -o /dev/null http://$ALB_URL/health/; then
+              echo "Application is healthy!"
+              exit 0
+            fi
+            echo "Attempt $i/30: Not ready yet, waiting 10 seconds..."
+            sleep 10
+          done
+
+          echo "Application failed to become healthy after 5 minutes"
+          exit 1
+
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    if: github.ref == 'refs/heads/production' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'production')
+    environment:
+      name: production
+      url: https://{{ project_slug }}.{% raw %}${{ env.AWS_REGION }}{% endraw %}.elb.amazonaws.com
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: {% raw %}${{ secrets.AWS_ACCESS_KEY_ID }}{% endraw %}
+          aws-secret-access-key: {% raw %}${{ secrets.AWS_SECRET_ACCESS_KEY }}{% endraw %}
+          aws-region: {% raw %}${{ env.AWS_REGION }}{% endraw %}
+
+      - name: Create database backup
+        run: |
+          # Create RDS snapshot before deployment
+          aws rds create-db-snapshot \
+            --db-instance-identifier {{ project_slug }}-production-postgres \
+            --db-snapshot-identifier {{ project_slug }}-production-backup-{% raw %}${{ github.sha }}{% endraw %}
+
+      - name: Update ECS task definition
+        id: task-def
+        run: |
+          # Download current task definition
+          aws ecs describe-task-definition \
+            --task-definition {{ project_slug }}-production-app \
+            --query taskDefinition > task-definition.json
+
+          # Update image
+          jq '.containerDefinitions[0].image = "{% raw %}${{ needs.build-and-push.outputs.image }}{% endraw %}"' task-definition.json > updated-task-definition.json
+
+          # Register new task definition
+          NEW_TASK_DEF=$(aws ecs register-task-definition --cli-input-json file://updated-task-definition.json --query 'taskDefinition.taskDefinitionArn' --output text)
+          echo "task-def=$NEW_TASK_DEF" >> $GITHUB_OUTPUT
+
+      - name: Run database migrations
+        run: |
+          # Run migration task and capture task ARN
+          TASK_ARN=$(aws ecs run-task \
+            --cluster {{ project_slug }}-production-cluster \
+            --task-definition {{ project_slug }}-production-migrate \
+            --launch-type FARGATE \
+            --network-configuration "awsvpcConfiguration={subnets=[{% raw %}${{ secrets.PRODUCTION_SUBNET_IDS }}{% endraw %}],securityGroups=[{% raw %}${{ secrets.PRODUCTION_SECURITY_GROUP_ID }}{% endraw %}],assignPublicIp=DISABLED}" \
+            --query 'tasks[0].taskArn' \
+            --output text)
+
+          # Wait for migration task to complete
+          echo "Waiting for migration task $TASK_ARN to complete..."
+          aws ecs wait tasks-stopped \
+            --cluster {{ project_slug }}-production-cluster \
+            --tasks "$TASK_ARN"
+
+          # Check if task completed successfully
+          EXIT_CODE=$(aws ecs describe-tasks \
+            --cluster {{ project_slug }}-production-cluster \
+            --tasks "$TASK_ARN" \
+            --query 'tasks[0].containers[0].exitCode' \
+            --output text)
+
+          if [ "$EXIT_CODE" != "0" ]; then
+            echo "Migration task failed with exit code $EXIT_CODE"
+            exit 1
+          fi
+
+      - name: Deploy to ECS (Blue/Green)
+        run: |
+          # Update service with new task definition
+          aws ecs update-service \
+            --cluster {{ project_slug }}-production-cluster \
+            --service {{ project_slug }}-production-app \
+            --task-definition {% raw %}${{ steps.task-def.outputs.task-def }}{% endraw %} \
+            --deployment-configuration "maximumPercent=200,minimumHealthyPercent=100,deploymentCircuitBreaker={enable=true,rollback=true}"
+
+          # Wait for service to stabilize
+          aws ecs wait services-stable \
+            --cluster {{ project_slug }}-production-cluster \
+            --services {{ project_slug }}-production-app \
+            --timeout 600
+
+      - name: Verify deployment
+        id: verify
+        continue-on-error: true
+        run: |
+          # Get ALB URL
+          ALB_URL=$(aws elbv2 describe-load-balancers \
+            --names {{ project_slug }}-production-alb \
+            --query 'LoadBalancers[0].DNSName' \
+            --output text)
+
+          # Wait for health endpoint to be ready (retry for up to 5 minutes)
+          echo "Verifying application health..."
+          for i in {1..30}; do
+            if curl -f -s -o /dev/null https://$ALB_URL/health/; then
+              echo "Application is healthy!"
+              break
+            fi
+            if [ $i -eq 30 ]; then
+              echo "Application failed health check after 5 minutes"
+              exit 1
+            fi
+            echo "Attempt $i/30: Not healthy yet, waiting 10 seconds..."
+            sleep 10
+          done
+
+          # Check task count
+          RUNNING_COUNT=$(aws ecs describe-services \
+            --cluster {{ project_slug }}-production-cluster \
+            --services {{ project_slug }}-production-app \
+            --query 'services[0].runningCount' \
+            --output text)
+
+          if [ "$RUNNING_COUNT" -lt "2" ]; then
+            echo "Error: Only $RUNNING_COUNT tasks running (minimum 2 required)"
+            exit 1
+          fi
+
+          echo "Deployment verified successfully: $RUNNING_COUNT tasks running and healthy"
+
+      - name: Rollback on failure
+        if: failure() && steps.verify.outcome == 'failure'
+        run: |
+          echo "Deployment verification failed. Rolling back to previous task definition..."
+
+          # Get previous task definition
+          PREV_TASK_DEF=$(aws ecs describe-services \
+            --cluster {{ project_slug }}-production-cluster \
+            --services {{ project_slug }}-production-app \
+            --query 'services[0].deployments[?status==`PRIMARY`] | [1].taskDefinition' \
+            --output text 2>/dev/null || echo "")
+
+          if [ -n "$PREV_TASK_DEF" ] && [ "$PREV_TASK_DEF" != "None" ]; then
+            echo "Rolling back to task definition: $PREV_TASK_DEF"
+            aws ecs update-service \
+              --cluster {{ project_slug }}-production-cluster \
+              --service {{ project_slug }}-production-app \
+              --task-definition "$PREV_TASK_DEF" \
+              --force-new-deployment
+
+            echo "Rollback initiated. Waiting for service to stabilize..."
+            aws ecs wait services-stable \
+              --cluster {{ project_slug }}-production-cluster \
+              --services {{ project_slug }}-production-app \
+              --timeout 600
+
+            echo "Rollback completed"
+          else
+            echo "Warning: Could not find previous task definition for rollback"
+          fi
+
+          exit 1
+
+      {% if use_sentry -%}
+      - name: Create Sentry release
+        uses: getsentry/action-release@v1
+        env:
+          SENTRY_AUTH_TOKEN: {% raw %}${{ secrets.SENTRY_AUTH_TOKEN }}{% endraw %}
+          SENTRY_ORG: {% raw %}${{ secrets.SENTRY_ORG }}{% endraw %}
+          SENTRY_PROJECT: {{ project_slug }}
+        with:
+          environment: production
+          version: {% raw %}${{ github.sha }}{% endraw %}
+      {% endif %}
+
+      - name: Notify deployment
+        if: always()
+        uses: 8398a7/action-slack@v3
+        with:
+          status: {% raw %}${{ job.status }}{% endraw %}
+          text: |
+            Production deployment {% raw %}${{ job.status }}{% endraw %}
+            Commit: {% raw %}${{ github.sha }}{% endraw %}
+            Image: {% raw %}${{ needs.build-and-push.outputs.image }}{% endraw %}
+          webhook_url: {% raw %}${{ secrets.SLACK_WEBHOOK }}{% endraw %}
+        if: {% raw %}${{ secrets.SLACK_WEBHOOK != '' }}{% endraw %}
+
+  cleanup:
+    name: Cleanup Old Resources
+    runs-on: ubuntu-latest
+    needs: [deploy-staging, deploy-production]
+    if: always()
+
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: {% raw %}${{ secrets.AWS_ACCESS_KEY_ID }}{% endraw %}
+          aws-secret-access-key: {% raw %}${{ secrets.AWS_SECRET_ACCESS_KEY }}{% endraw %}
+          aws-region: {% raw %}${{ env.AWS_REGION }}{% endraw %}
+
+      - name: Clean up old task definitions
+        run: |
+          # List all task definitions
+          TASK_DEFS=$(aws ecs list-task-definitions \
+            --family-prefix {{ project_slug }} \
+            --sort DESC \
+            --query 'taskDefinitionArns[10:]' \
+            --output json)
+
+          # Deregister old task definitions (keep last 10)
+          if [ "$TASK_DEFS" != "[]" ]; then
+            echo "$TASK_DEFS" | jq -r '.[]' | while read -r task_def; do
+              aws ecs deregister-task-definition --task-definition "$task_def"
+            done
+          fi
+
+      - name: Clean up old DB snapshots
+        run: |
+          # Delete snapshots older than 30 days
+          cutoff_date=$(date -u -d '30 days ago' +%Y-%m-%dT%H:%M:%S)
+
+          aws rds describe-db-snapshots \
+            --snapshot-type manual \
+            --query "DBSnapshots[?SnapshotCreateTime<'$cutoff_date'].DBSnapshotIdentifier" \
+            --output json | jq -r '.[]' | while read -r snapshot; do
+            if [[ "$snapshot" == *"{{ project_slug }}"* ]]; then
+              aws rds delete-db-snapshot --db-snapshot-identifier "$snapshot"
+            fi
+          done
