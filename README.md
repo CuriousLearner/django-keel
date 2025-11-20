@@ -7,7 +7,7 @@ Build **SaaS applications**, **API backends**, **web apps**, or **internal tools
 [![CI](https://github.com/CuriousLearner/django-keel/actions/workflows/ci.yml/badge.svg)](https://github.com/CuriousLearner/django-keel/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
-[![Django 5.2](https://img.shields.io/badge/django-5.2-green.svg)](https://www.djangoproject.com/)
+[![Django 6.0](https://img.shields.io/badge/django-6.0-green.svg)](https://www.djangoproject.com/)
 [![Documentation](https://readthedocs.org/projects/django-keel/badge/?version=latest)](https://django-keel.readthedocs.io/en/latest/?badge=latest)
 
 > [!NOTE]
@@ -312,15 +312,18 @@ We test Django Keel against:
 | ------ | ------ | --------- |
 | 3.12   | 5.1    | ✅ Tested |
 | 3.12   | 5.2    | ✅ Tested |
+| 3.12   | 6.0    | ✅ Tested |
 | 3.13   | 5.1    | ✅ Tested |
 | 3.13   | 5.2    | ✅ Tested |
+| 3.14   | 6.0    | ✅ Tested |
+| 3.14   | 5.1    | ✅ Tested |
 | 3.14   | 5.2    | ✅ Tested |
-| 3.14   | 5.2    | ✅ Tested |
+| 3.14   | 6.0    | ✅ Tested |
 
 ### Support Policy
 
 - **Python**: Last 2-3 minor versions (currently 3.12, 3.13, 3.14)
-- **Django**: Last 2-3 minor versions (currently 5.1, 5.2)
+- **Django**: Last 2-3 minor versions (currently 5.1, 5.2, 6.0)
 - **LTS versions** get priority bug fixes
 - **Security patches** backported for 1 year
 
@@ -340,7 +343,7 @@ Every commit is tested against:
 
 ### 🎯 Core
 
-- **Django 5.2** with Python 3.12/3.13/3.14 support
+- **Django 5.2/6.0** with Python 3.12/3.13/3.14 support
 - **uv** or **Poetry** for blazing-fast dependency management
 - **[12-Factor App](https://12factor.net/) aligned** - Implements all 12 factors in practice ([docs](docs/12-factor.md))
   - Single codebase with multiple deploys

@@ -10,7 +10,7 @@ requires-python = ">={{ python_version }}"
 license = {text = "{{ license }}"}
 
 dependencies = [
-    "django>=5.2,<5.3",
+    "django>={{ django_version }}",
     "django-environ>=0.11.2",
     "psycopg[binary]>=3.2.0",
 {% if cache == 'redis' -%}
