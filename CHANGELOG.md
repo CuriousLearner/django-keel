@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### API & Frontend Options
 - API frameworks: Django REST Framework, Strawberry GraphQL, both, or none
 - Frontend: HTMX + Tailwind CSS, Next.js, or headless
+- Frontend bundling for HTMX+Tailwind: Vite (production-ready) or CDN (simple)
 - Authentication: django-allauth, JWT, or both
 
 #### Background Task Processing
