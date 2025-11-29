@@ -118,6 +118,15 @@ frontend:
     {%- elif project_type == 'internal-tool' -%}htmx-tailwind
     {%- else -%}none{%- endif -%}
 
+frontend_bundling:
+  type: str
+  help: Frontend asset bundling
+  when: "{{ frontend == 'htmx-tailwind' }}"
+  choices:
+    Vite (Production-ready, bundled assets): vite
+    CDN (Simple, no build step): cdn
+  default: "vite"
+
 # Async & Tasks
 background_tasks:
   type: str

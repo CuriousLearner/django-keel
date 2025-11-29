@@ -1,10 +1,15 @@
-<!DOCTYPE html>
+{% if frontend_bundling == 'vite' %}{% raw %}{% load django_vite %}{% endraw %}
+{% endif %}<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% raw %}{% block title %}{% endraw %}{{ project_name }}{% raw %}{% endblock %}{% endraw %}</title>
 
+{% if frontend_bundling == 'vite' %}
+    {% raw %}{% vite_hmr_client %}{% endraw %}
+    {% raw %}{% vite_asset 'src/main.js' %}{% endraw %}
+{% else %}
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
 
@@ -13,6 +18,7 @@
 
     <!-- Alpine.js -->
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.3/dist/cdn.min.js"></script>
+{% endif %}
 
     {% raw %}{% block extra_head %}{% endblock %}{% endraw %}
 </head>
