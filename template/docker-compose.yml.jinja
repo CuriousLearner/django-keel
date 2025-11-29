@@ -27,6 +27,9 @@ services:
 {% if dependency_manager == 'uv' %}
       - UV_NO_CACHE=1
 {% endif %}
+{% if frontend_bundling == 'vite' %}
+      - VITE_DEV_SERVER_HOST=vite
+{% endif %}
     env_file:
       - .env
 
@@ -76,8 +79,6 @@ services:
     ports:
       - "5173:5173"
     command: sh -c "npm install && npm run dev"
-    environment:
-      - VITE_DEV_SERVER_HOST=0.0.0.0
 {% endif %}
 {% if background_tasks in ['temporal', 'both'] %}
 
