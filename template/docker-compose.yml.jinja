@@ -65,6 +65,20 @@ services:
     ports:
       - "1025:1025"
       - "8025:8025"
+{% if frontend_bundling == 'vite' %}
+
+  vite:
+    image: node:20-slim
+    working_dir: /app/frontend
+    volumes:
+      - ./frontend:/app/frontend
+      - ./static:/app/static
+    ports:
+      - "5173:5173"
+    command: sh -c "npm install && npm run dev"
+    environment:
+      - VITE_DEV_SERVER_HOST=0.0.0.0
+{% endif %}
 {% if background_tasks in ['temporal', 'both'] %}
 
   temporal:
