@@ -44,7 +44,7 @@ DJANGO_APPS = [
 ]
 
 THIRD_PARTY_APPS = [
-{% if frontend_bundling == 'vite' -%}
+{% if frontend == 'htmx-tailwind' and frontend_bundling == 'vite' -%}
     "django_vite",
 {% endif -%}
 {% if api_style in ['drf', 'both'] -%}
@@ -245,7 +245,7 @@ STORAGES = {
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
-{% if frontend_bundling == 'vite' -%}
+{% if frontend == 'htmx-tailwind' and frontend_bundling == 'vite' -%}
 # Django Vite
 DJANGO_VITE = {
     "default": {

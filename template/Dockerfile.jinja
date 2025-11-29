@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-{% if frontend_bundling == 'vite' -%}
+{% if frontend == 'htmx-tailwind' and frontend_bundling == 'vite' -%}
 # Build frontend assets
 FROM node:20-slim AS frontend-builder
 
@@ -14,8 +14,8 @@ RUN npm ci
 # Copy rest of frontend
 COPY frontend/ ./
 
-# Build assets
-RUN npm run build
+# Create output directory and build assets
+RUN mkdir -p /app/static && npm run build
 
 {% endif -%}
 FROM python:{{ python_version }}-slim as base
@@ -61,7 +61,7 @@ RUN uv sync --no-dev
 # Copy rest of application
 COPY . .
 
-{% if frontend_bundling == 'vite' -%}
+{% if frontend == 'htmx-tailwind' and frontend_bundling == 'vite' -%}
 # Copy built frontend assets
 COPY --from=frontend-builder /app/static/dist ./static/dist
 {% endif -%}
@@ -86,7 +86,7 @@ RUN poetry config virtualenvs.create false \
 # Copy rest of application
 COPY . .
 
-{% if frontend_bundling == 'vite' -%}
+{% if frontend == 'htmx-tailwind' and frontend_bundling == 'vite' -%}
 # Copy built frontend assets
 COPY --from=frontend-builder /app/static/dist ./static/dist
 {% endif -%}

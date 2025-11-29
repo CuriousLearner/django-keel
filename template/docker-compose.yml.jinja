@@ -27,7 +27,7 @@ services:
 {% if dependency_manager == 'uv' %}
       - UV_NO_CACHE=1
 {% endif %}
-{% if frontend_bundling == 'vite' %}
+{% if frontend == 'htmx-tailwind' and frontend_bundling == 'vite' %}
       - VITE_DEV_SERVER_HOST=vite
 {% endif %}
     env_file:
@@ -68,7 +68,7 @@ services:
     ports:
       - "1025:1025"
       - "8025:8025"
-{% if frontend_bundling == 'vite' %}
+{% if frontend == 'htmx-tailwind' and frontend_bundling == 'vite' %}
 
   vite:
     image: node:20-slim

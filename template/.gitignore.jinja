@@ -31,7 +31,7 @@ db.sqlite3-journal
 /media
 /staticfiles
 /static_root
-{% if frontend_bundling == 'vite' -%}
+{% if frontend == 'htmx-tailwind' and frontend_bundling == 'vite' -%}
 /static/dist
 {% endif -%}
 
@@ -45,7 +45,7 @@ db.sqlite3-journal
 .venv/
 poetry.lock
 {% endif -%}
-{% if frontend_bundling == 'vite' -%}
+{% if frontend == 'htmx-tailwind' and frontend_bundling == 'vite' -%}
 
 # Node
 node_modules/

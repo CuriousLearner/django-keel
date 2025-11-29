@@ -235,6 +235,12 @@ def test_htmx_frontend_cdn_mode(generate):
     # Should not have vite tags
     assert "django_vite" not in base_html
 
+    # CDN mode should NOT create frontend build files
+    frontend_dir = project / "frontend"
+    assert not (frontend_dir / "package.json").exists()
+    assert not (frontend_dir / "vite.config.js").exists()
+    assert not (frontend_dir / "tailwind.config.js").exists()
+
 
 def test_nextjs_frontend_generated(generate):
     """Test that Next.js frontend is generated."""
