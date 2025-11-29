@@ -31,7 +31,11 @@ jobs:
       - name: Generate project
         run: |
           copier copy . ../test_project \
+            --data project_name="Test Project" \
             --data project_slug=test_project \
+            --data project_description="Test project for CI" \
+            --data author_name="CI Test" \
+            --data author_email="ci@test.local" \
             --data python_version="${{ matrix.python-version }}" \
             --data dependency_manager="${{ matrix.dependency-manager }}" \
             --data database="${{ matrix.database }}" \
@@ -137,7 +141,7 @@ jobs:
       - name: Benchmark template generation
         run: |
           echo "Testing generation speed..."
-          time copier copy . ../test_project --data project_slug=test_project --defaults --trust
+          time copier copy . ../test_project --data project_name="Test Project" --data project_slug=test_project --data project_description="Test project for CI" --data author_name="CI Test" --data author_email="ci@test.local" --defaults --trust
 
           echo "Project size:"
           du -sh ../test_project
