@@ -33,14 +33,40 @@ When you select HTMX + Tailwind, you can choose how assets are delivered:
 - Hot Module Replacement (HMR) in development
 - Uses `django-vite` for seamless Django integration
 
-Development:
+**Development with Docker (Recommended):**
 ```bash
-docker-compose up  # Starts Django + Vite dev server
+docker-compose up  # Starts Django + Vite dev server together
 ```
 
-Production:
-- Assets are built during Docker image build
-- Served via WhiteNoise from `/static/dist/`
+**Development without Docker:**
+```bash
+# Terminal 1: Start Vite dev server
+cd frontend
+npm install
+npm run dev
+
+# Terminal 2: Start Django
+python manage.py runserver
+```
+
+**Building for Production:**
+```bash
+# Build optimized assets locally
+cd frontend
+npm run build  # Outputs to static/dist/
+
+# Or let Docker handle it
+docker build -t myapp .  # Multi-stage build includes npm run build
+```
+
+**Troubleshooting:**
+
+| Issue | Solution |
+|-------|----------|
+| Vite HMR not working in Docker | Ensure `VITE_DEV_SERVER_HOST=vite` is set for the web service |
+| Styles not updating | Check Tailwind is scanning `../templates/**/*.html` |
+| Assets 404 in production | Run `python manage.py collectstatic` after building |
+| `django_vite` template errors | Ensure `DEBUG=False` uses built manifest, not dev server |
 
 **CDN (Simple, No Build Step)**
 
