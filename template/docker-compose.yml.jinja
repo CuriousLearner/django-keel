@@ -27,6 +27,9 @@ services:
 {% if dependency_manager == 'uv' %}
       - UV_NO_CACHE=1
 {% endif %}
+{% if frontend == 'htmx-tailwind' and frontend_bundling == 'vite' %}
+      - VITE_DEV_SERVER_HOST=vite
+{% endif %}
     env_file:
       - .env
 
@@ -65,6 +68,18 @@ services:
     ports:
       - "1025:1025"
       - "8025:8025"
+{% if frontend == 'htmx-tailwind' and frontend_bundling == 'vite' %}
+
+  vite:
+    image: node:20-slim
+    working_dir: /app/frontend
+    volumes:
+      - ./frontend:/app/frontend
+      - ./static:/app/static
+    ports:
+      - "5173:5173"
+    command: sh -c "npm ci && npm run dev"
+{% endif %}
 {% if background_tasks in ['temporal', 'both'] %}
 
   temporal:

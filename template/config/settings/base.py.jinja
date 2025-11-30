@@ -44,6 +44,9 @@ DJANGO_APPS = [
 ]
 
 THIRD_PARTY_APPS = [
+{% if frontend == 'htmx-tailwind' and frontend_bundling == 'vite' -%}
+    "django_vite",
+{% endif -%}
 {% if api_style in ['drf', 'both'] -%}
     "rest_framework",
     "drf_spectacular",
@@ -241,6 +244,19 @@ STORAGES = {
 # Media files
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
+
+{% if frontend == 'htmx-tailwind' and frontend_bundling == 'vite' -%}
+# Django Vite
+DJANGO_VITE = {
+    "default": {
+        "dev_mode": DEBUG,
+        "manifest_path": BASE_DIR / "static" / "dist" / "manifest.json",
+        "static_url_prefix": "dist/",
+        "dev_server_host": env("VITE_DEV_SERVER_HOST", default="localhost"),
+        "dev_server_port": 5173,
+    }
+}
+{% endif -%}
 
 {% if media_storage == 'aws-s3' -%}
 # AWS S3 Storage
