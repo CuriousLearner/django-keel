@@ -14,8 +14,8 @@ RUN npm ci
 # Copy rest of frontend
 COPY frontend/ ./
 
-# Create output directory and build assets
-RUN mkdir -p /app/static && npm run build
+# Build assets (outputs to ../static/dist per vite.config.js)
+RUN npm run build
 
 {% endif -%}
 FROM python:{{ python_version }}-slim as base

@@ -63,7 +63,7 @@ docker build -t myapp .  # Multi-stage build includes npm run build
 
 | Issue | Solution |
 |-------|----------|
-| Vite HMR not working in Docker | Ensure `VITE_DEV_SERVER_HOST=vite` is set for the web service |
+| Vite HMR not working in Docker | Ensure `VITE_DEV_SERVER_HOST=vite` is set in the Django web service environment |
 | Styles not updating | Check Tailwind is scanning `../templates/**/*.html` |
 | Assets 404 in production | Run `python manage.py collectstatic` after building |
 | `django_vite` template errors | Ensure `DEBUG=False` uses built manifest, not dev server |
