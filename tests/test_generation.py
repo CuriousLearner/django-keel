@@ -222,6 +222,12 @@ def test_htmx_frontend_templates_generated(generate):
     assert (frontend_dir / "vite.config.js").exists()
     assert (frontend_dir / "tailwind.config.js").exists()
 
+    # Check Django settings include django_vite
+    settings = project / "config" / "settings" / "base.py"
+    settings_content = settings.read_text()
+    assert "django_vite" in settings_content
+    assert "DJANGO_VITE" in settings_content
+
 
 def test_htmx_frontend_cdn_mode(generate):
     """Test that HTMX frontend with CDN mode uses CDN links."""

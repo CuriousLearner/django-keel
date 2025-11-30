@@ -78,7 +78,7 @@ services:
       - ./static:/app/static
     ports:
       - "5173:5173"
-    command: sh -c "npm install && npm run dev"
+    command: sh -c "npm ci && npm run dev"
 {% endif %}
 {% if background_tasks in ['temporal', 'both'] %}
 
