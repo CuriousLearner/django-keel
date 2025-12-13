@@ -25,7 +25,7 @@ Django Keel strictly adheres to the [12-Factor App](https://12factor.net/) metho
 **Example:**
 ```toml
 dependencies = [
-    "django>=5.2,<5.3",
+    "django>=5.2,<=6.0",
     "psycopg[binary]>=3.2.0",
     "gunicorn>=22.0.0",
 ]
