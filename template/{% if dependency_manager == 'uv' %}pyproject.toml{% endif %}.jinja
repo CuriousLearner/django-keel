@@ -92,6 +92,9 @@ dependencies = [
 {% if use_i18n -%}
     "django-parler>=2.3.0",
 {% endif -%}
+{% if frontend_bundling == 'vite' -%}
+    "django-vite>=3.0.0",
+{% endif -%}
     "django-extensions>=3.2.0",
     "python-dotenv>=1.0.0",
     "django-alive>=1.3.0",

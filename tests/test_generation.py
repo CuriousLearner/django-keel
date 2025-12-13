@@ -204,7 +204,7 @@ def test_no_api_excludes_frameworks(generate):
 
 
 def test_htmx_frontend_templates_generated(generate):
-    """Test that HTMX frontend generates templates."""
+    """Test that HTMX frontend generates templates with Vite (default)."""
     project = generate(frontend="htmx-tailwind")
 
     templates_dir = project / "templates"
@@ -212,8 +212,40 @@ def test_htmx_frontend_templates_generated(generate):
 
     base_html = (templates_dir / "base.html").read_text()
     assert "{% block" in base_html
+    # Vite is the default, so check for vite tags
+    assert "django_vite" in base_html
+    assert "vite_asset" in base_html
+
+    # Vite frontend files should exist
+    frontend_dir = project / "frontend"
+    assert (frontend_dir / "package.json").exists()
+    assert (frontend_dir / "vite.config.js").exists()
+    assert (frontend_dir / "tailwind.config.js").exists()
+
+    # Check Django settings include django_vite
+    settings = project / "config" / "settings" / "base.py"
+    settings_content = settings.read_text()
+    assert "django_vite" in settings_content
+    assert "DJANGO_VITE" in settings_content
+
+
+def test_htmx_frontend_cdn_mode(generate):
+    """Test that HTMX frontend with CDN mode uses CDN links."""
+    project = generate(frontend="htmx-tailwind", frontend_bundling="cdn")
+
+    templates_dir = project / "templates"
+    base_html = (templates_dir / "base.html").read_text()
+    assert "{% block" in base_html
     assert "tailwindcss" in base_html
     assert "htmx" in base_html
+    # Should not have vite tags
+    assert "django_vite" not in base_html
+
+    # CDN mode should NOT create frontend build files
+    frontend_dir = project / "frontend"
+    assert not (frontend_dir / "package.json").exists()
+    assert not (frontend_dir / "vite.config.js").exists()
+    assert not (frontend_dir / "tailwind.config.js").exists()
 
 
 def test_nextjs_frontend_generated(generate):

@@ -388,6 +388,7 @@ def test_all_features_enabled_generates_successfully(generate):
         dependency_manager="uv",
         api_style="both",
         frontend="htmx-tailwind",
+        frontend_bundling="vite",  # Explicitly test Vite (the default)
         background_tasks="celery",
         use_channels=True,
         auth_backend="both",
