@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 {% if frontend == 'htmx-tailwind' and frontend_bundling == 'vite' -%}
 # Build frontend assets
-FROM node:20-slim AS frontend-builder
+FROM node:25-slim AS frontend-builder
 
 WORKDIR /app/frontend
 
