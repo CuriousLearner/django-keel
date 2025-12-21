@@ -310,20 +310,17 @@ We test Django Keel against:
 
 | Python | Django | Status    |
 | ------ | ------ | --------- |
-| 3.12   | 5.1    | ✅ Tested |
 | 3.12   | 5.2    | ✅ Tested |
 | 3.12   | 6.0    | ✅ Tested |
-| 3.13   | 5.1    | ✅ Tested |
 | 3.13   | 5.2    | ✅ Tested |
-| 3.14   | 6.0    | ✅ Tested |
-| 3.14   | 5.1    | ✅ Tested |
+| 3.13   | 6.0    | ✅ Tested |
 | 3.14   | 5.2    | ✅ Tested |
 | 3.14   | 6.0    | ✅ Tested |
 
 ### Support Policy
 
 - **Python**: Last 2-3 minor versions (currently 3.12, 3.13, 3.14)
-- **Django**: Last 2-3 minor versions (currently 5.1, 5.2, 6.0)
+- **Django**: Last 2-3 minor versions (currently 5.2, 6.0)
 - **LTS versions** get priority bug fixes
 - **Security patches** backported for 1 year
 
