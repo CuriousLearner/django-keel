@@ -8,7 +8,7 @@ license = "{{ license }}"
 
 [tool.poetry.dependencies]
 python = "^{{ python_version }}"
-django = "^5.2"
+django = "^{{ django_version }}"
 django-environ = "^0.11.2"
 psycopg = {extras = ["binary"], version = "^3.2.0"}
 {% if cache == 'redis' -%}

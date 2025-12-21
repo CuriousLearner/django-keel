@@ -4,7 +4,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
-[![Django 5.2](https://img.shields.io/badge/django-5.2-green.svg)](https://www.djangoproject.com/)
+[![Django 6.0](https://img.shields.io/badge/django-6.0-green.svg)](https://www.djangoproject.com/)
 [![Documentation Status](https://readthedocs.org/projects/django-keel/badge/?version=latest)](https://django-keel.readthedocs.io/en/latest/?badge=latest)
 
 Build **SaaS applications**, **API backends**, **web apps**, or **internal tools** with one comprehensive template.
@@ -112,7 +112,7 @@ Visit:
 
 ### 🎯 Core Foundation
 
-- **Django 5.2** with Python 3.12/3.13/3.14 support
+- **Django 5.2/6.0** with Python 3.12/3.13/3.14 support
 - **Custom User Model** from day one
 - **Split Settings** (base/dev/test/prod)
 - **12-Factor App** configuration with django-environ

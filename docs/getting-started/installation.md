@@ -4,14 +4,14 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
-[![Django 5.2](https://img.shields.io/badge/django-5.2-green.svg)](https://www.djangoproject.com/)
+[![Django 6.0](https://img.shields.io/badge/django-6.0-green.svg)](https://www.djangoproject.com/)
 
 Django Keel is a comprehensive Copier template for Django projects that combines the best practices from over a decade of production Django development with modern tooling and deployment strategies.
 
 ## ✨ Features
 
 ### 🎯 Core
-- **Django 5.2** with Python 3.12/3.13/3.14 support
+- **Django 5.2/6.0** with Python 3.12/3.13/3.14 support
 - **uv** or **Poetry** for blazing-fast dependency management
 - **12-Factor App** configuration with django-environ
 - **Custom User Model** from day one
