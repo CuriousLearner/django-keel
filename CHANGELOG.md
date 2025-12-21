@@ -69,6 +69,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### CI/CD
 - GitHub Actions workflow template
 - GitLab CI workflow template
+- Python + Django version matrix testing to verify all supported combinations
+
+#### Version Support
+- Django 5.2 and 6.0 support
+- Python 3.12, 3.13, and 3.14 support
 
 #### Documentation
 - ReadTheDocs integration with MkDocs Material theme
