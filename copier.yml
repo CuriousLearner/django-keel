@@ -8,58 +8,60 @@ _metadata:
   license: "MIT"
   author: "Django Keel Contributors"
 
-# Project Type (determines smart defaults)
-project_type:
-  type: str
-  help: What type of project are you building?
-  choices:
-    - "saas"           # Multi-tenant SaaS with billing
-    - "api"            # API-only backend
-    - "web-app"        # Traditional web application
-    - "internal-tool"  # Corporate internal tool
-    - "custom"         # I'll choose everything myself
-  default: "custom"
-
 # Project Basics
 project_name:
   type: str
-  help: What is your project name?
-  default: "My Django Project"
+  help: Project name
+  placeholder: "My Django Project"
+  validator: "{% if not project_name or project_name.strip() == '' %}Project name cannot be empty{% endif %}"
 
 project_slug:
   type: str
-  help: Python package name (slug)?
+  help: Python package name (slug)
   default: "{{ project_name.lower().replace(' ', '_').replace('-', '_') }}"
   validator: "{% if not project_slug.isidentifier() %}Must be valid Python identifier{% endif %}"
 
 project_description:
   type: str
-  help: Brief project description
-  default: "A Django project built with django-keel"
+  help: Project description
+  placeholder: "A Django project built with django-keel"
+  validator: "{% if not project_description or project_description.strip() == '' %}Project description cannot be empty{% endif %}"
 
 author_name:
   type: str
-  help: Your name
-  default: "Your Name"
+  help: Author name
+  placeholder: "Your Name"
 
 author_email:
   type: str
-  help: Your email
-  default: "your.email@example.com"
+  help: Author email
+  placeholder: "your.email@example.com"
 
 git_repository_url:
   type: str
   help: Git repository URL (leave empty if not created yet)
   default: ""
 
+# Project Type (determines smart defaults)
+project_type:
+  type: str
+  help: Project type
+  choices:
+    SaaS (Multi-tenant with billing): saas
+    API (API-only backend): api
+    Web App (Traditional web application): web-app
+    Internal Tool (Corporate internal tool): internal-tool
+    Custom (Choose everything yourself): custom
+  default: "custom"
+
 # Tech Stack
 python_version:
   type: str
   help: Python version
   choices:
-    - "3.12"
-    - "3.13"
     - "3.14"
+    - "3.13"
+    - "3.12"
   default: "3.14"
 
 django_version:
@@ -74,24 +76,24 @@ dependency_manager:
   type: str
   help: Package manager
   choices:
-    - "uv"
-    - "poetry"
+    uv: uv
+    Poetry: poetry
   default: "uv"
 
 database:
   type: str
   help: Database
   choices:
-    - "postgresql"
-    - "sqlite-dev-postgres-prod"
+    PostgreSQL: postgresql
+    SQLite (dev) + PostgreSQL (prod): sqlite-dev-postgres-prod
   default: "postgresql"
 
 cache:
   type: str
   help: Cache backend
   choices:
-    - "redis"
-    - "none"
+    Redis: redis
+    None: none
   default: "redis"
 
 # API & Frontend
@@ -99,10 +101,10 @@ api_style:
   type: str
   help: API framework
   choices:
-    - "drf"
-    - "graphql-strawberry"
-    - "both"
-    - "none"
+    Django REST Framework: drf
+    GraphQL (Strawberry): graphql-strawberry
+    Both: both
+    None: none
   default: >-
     {%- if project_type == 'api' -%}drf
     {%- elif project_type == 'saas' -%}drf
@@ -114,9 +116,9 @@ frontend:
   type: str
   help: Frontend approach
   choices:
-    - "none"
-    - "htmx-tailwind"
-    - "nextjs"
+    None: none
+    HTMX + Tailwind CSS: htmx-tailwind
+    Next.js: nextjs
   default: >-
     {%- if project_type == 'api' -%}none
     {%- elif project_type == 'saas' -%}nextjs
@@ -124,15 +126,24 @@ frontend:
     {%- elif project_type == 'internal-tool' -%}htmx-tailwind
     {%- else -%}none{%- endif -%}
 
+frontend_bundling:
+  type: str
+  help: Frontend asset bundling
+  when: "{{ frontend == 'htmx-tailwind' }}"
+  choices:
+    Vite (Production-ready, bundled assets): vite
+    CDN (Simple, no build step): cdn
+  default: "vite"
+
 # Async & Tasks
 background_tasks:
   type: str
   help: Background task processing
   choices:
-    - "celery"
-    - "temporal"
-    - "both"
-    - "none"
+    Celery: celery
+    Temporal: temporal
+    Both: both
+    None: none
   default: >-
     {%- if project_type == 'saas' -%}celery
     {%- elif project_type == 'api' -%}celery
@@ -148,11 +159,11 @@ use_channels:
 # Auth
 auth_backend:
   type: str
-  help: Authentication
+  help: Authentication backend
   choices:
-    - "allauth"
-    - "jwt"
-    - "both"
+    django-allauth: allauth
+    JWT: jwt
+    Both: both
   default: "allauth"
 
 use_2fa:
@@ -163,11 +174,11 @@ use_2fa:
 # Observability
 observability_level:
   type: str
-  help: Observability features
+  help: Observability level
   choices:
-    - "minimal"
-    - "standard"
-    - "full"
+    Minimal (JSON logs + health): minimal
+    Standard (Minimal + Sentry): standard
+    Full (Standard + Prometheus + OpenTelemetry): full
   default: "standard"
 
 use_sentry:
@@ -178,23 +189,32 @@ use_sentry:
 # Deployment
 deployment_targets:
   type: str
-  help: "Deployment targets (e.g., 'kubernetes,aws-ec2-ansible')"
-  default: >-
-    {%- if project_type == 'saas' -%}kubernetes
-    {%- elif project_type == 'api' -%}render
-    {%- elif project_type == 'web-app' -%}flyio
-    {%- elif project_type == 'internal-tool' -%}aws-ec2-ansible
-    {%- else -%}kubernetes{%- endif -%}
+  multiselect: true
+  help: Deployment targets
+  choices:
+    Kubernetes (Helm + Kustomize): kubernetes
+    Render: render
+    Fly.io: flyio
+    AWS ECS Fargate (Terraform): aws-ecs-fargate
+    AWS EC2 (Ansible): aws-ec2-ansible
+    Docker Compose: docker
+  default:
+    - >-
+      {%- if project_type == 'saas' -%}kubernetes
+      {%- elif project_type == 'api' -%}render
+      {%- elif project_type == 'web-app' -%}flyio
+      {%- elif project_type == 'internal-tool' -%}aws-ec2-ansible
+      {%- else -%}kubernetes{%- endif -%}
 
 # Storage
 media_storage:
   type: str
   help: Media file storage
   choices:
-    - "local-whitenoise"
-    - "aws-s3"
-    - "gcp-gcs"
-    - "azure-storage"
+    Whitenoise (local): local-whitenoise
+    AWS S3: aws-s3
+    Google Cloud Storage: gcp-gcs
+    Azure Storage: azure-storage
   default: "aws-s3"
 
 # Security
@@ -202,8 +222,8 @@ security_profile:
   type: str
   help: Security level
   choices:
-    - "standard"
-    - "strict"
+    Standard: standard
+    Strict: strict
   default: "standard"
 
 use_sops:
@@ -232,17 +252,17 @@ stripe_mode:
   help: Stripe integration mode
   when: "{{ use_stripe }}"
   choices:
-    - "basic"
-    - "advanced"
+    Basic (Stripe API): basic
+    Advanced (dj-stripe): advanced
   default: "advanced"
 
 use_search:
   type: str
   help: Search backend
   choices:
-    - "none"
-    - "postgres-fts"
-    - "opensearch"
+    None: none
+    PostgreSQL Full-Text Search: postgres-fts
+    OpenSearch: opensearch
   default: "none"
 
 use_i18n:
@@ -255,9 +275,9 @@ ci_provider:
   type: str
   help: CI/CD provider
   choices:
-    - "github-actions"
-    - "gitlab-ci"
-    - "both"
+    GitHub Actions: github-actions
+    GitLab CI: gitlab-ci
+    Both: both
   default: "github-actions"
 
 # License
@@ -265,22 +285,12 @@ license:
   type: str
   help: Project license
   choices:
-    - "MIT"
-    - "Apache-2.0"
-    - "GPL-3.0"
-    - "BSD-3-Clause"
-    - "Proprietary"
+    MIT: MIT
+    Apache 2.0: Apache-2.0
+    GPL 3.0: GPL-3.0
+    BSD 3-Clause: BSD-3-Clause
+    Proprietary: Proprietary
   default: "MIT"
 
-# Post-generation tasks
-_tasks:
-  - command: git init
-  - command: git add .
-  - command: |
-      git commit -m "🎉 Initial commit
-
-      Generated with django-keel
-
-      Project: {{ project_name }}
-      Description: {{ project_description }}
-      "
+# Post-generation instructions are now provided in the template's README
+# instead of using _tasks to avoid the "unsafe feature" warning

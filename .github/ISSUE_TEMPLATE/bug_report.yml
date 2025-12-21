@@ -1,34 +1,179 @@
-name: Bug report
+name: Bug Report
 description: Report a reproducible problem in the template or generated project
-labels: [bug]
+title: "[Bug]: "
+labels: ["bug", "triage"]
 body:
-  - type: textarea
+  - type: markdown
     attributes:
-      label: Description
-      description: What happened? What did you expect?
-    validations: { required: true }
+      value: |
+        Thanks for taking the time to report this bug! Please fill out the sections below to help us resolve it quickly.
+
+  - type: dropdown
+    id: bug-type
+    attributes:
+      label: Bug Type
+      description: Where does this bug occur?
+      options:
+        - Template generation (copier copy/update)
+        - Generated project code
+        - Docker/Docker Compose
+        - Deployment configuration (K8s/ECS/Fly.io/Render/EC2)
+        - CI/CD pipelines
+        - Documentation
+        - Testing
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug Description
+      description: A clear and concise description of what the bug is.
+      placeholder: Describe the bug...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected-behavior
+    attributes:
+      label: Expected Behavior
+      description: What did you expect to happen?
+      placeholder: I expected...
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual-behavior
+    attributes:
+      label: Actual Behavior
+      description: What actually happened?
+      placeholder: Instead, what happened was...
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction-steps
+    attributes:
+      label: Steps to Reproduce
+      description: Detailed steps to reproduce the behavior
+      value: |
+        1. Run `copier copy gh:CuriousLearner/django-keel my-project`
+        2. Answer prompts with: [list your selections]
+        3. Run `cd my-project && docker compose up`
+        4. See error...
+    validations:
+      required: true
+
   - type: input
+    id: keel-version
     attributes:
-      label: Keel version
-      placeholder: "e.g., 1.2.3"
-    validations: { required: true }
+      label: Django Keel Version
+      description: Which version of the template are you using?
+      placeholder: "e.g., 0.1.0, latest, commit hash"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: project-type
+    attributes:
+      label: Project Type
+      description: Which project type did you select?
+      options:
+        - saas
+        - api
+        - web-app
+        - internal-tool
+        - custom
+        - Not applicable
+    validations:
+      required: true
+
   - type: textarea
+    id: copier-answers
     attributes:
-      label: Copier answers
-      description: Paste relevant keys (api, frontend, background_tasks, deployment_targets, etc.)
+      label: Copier Configuration
+      description: |
+        Paste your `.copier-answers.yml` file or relevant configuration.
+        Remove any sensitive information (project name, emails, etc.)
       placeholder: |
+        _commit: abc123
+        _src_path: gh:CuriousLearner/django-keel
+        project_type: saas
         api: drf
         frontend: nextjs
         background_tasks: celery
         deployment_targets: [kubernetes]
+        use_teams: true
+        use_stripe: advanced
+      render: yaml
+
   - type: textarea
+    id: environment
     attributes:
-      label: Steps to reproduce
+      label: Environment
+      description: |
+        Please provide details about your environment
       value: |
-        1. copier copy gh:CuriousLearner/django-keel demo
-        2. ...
-    validations: { required: true }
+        - OS: [e.g., macOS 14.0, Ubuntu 22.04, Windows 11]
+        - Python version: [e.g., 3.12.1]
+        - Copier version: [e.g., 9.0.0]
+        - Docker version: [e.g., 24.0.0]
+        - Docker Compose version: [e.g., 2.20.0]
+      render: markdown
+    validations:
+      required: true
+
   - type: textarea
+    id: logs
     attributes:
-      label: Logs / screenshots
-      description: Paste error messages, tracebacks, or screenshots
+      label: Error Logs / Screenshots
+      description: |
+        Paste relevant error messages, tracebacks, or screenshots.
+        Use code blocks (```) for logs.
+      placeholder: |
+        ```
+        Paste error logs here
+        ```
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: troubleshooting
+    attributes:
+      label: Troubleshooting Steps Taken
+      description: What have you tried so far?
+      options:
+        - label: Searched existing issues
+        - label: Reviewed documentation
+        - label: Tried with a fresh project generation
+        - label: Verified all prerequisites are installed
+        - label: Cleared Docker cache/volumes
+        - label: Tested with latest template version
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      description: How severely does this bug affect your work?
+      options:
+        - Critical (Blocking, cannot proceed)
+        - High (Major feature broken)
+        - Medium (Feature partially broken)
+        - Low (Minor issue, workaround available)
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional Context
+      description: Add any other context about the problem here (workarounds, related issues, etc.)
+      placeholder: Any additional information...
+
+  - type: checkboxes
+    id: contribution
+    attributes:
+      label: Contribution
+      options:
+        - label: I'd be willing to submit a PR to fix this issue

@@ -1,18 +1,12 @@
 """Pytest configuration and fixtures for django-keel template tests."""
 
-import subprocess
+from __future__ import annotations
+
 from pathlib import Path
 from typing import Any
 
 import pytest
 import yaml
-
-
-@pytest.fixture(scope="session", autouse=True)
-def configure_git():
-    """Configure git for copier post-generation tasks."""
-    subprocess.run(["git", "config", "--global", "user.email", "test@django-keel.test"], check=True)
-    subprocess.run(["git", "config", "--global", "user.name", "Django Keel Test"], check=True)
 
 
 @pytest.fixture(scope="session")
@@ -48,7 +42,7 @@ def copier_answers():
         "use_2fa": False,
         "observability_level": "minimal",
         "use_sentry": False,
-        "deployment_targets": "none",
+        "deployment_targets": ["kubernetes"],
         "media_storage": "local-whitenoise",
         "security_profile": "standard",
         "use_sops": False,

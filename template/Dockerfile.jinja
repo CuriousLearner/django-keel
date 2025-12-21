@@ -1,4 +1,23 @@
 # syntax=docker/dockerfile:1
+{% if frontend == 'htmx-tailwind' and frontend_bundling == 'vite' -%}
+# Build frontend assets
+FROM node:25-slim AS frontend-builder
+
+WORKDIR /app/frontend
+
+# Copy frontend files
+COPY frontend/package*.json ./
+
+# Install dependencies
+RUN npm ci
+
+# Copy rest of frontend
+COPY frontend/ ./
+
+# Build assets (outputs to ../static/dist per vite.config.js)
+RUN npm run build
+
+{% endif -%}
 FROM python:{{ python_version }}-slim as base
 
 # Set environment variables
@@ -42,6 +61,11 @@ RUN uv sync --no-dev
 # Copy rest of application
 COPY . .
 
+{% if frontend == 'htmx-tailwind' and frontend_bundling == 'vite' -%}
+# Copy built frontend assets
+COPY --from=frontend-builder /app/static/dist ./static/dist
+{% endif -%}
+
 {% else -%}
 # Install poetry
 RUN pip install poetry==1.7.0
@@ -61,6 +85,11 @@ RUN poetry config virtualenvs.create false \
 
 # Copy rest of application
 COPY . .
+
+{% if frontend == 'htmx-tailwind' and frontend_bundling == 'vite' -%}
+# Copy built frontend assets
+COPY --from=frontend-builder /app/static/dist ./static/dist
+{% endif -%}
 {% endif -%}
 
 # Change ownership

@@ -18,7 +18,7 @@ jobs:
         database: [postgresql, sqlite-dev-postgres-prod]
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v6
@@ -28,15 +28,14 @@ jobs:
       - name: Install Copier
         run: pip install copier
 
-      - name: Configure git for copier
-        run: |
-          git config --global user.email "ci@django-keel.test"
-          git config --global user.name "Django Keel CI"
-
       - name: Generate project
         run: |
           copier copy . ../test_project \
+            --data project_name="Test Project" \
             --data project_slug=test_project \
+            --data project_description="Test project for CI" \
+            --data author_name="CI Test" \
+            --data author_email="ci@test.local" \
             --data python_version="${{ matrix.python-version }}" \
             --data dependency_manager="${{ matrix.dependency-manager }}" \
             --data database="${{ matrix.database }}" \
@@ -53,7 +52,7 @@ jobs:
     name: Check Dependency Updates
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Set up Python
         uses: actions/setup-python@v6
@@ -76,7 +75,7 @@ jobs:
     name: Check Documentation Links
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Check links in README
         uses: gaurav-nelson/github-action-markdown-link-check@v1
@@ -89,7 +88,7 @@ jobs:
     name: Template Consistency Check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Check for TODO/FIXME comments
         run: |
@@ -129,7 +128,7 @@ jobs:
     name: Template Generation Performance
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Set up Python
         uses: actions/setup-python@v6
@@ -139,15 +138,10 @@ jobs:
       - name: Install Copier
         run: pip install copier
 
-      - name: Configure git for copier
-        run: |
-          git config --global user.email "ci@django-keel.test"
-          git config --global user.name "Django Keel CI"
-
       - name: Benchmark template generation
         run: |
           echo "Testing generation speed..."
-          time copier copy . ../test_project --data project_slug=test_project --defaults --trust
+          time copier copy . ../test_project --data project_name="Test Project" --data project_slug=test_project --data project_description="Test project for CI" --data author_name="CI Test" --data author_email="ci@test.local" --defaults --trust
 
           echo "Project size:"
           du -sh ../test_project

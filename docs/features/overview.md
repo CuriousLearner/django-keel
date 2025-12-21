@@ -463,4 +463,4 @@ uv run python manage.py migrate --fake app_name migration_name
 
 ---
 
-**Questions?** Open an issue or check the [Discussions](https://github.com/CuriousLearner/django-keel/issues)
+**Questions?** Open an issue or check the [Discussions](https://github.com/CuriousLearner/django-keel/discussions)

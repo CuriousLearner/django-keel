@@ -1,0 +1,191 @@
+# Security Groups and Secrets Management
+
+# Security Group for ECS Tasks
+resource "aws_security_group" "app" {
+  name_prefix = "${local.name_prefix}-app-"
+  vpc_id      = aws_vpc.main.id
+  description = "Security group for ECS tasks"
+
+  ingress {
+    from_port       = local.container_port
+    to_port         = local.container_port
+    protocol        = "tcp"
+    security_groups = [aws_security_group.alb.id]
+    description     = "HTTP from ALB"
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+    description = "Allow all outbound traffic"
+  }
+
+  tags = merge(
+    local.common_tags,
+    {
+      Name = "${local.name_prefix}-app-sg"
+    }
+  )
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+# Django Secret Key in Secrets Manager
+resource "aws_secretsmanager_secret" "django_secret_key" {
+  name                         = "${local.name_prefix}-django-secret-key"
+  name_recovery_window_in_days = var.environment == "production" ? 30 : 0
+
+  tags = merge(
+    local.common_tags,
+    {
+      Name = "${local.name_prefix}-django-secret-key"
+    }
+  )
+}
+
+resource "aws_secretsmanager_secret_version" "django_secret_key" {
+  secret_id     = aws_secretsmanager_secret.django_secret_key.id
+  secret_string = var.django_secret_key
+}
+
+{% if use_stripe -%}
+# Stripe Secret Key
+resource "aws_secretsmanager_secret" "stripe_secret_key" {
+  count = var.stripe_secret_key != "" ? 1 : 0
+
+  name                         = "${local.name_prefix}-stripe-secret-key"
+  name_recovery_window_in_days = var.environment == "production" ? 30 : 0
+
+  tags = merge(
+    local.common_tags,
+    {
+      Name = "${local.name_prefix}-stripe-secret-key"
+    }
+  )
+}
+
+resource "aws_secretsmanager_secret_version" "stripe_secret_key" {
+  count = var.stripe_secret_key != "" ? 1 : 0
+
+  secret_id     = aws_secretsmanager_secret.stripe_secret_key[0].id
+  secret_string = var.stripe_secret_key
+}
+{% endif %}
+
+{% if use_sentry -%}
+# Sentry DSN
+resource "aws_secretsmanager_secret" "sentry_dsn" {
+  count = var.sentry_dsn != "" ? 1 : 0
+
+  name                         = "${local.name_prefix}-sentry-dsn"
+  name_recovery_window_in_days = var.environment == "production" ? 30 : 0
+
+  tags = merge(
+    local.common_tags,
+    {
+      Name = "${local.name_prefix}-sentry-dsn"
+    }
+  )
+}
+
+resource "aws_secretsmanager_secret_version" "sentry_dsn" {
+  count = var.sentry_dsn != "" ? 1 : 0
+
+  secret_id     = aws_secretsmanager_secret.sentry_dsn[0].id
+  secret_string = var.sentry_dsn
+}
+{% endif %}
+
+# ACM Certificate for HTTPS (requires custom domain)
+resource "aws_acm_certificate" "main" {
+  count = var.domain_name != "" ? 1 : 0
+
+  domain_name               = var.domain_name
+  subject_alternative_names = ["*.${var.domain_name}"]
+  validation_method         = "DNS"
+
+  lifecycle {
+    create_before_destroy = true
+  }
+
+  tags = merge(
+    local.common_tags,
+    {
+      Name = "${local.name_prefix}-cert"
+    }
+  )
+}
+
+# Route53 Hosted Zone
+resource "aws_route53_zone" "main" {
+  count = var.domain_name != "" && var.create_dns_zone ? 1 : 0
+
+  name = var.domain_name
+
+  tags = merge(
+    local.common_tags,
+    {
+      Name = "${local.name_prefix}-zone"
+    }
+  )
+}
+
+# Route53 Record for Certificate Validation
+resource "aws_route53_record" "cert_validation" {
+  for_each = var.domain_name != "" && var.create_dns_zone ? {
+    for dvo in aws_acm_certificate.main[0].domain_validation_options : dvo.domain_name => {
+      name   = dvo.resource_record_name
+      record = dvo.resource_record_value
+      type   = dvo.resource_record_type
+    }
+  } : {}
+
+  allow_overwrite = true
+  name            = each.value.name
+  records         = [each.value.record]
+  ttl             = 60
+  type            = each.value.type
+  zone_id         = aws_route53_zone.main[0].zone_id
+}
+
+# Route53 Record for ALB
+resource "aws_route53_record" "alb" {
+  count = var.domain_name != "" && var.create_dns_zone ? 1 : 0
+
+  zone_id = aws_route53_zone.main[0].zone_id
+  name    = var.domain_name
+  type    = "A"
+
+  alias {
+    name                   = aws_lb.main.dns_name
+    zone_id                = aws_lb.main.zone_id
+    evaluate_target_health = true
+  }
+}
+
+# Route53 Record for www subdomain
+resource "aws_route53_record" "www" {
+  count = var.domain_name != "" && var.create_dns_zone ? 1 : 0
+
+  zone_id = aws_route53_zone.main[0].zone_id
+  name    = "www.${var.domain_name}"
+  type    = "A"
+
+  alias {
+    name                   = aws_lb.main.dns_name
+    zone_id                = aws_lb.main.zone_id
+    evaluate_target_health = true
+  }
+}
+
+# Certificate validation
+resource "aws_acm_certificate_validation" "main" {
+  count = var.domain_name != "" && var.create_dns_zone ? 1 : 0
+
+  certificate_arn         = aws_acm_certificate.main[0].arn
+  validation_record_fqdns = [for record in aws_route53_record.cert_validation : record.fqdn]
+}

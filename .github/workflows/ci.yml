@@ -2,16 +2,15 @@ name: CI
 
 on:
   push:
-    branches: [main]
   pull_request:
-    branches: [main]
+    types: [opened, synchronize, reopened]
 
 jobs:
   lint:
     name: Code Quality
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Set up Python
         uses: actions/setup-python@v6
@@ -37,9 +36,9 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.12", "3.13","3.14"]
+        python-version: ["3.12", "3.13", "3.14"]
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v6
@@ -73,7 +72,7 @@ jobs:
       matrix:
         project-type: [saas, api, web-app, internal-tool]
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Set up Python
         uses: actions/setup-python@v6
@@ -85,17 +84,15 @@ jobs:
           python -m pip install --upgrade pip
           pip install copier
 
-      - name: Configure git for copier
-        run: |
-          git config --global user.email "ci@django-keel.test"
-          git config --global user.name "Django Keel CI"
-
       - name: Generate ${{ matrix.project-type }} project
         run: |
           PROJECT_SLUG=$(echo "test_${{ matrix.project-type }}" | sed 's/-/_/g')
           copier copy . ../test_${{ matrix.project-type }} \
             --data project_name="Test ${{ matrix.project-type }}" \
             --data project_slug="${PROJECT_SLUG}" \
+            --data project_description="A test project for ${{ matrix.project-type }}" \
+            --data author_name="Django Keel CI" \
+            --data author_email="ci@django-keel.test" \
             --data project_type=${{ matrix.project-type }} \
             --defaults \
             --trust
@@ -121,7 +118,7 @@ jobs:
     name: Validate YAML Files
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Set up Python
         uses: actions/setup-python@v6
@@ -141,7 +138,7 @@ jobs:
     name: Security Checks
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Set up Python
         uses: actions/setup-python@v6
@@ -169,7 +166,7 @@ jobs:
     name: Documentation
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0  # Need full history for git-revision-date plugin
 

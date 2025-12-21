@@ -1,0 +1,575 @@
+# AWS ECS Fargate Deployment
+
+Deploy {{ project_name }} to AWS ECS using Fargate for serverless container deployment with complete Infrastructure as Code.
+
+## Overview
+
+This directory contains a complete implementation for deploying to AWS ECS Fargate:
+
+### What's Included
+
+- **Complete Terraform Configuration**: Full IaC setup with modular architecture
+- **Automated Deployment Script**: One-command deployment with `deploy.sh`
+- **CI/CD Pipeline**: GitHub Actions workflow with automatic rollback
+- **Networking**: VPC with public/private subnets, NAT gateways, and VPC endpoints
+- **Database Options**: RDS PostgreSQL or Aurora Serverless v2
+- **Storage**: S3 buckets for static/media files with encryption
+- **Security**: Secrets Manager, IAM roles, security groups, SSL/TLS certificates
+- **Monitoring**: CloudWatch logs, alarms, SNS notifications, and dashboard
+- **Auto-scaling**: Multi-metric target tracking (CPU, Memory, Requests)
+- **DNS Management**: Route53 hosted zone and automatic certificate validation
+- **Migration Management**: Terraform-managed database migration tasks
+- **Cost Optimization**: Fargate Spot support, single NAT for non-prod, lifecycle policies
+
+### Directory Structure
+
+```
+ecs/
+├── deploy.sh                    # Main deployment script
+├── terraform/
+│   ├── main.tf                  # Main Terraform configuration
+│   ├── variables.tf             # Input variables
+│   ├── outputs.tf               # Output values
+│   ├── network.tf               # VPC and networking
+│   ├── ecs.tf                   # ECS cluster, services, and auto-scaling
+│   ├── alb.tf                   # Application Load Balancer
+│   ├── database.tf              # RDS/Aurora configuration
+│   ├── storage.tf               # S3 and Redis
+│   ├── security.tf              # Security groups, secrets, and Route53
+│   ├── ecr.tf                   # Container registry
+│   ├── monitoring.tf            # CloudWatch alarms and dashboard
+│   └── terraform.tfvars.example # Example variables file
+└── ../../.github/workflows/deploy-ecs.yml   # GitHub Actions CI/CD
+```
+
+## Prerequisites
+
+- AWS CLI installed and configured
+- Terraform >= 1.0
+- Docker for building images
+- jq for JSON processing
+- Python {{ python_version }} with Django installed
+
+## HTTPS and Custom Domain
+
+**Important:** HTTPS is only available when using a custom domain. The deployment supports two modes:
+
+1. **HTTP-only (Development/Testing)**
+   - Set `domain_name = ""` in terraform.tfvars
+   - Access via ALB DNS name (e.g., `http://myapp-alb-123456.us-east-1.elb.amazonaws.com`)
+   - No SSL/TLS certificate required
+
+2. **HTTPS with Custom Domain (Production)**
+   - Set `domain_name = "example.com"` and `create_dns_zone = true` in terraform.tfvars
+   - Terraform creates Route53 hosted zone and ACM certificate
+   - HTTP traffic automatically redirects to HTTPS
+   - Update your domain's nameservers to point to Route53
+
+**Note:** AWS ALB DNS names cannot be used with ACM certificates. For production deployments with HTTPS, a custom domain is required.
+
+## Quick Start
+
+### Option 1: Automated Deployment (Recommended)
+
+Use the deployment script for a fully automated setup:
+
+```bash
+# Make script executable
+chmod +x deploy/ecs/deploy.sh
+
+# Run full deployment
+./deploy/ecs/deploy.sh
+
+# Or with options
+./deploy/ecs/deploy.sh --environment production --region us-west-2
+```
+
+The script will:
+1. Check all dependencies
+2. Create ECR repository
+3. Build and push Docker image
+4. Initialize Terraform
+5. Deploy infrastructure
+6. Run database migrations
+7. Update ECS service
+8. Show deployment information
+
+### Option 2: Manual Deployment
+
+#### 1. Build and Push Docker Image
+
+```bash
+# Login to ECR
+aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin <account-id>.dkr.ecr.us-east-1.amazonaws.com
+
+# Build image
+docker build -t {{ project_slug }} .
+
+# Tag image
+docker tag {{ project_slug }}:latest <account-id>.dkr.ecr.us-east-1.amazonaws.com/{{ project_slug }}:latest
+
+# Push to ECR
+docker push <account-id>.dkr.ecr.us-east-1.amazonaws.com/{{ project_slug }}:latest
+```
+
+#### 2. Configure Terraform
+
+```bash
+cd deploy/ecs/terraform
+
+# Initialize Terraform
+terraform init
+
+# Create terraform.tfvars
+cat > terraform.tfvars <<EOF
+project_name     = "{{ project_slug }}"
+environment      = "production"
+aws_region       = "us-east-1"
+# ECR repository is automatically created by Terraform
+# container_image is only needed if using external image
+django_secret_key = "$(python -c 'from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())')"
+django_debug      = false
+allowed_hosts    = "{{ project_slug }}.example.com"
+EOF
+```
+
+#### 3. Deploy Infrastructure
+
+```bash
+# Plan deployment
+terraform plan
+
+# Apply deployment
+terraform apply
+
+# Get ALB URL
+terraform output alb_url
+```
+
+## Deployment Script Features
+
+The `deploy.sh` script provides comprehensive deployment automation:
+
+### Interactive Menu
+
+```bash
+./deploy/ecs/deploy.sh
+```
+
+Options:
+1. **Full deployment** - Complete end-to-end deployment
+2. **Build and push** - Docker image management only
+3. **Deploy infrastructure** - Terraform deployment only
+4. **Update ECS service** - Rolling update of running service
+5. **Run migrations** - Database migration management
+6. **Show deployment info** - Display current deployment status
+7. **Generate tfvars** - Create Terraform variables file
+8. **Rollback** - Revert to previous task definition
+9. **Destroy** - Remove all infrastructure
+
+### Command Line Options
+
+```bash
+./deploy/ecs/deploy.sh [options]
+
+Options:
+  -e, --environment ENV    Environment (dev/staging/production)
+  -r, --region REGION      AWS region
+  -t, --image-tag TAG      Docker image tag
+  -y, --auto               Auto approve all prompts
+  -h, --help               Show help message
+```
+
+### Environment-Specific Deployments
+
+```bash
+# Development
+./deploy/ecs/deploy.sh --environment dev --region us-east-1
+
+# Staging
+./deploy/ecs/deploy.sh --environment staging --region us-west-2
+
+# Production
+./deploy/ecs/deploy.sh --environment production --region eu-west-1
+```
+
+## Architecture
+
+```
+Internet
+   |
+   v
+Application Load Balancer (ALB)
+   |
+   v
+ECS Service (Fargate)
+   |
+   +-- Task 1 (Container)
+   +-- Task 2 (Container)
+   +-- Task N (Container)
+   |
+   v
+RDS PostgreSQL / Aurora Serverless
+   |
+   v
+S3 (Static/Media Files)
+```
+
+## Configuration
+
+### Environment Variables
+
+Set these in AWS Secrets Manager or Systems Manager Parameter Store:
+
+```bash
+DJANGO_SECRET_KEY=<your-secret-key>
+DATABASE_URL=postgresql://...
+ALLOWED_HOSTS={{ project_slug }}.example.com
+DEBUG=False
+{% if cache == 'redis' -%}
+REDIS_URL=redis://...
+{% endif -%}
+{% if background_tasks in ['celery', 'both'] -%}
+CELERY_BROKER_URL=redis://...
+{% endif -%}
+{% if use_sentry -%}
+SENTRY_DSN=<your-sentry-dsn>
+{% endif -%}
+AWS_STORAGE_BUCKET_NAME={{ project_slug }}-media
+AWS_ACCESS_KEY_ID=<from-iam>
+AWS_SECRET_ACCESS_KEY=<from-iam>
+```
+
+### Task Definition
+
+The ECS task definition includes:
+
+- **CPU**: 256-1024 (0.25-1 vCPU)
+- **Memory**: 512-2048 MB
+- **Port Mappings**: 8000 (Gunicorn)
+- **Health Check**: `/health/` endpoint
+- **Logging**: CloudWatch Logs
+
+### Auto Scaling
+
+Comprehensive auto-scaling with multiple metrics:
+
+- **Min Tasks**: 2 (production), 1 (dev/staging)
+- **Max Tasks**: 10 (production), 3 (dev/staging)
+- **CPU-based scaling**: Target 70% utilization
+- **Memory-based scaling**: Target 80% utilization
+- **Request-based scaling**: Target 1000 requests per target
+- **Scale-in Cooldown**: 300s
+- **Scale-out Cooldown**: 60s
+
+The service uses target tracking policies for all three metrics and will scale based on whichever metric needs the most capacity. This ensures responsive scaling under various load patterns.
+
+## Database Options
+
+### RDS PostgreSQL
+
+```hcl
+# Deploy with RDS
+terraform apply -var="use_aurora=false"
+```
+
+### Aurora Serverless v2
+
+```hcl
+# Deploy with Aurora Serverless
+terraform apply -var="use_aurora=true"
+```
+
+Benefits of Aurora Serverless:
+- Automatically scales based on load
+- Pay per second
+- Pause when inactive (dev/staging)
+
+## Static & Media Files
+
+Configure S3 for static and media files:
+
+```python
+# settings/prod.py
+AWS_STORAGE_BUCKET_NAME = env("AWS_STORAGE_BUCKET_NAME")
+AWS_S3_REGION_NAME = env("AWS_REGION", default="us-east-1")
+AWS_S3_CUSTOM_DOMAIN = f"{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com"
+
+# Static files
+STATICFILES_STORAGE = "storages.backends.s3boto3.S3StaticStorage"
+
+# Media files
+DEFAULT_FILE_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
+```
+
+## DNS and Domain Configuration
+
+### Route53 Setup (Optional)
+
+If using a custom domain, Terraform can manage your DNS:
+
+**1. Configure domain in terraform.tfvars:**
+```hcl
+domain_name      = "example.com"
+create_dns_zone  = true
+```
+
+**2. Terraform creates:**
+- Route53 hosted zone for your domain
+- ACM certificate with automatic DNS validation
+- A records pointing to your ALB (apex and www)
+- Certificate validation records
+
+**3. Update your domain registrar:**
+```bash
+# Get nameservers from Terraform output
+terraform output domain_nameservers
+
+# Update your domain registrar (e.g., Namecheap, GoDaddy) with these nameservers:
+# ns-123.awsdns-12.com
+# ns-456.awsdns-45.net
+# ns-789.awsdns-78.org
+# ns-012.awsdns-01.co.uk
+```
+
+**4. Certificate validation:**
+- Automatic when using Route53 (Terraform creates validation records)
+- Manual if using external DNS (add CNAME records from ACM console)
+
+**5. Access your application:**
+- `https://example.com` - Apex domain
+- `https://www.example.com` - WWW subdomain
+- Both automatically redirect HTTP → HTTPS
+
+### Using Existing DNS Provider
+
+If you manage DNS externally:
+
+```hcl
+domain_name      = "example.com"
+create_dns_zone  = false  # Don't create Route53 zone
+```
+
+Then manually create:
+- ACM certificate validation records (from AWS Console)
+- A record pointing to ALB DNS name (from `terraform output alb_dns_name`)
+
+## Migrations
+
+### Terraform-Managed Migration Task
+
+Database migrations are managed as a Terraform resource (`ecs_migrate` task definition). This ensures consistency with your application container and simplifies deployment.
+
+### Running Migrations
+
+**Using deploy.sh (Recommended):**
+```bash
+./deploy/ecs/deploy.sh
+# Then select option 5: "Run migrations"
+```
+
+The script will:
+1. Get the migration task definition from Terraform
+2. Run the task in your private subnets
+3. Wait for completion and validate exit code
+4. Show migration logs
+
+**Manual Execution:**
+```bash
+# Get task definition ARN from Terraform
+cd deploy/ecs/terraform
+MIGRATE_TASK_DEF=$(terraform output -raw ecs_migrate_task_definition)
+
+# Get subnet and security group IDs
+SUBNET_IDS=$(aws ec2 describe-subnets \
+  --filters "Name=tag:Type,Values=Private" \
+  --query "Subnets[*].SubnetId" --output text | tr '\t' ',')
+SECURITY_GROUP=$(aws ec2 describe-security-groups \
+  --filters "Name=tag:Name,Values=*app-sg" \
+  --query "SecurityGroups[0].GroupId" --output text)
+
+# Run migration
+TASK_ARN=$(aws ecs run-task \
+  --cluster {{ project_slug }}-{environment}-cluster \
+  --task-definition "$MIGRATE_TASK_DEF" \
+  --launch-type FARGATE \
+  --network-configuration "awsvpcConfiguration={subnets=[$SUBNET_IDS],securityGroups=[$SECURITY_GROUP],assignPublicIp=DISABLED}" \
+  --query 'tasks[0].taskArn' --output text)
+
+# Wait for completion
+aws ecs wait tasks-stopped --cluster {{ project_slug }}-{environment}-cluster --tasks "$TASK_ARN"
+
+# Check exit code
+aws ecs describe-tasks \
+  --cluster {{ project_slug }}-{environment}-cluster \
+  --tasks "$TASK_ARN" \
+  --query 'tasks[0].containers[0].exitCode'
+```
+
+**In CI/CD:**
+Migrations run automatically before deployment in the GitHub Actions workflow with:
+- Proper wait conditions (no hardcoded sleeps)
+- Exit code validation
+- Automatic rollback on failure
+
+## Monitoring
+
+### CloudWatch Alarms
+
+Comprehensive monitoring with automated alerting (enabled via `enable_monitoring = true`):
+
+**ECS Service Alarms:**
+- **High CPU**: > 80% for 2 periods (5 min each)
+- **High Memory**: > 85% for 2 periods
+- **Unhealthy Targets**: Any unhealthy targets for 2 periods (1 min each)
+
+**ALB Alarms:**
+- **5XX Errors**: > 10 errors in 5 minutes
+- **Response Time**: > 2 seconds average for 5 minutes
+
+**Database Alarms (RDS):**
+- **High CPU**: > 80% for 10 minutes
+- **Low Storage**: < 5GB free space
+- **High Connections**: > 80 concurrent connections
+
+{% if cache == 'redis' -%}
+**Redis Alarms:**
+- **High CPU**: > 75% for 10 minutes
+- **High Memory**: > 80% for 10 minutes
+{% endif %}
+
+**Notifications:**
+- Email notifications via SNS (configure `alarm_email` in terraform.tfvars)
+- All alarms tagged with environment and project
+- Alarms automatically integrate with AWS CloudWatch dashboard
+
+### CloudWatch Dashboard
+
+A pre-configured dashboard is created with:
+- ECS CPU and Memory utilization graphs
+- ALB request count, errors, and response time
+- Database connection count and CPU usage
+- All metrics updated in real-time
+
+Access via: AWS Console → CloudWatch → Dashboards → `{{ project_slug }}-{environment}-dashboard`
+
+### Logs
+
+View logs:
+
+```bash
+# Stream logs
+aws logs tail /ecs/{{ project_slug }}-{environment} --follow
+
+# Filter for errors
+aws logs filter-log-events \
+  --log-group-name /ecs/{{ project_slug }}-{environment} \
+  --filter-pattern "ERROR"
+
+# View specific service logs
+aws logs tail /ecs/{{ project_slug }}-{environment} --follow --filter-pattern "app"
+aws logs tail /ecs/{{ project_slug }}-{environment} --follow --filter-pattern "migrate"
+{% if use_celery -%}
+aws logs tail /ecs/{{ project_slug }}-{environment} --follow --filter-pattern "celery"
+{% endif -%}
+```
+
+## CI/CD Integration
+
+### GitHub Actions
+
+The included workflow (`.github/workflows/deploy-ecs.yml`) provides:
+
+**Features:**
+- Automated testing on pull requests
+- Build and push to ECR with image caching
+- Separate staging and production deployments
+- Database migrations with validation
+- Health check verification with retries
+- **Automatic rollback on failure** (production only)
+- RDS snapshot before production deployment
+- Blue/Green deployment with circuit breaker
+- Slack notifications (optional)
+- Sentry release tracking (optional)
+
+**Deployment Flow:**
+
+1. **Test** (PR only): Run pytest and linting
+2. **Build**: Build Docker image with caching
+3. **Push**: Tag and push to ECR (`:latest`, `:sha`, `:branch-name`)
+4. **Backup**: Create RDS snapshot (production only)
+5. **Migrate**: Run database migrations with exit code validation
+6. **Deploy**: Update ECS service with new task definition
+7. **Wait**: Use proper AWS wait conditions (no hardcoded sleeps)
+8. **Verify**: Health checks with retry logic
+9. **Rollback**: Automatic rollback on failure (production only)
+10. **Notify**: Send notifications (Slack, Sentry)
+
+**Configuration:**
+
+Add these secrets to your GitHub repository:
+```
+AWS_ACCESS_KEY_ID
+AWS_SECRET_ACCESS_KEY
+STAGING_SUBNET_IDS       # Comma-separated subnet IDs
+STAGING_SECURITY_GROUP_ID
+PRODUCTION_SUBNET_IDS
+PRODUCTION_SECURITY_GROUP_ID
+SLACK_WEBHOOK            # Optional
+SENTRY_AUTH_TOKEN        # Optional
+```
+
+**Trigger:**
+- `main` branch → Deploy to staging
+- `production` branch → Deploy to production
+- Manual workflow dispatch → Choose environment
+
+## Cost Optimization
+
+Tips for reducing costs:
+
+1. **Right-size tasks**: Start with smaller CPU/memory
+2. **Use Spot**: Consider Fargate Spot for non-critical workloads
+3. **Aurora Serverless**: Auto-pause in dev/staging
+4. **CloudWatch retention**: Set log retention to 7-30 days
+5. **S3 lifecycle**: Move old media to Glacier
+6. **Reserved capacity**: For predictable workloads
+
+## Troubleshooting
+
+### Task Won't Start
+
+Check:
+- ECR image exists and is accessible
+- Security groups allow traffic
+- Subnets have route to internet (for pulling images)
+- IAM role has correct permissions
+
+### Health Check Failing
+
+- Ensure `/health/` endpoint is accessible
+- Check security group rules
+- Verify container is listening on port 8000
+- Check CloudWatch logs for errors
+
+### High Costs
+
+- Review CloudWatch metrics for over-provisioning
+- Consider Aurora Serverless pause
+- Enable S3 lifecycle policies
+- Use Fargate Spot for dev/staging
+
+## Cleanup
+
+To destroy all resources:
+
+```bash
+cd deploy/ecs/terraform
+terraform destroy
+```
+
+## Resources
+
+- [AWS ECS Best Practices](https://docs.aws.amazon.com/AmazonECS/latest/bestpracticesguide/)
+- [Fargate Pricing](https://aws.amazon.com/fargate/pricing/)
+- [Django on ECS Guide](https://testdriven.io/blog/deploying-django-to-ecs-with-terraform/)

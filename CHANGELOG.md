@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### API & Frontend Options
 - API frameworks: Django REST Framework, Strawberry GraphQL, both, or none
 - Frontend: HTMX + Tailwind CSS, Next.js, or headless
+- Frontend bundling for HTMX+Tailwind: Vite (production-ready) or CDN (simple)
 - Authentication: django-allauth, JWT, or both
 
 #### Background Task Processing
@@ -79,5 +80,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Background tasks configuration: `background_tasks` parameter with options: "celery", "temporal", "both", or "none"
+- `copier.yml` UX enhancements:
+  - Choice fields now display user-friendly labels instead of raw values
+  - `project_name` and `project_description` use placeholders with non-empty validators
+  - `deployment_targets` converted to multiselect field
 
 [Unreleased]: https://github.com/CuriousLearner/django-keel/compare/HEAD...HEAD

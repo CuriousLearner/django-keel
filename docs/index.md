@@ -36,7 +36,7 @@ Django Keel asks you what type of project you're building and configures everyth
 ### Modern Development Experience
 
 - **⚡ uv** - 10-100x faster dependency management (or Poetry)
-- **🧪 pytest** - Comprehensive test suite (80% coverage minimum)
+- **🧪 pytest** - Comprehensive test suite (80% code coverage minimum)
 - **✨ ruff** - Lightning-fast linting and formatting
 - **🔍 mypy** - Type safety with django-stubs
 - **🪝 pre-commit** - Automated quality checks
@@ -369,7 +369,7 @@ Django Keel is inspired by:
 ## 📞 Community & Support
 
 - **Issues**: [GitHub Issues](https://github.com/CuriousLearner/django-keel/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/CuriousLearner/django-keel/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/CuriousLearner/django-keel/discussions)
 - **Changelog**: [CHANGELOG](CHANGELOG.md)
 
 ---

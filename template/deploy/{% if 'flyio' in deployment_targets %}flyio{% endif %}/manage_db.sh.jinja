@@ -1,0 +1,444 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Database Management Script for Fly.io PostgreSQL
+# Handles backups, restores, migrations, and maintenance
+
+# Color output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# Configuration
+APP_NAME="{{ project_slug }}"
+DB_APP_NAME="${APP_NAME}-db"
+BACKUP_DIR="./backups"
+TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
+
+# Functions
+print_status() {
+    echo -e "${GREEN}[INFO]${NC} $1"
+}
+
+print_error() {
+    echo -e "${RED}[ERROR]${NC} $1"
+    exit 1
+}
+
+print_warning() {
+    echo -e "${YELLOW}[WARNING]${NC} $1"
+}
+
+print_prompt() {
+    echo -e "${BLUE}[INPUT]${NC} $1"
+}
+
+# Check dependencies
+check_dependencies() {
+    if ! command -v fly &> /dev/null; then
+        print_error "Fly CLI not found. Please install: https://fly.io/docs/hands-on/install-flyctl/"
+    fi
+
+    if ! command -v pg_dump &> /dev/null; then
+        print_warning "pg_dump not found. Some features may be limited."
+        print_warning "Install PostgreSQL client tools for full functionality."
+    fi
+}
+
+# Create backup directory
+ensure_backup_dir() {
+    if [ ! -d "$BACKUP_DIR" ]; then
+        mkdir -p "$BACKUP_DIR"
+        print_status "Created backup directory: $BACKUP_DIR"
+    fi
+}
+
+# List databases
+list_databases() {
+    print_status "Listing Fly.io PostgreSQL databases..."
+    fly postgres list
+}
+
+# Get database connection info
+get_connection_info() {
+    print_status "Getting database connection information..."
+
+    # Get connection string
+    CONNECTION_URL=$(fly postgres connect -a "$DB_APP_NAME" --command "echo \$DATABASE_URL")
+
+    if [ -z "$CONNECTION_URL" ]; then
+        # Try alternative method
+        fly ssh console -a "$APP_NAME" -C "printenv DATABASE_URL"
+    fi
+
+    echo ""
+    print_status "Connection Details:"
+    echo "  App Database: $DB_APP_NAME"
+    echo "  Connection available via: fly proxy 5432 -a $DB_APP_NAME"
+}
+
+# Create backup
+create_backup() {
+    ensure_backup_dir
+
+    local backup_name="${1:-backup}"
+    local backup_file="$BACKUP_DIR/${APP_NAME}_${backup_name}_${TIMESTAMP}.sql"
+
+    print_status "Creating database backup..."
+    print_status "Backup file: $backup_file"
+
+    # Method 1: Using Fly.io's built-in backup
+    print_status "Creating Fly.io snapshot..."
+    fly postgres backup create -a "$DB_APP_NAME"
+
+    # Method 2: Using pg_dump through proxy
+    if command -v pg_dump &> /dev/null; then
+        print_status "Creating local SQL backup..."
+
+        # Start proxy in background
+        fly proxy 15432:5432 -a "$DB_APP_NAME" &
+        local proxy_pid=$!
+        sleep 3
+
+        # Get credentials
+        local db_url=$(fly ssh console -a "$APP_NAME" -C "printenv DATABASE_URL" 2>/dev/null)
+
+        if [ -n "$db_url" ]; then
+            # Parse DATABASE_URL
+            local db_user=$(echo "$db_url" | sed -n 's/.*:\/\/\([^:]*\):.*/\1/p')
+            local db_pass=$(echo "$db_url" | sed -n 's/.*:\/\/[^:]*:\([^@]*\)@.*/\1/p')
+            local db_name=$(echo "$db_url" | sed -n 's/.*\/\([^?]*\).*/\1/p')
+
+            # Create backup
+            PGPASSWORD="$db_pass" pg_dump \
+                -h localhost \
+                -p 15432 \
+                -U "$db_user" \
+                -d "$db_name" \
+                --verbose \
+                --no-owner \
+                --no-privileges \
+                --if-exists \
+                --clean \
+                > "$backup_file"
+
+            # Compress backup
+            gzip "$backup_file"
+            backup_file="${backup_file}.gz"
+
+            print_status "Backup created: $backup_file"
+            print_status "Size: $(du -h "$backup_file" | cut -f1)"
+        else
+            print_warning "Could not create local backup - unable to get database URL"
+        fi
+
+        # Kill proxy
+        kill $proxy_pid 2>/dev/null || true
+    fi
+
+    print_status "Backup completed successfully"
+}
+
+# List backups
+list_backups() {
+    print_status "Fly.io snapshots:"
+    fly postgres backup list -a "$DB_APP_NAME"
+
+    echo ""
+    print_status "Local backups:"
+    if [ -d "$BACKUP_DIR" ]; then
+        ls -lah "$BACKUP_DIR"/*.sql* 2>/dev/null || echo "  No local backups found"
+    else
+        echo "  No backup directory found"
+    fi
+}
+
+# Restore backup
+restore_backup() {
+    print_warning "This will restore the database from a backup."
+    print_warning "ALL CURRENT DATA WILL BE LOST!"
+
+    print_prompt "Are you sure you want to continue? (yes/no):"
+    read -r confirmation
+
+    if [ "$confirmation" != "yes" ]; then
+        print_status "Restore cancelled"
+        return
+    fi
+
+    # List available backups
+    list_backups
+
+    print_prompt "Enter backup ID for Fly.io snapshot or path for local backup:"
+    read -r backup_source
+
+    if [ -f "$backup_source" ] || [ -f "${backup_source}.gz" ]; then
+        # Local backup restore
+        restore_local_backup "$backup_source"
+    else
+        # Fly.io snapshot restore
+        restore_fly_backup "$backup_source"
+    fi
+}
+
+# Restore from local backup
+restore_local_backup() {
+    local backup_file="$1"
+
+    if [ ! -f "$backup_file" ] && [ -f "${backup_file}.gz" ]; then
+        backup_file="${backup_file}.gz"
+    fi
+
+    if [ ! -f "$backup_file" ]; then
+        print_error "Backup file not found: $backup_file"
+    fi
+
+    print_status "Restoring from local backup: $backup_file"
+
+    # Start proxy
+    fly proxy 15432:5432 -a "$DB_APP_NAME" &
+    local proxy_pid=$!
+    sleep 3
+
+    # Get credentials
+    local db_url=$(fly ssh console -a "$APP_NAME" -C "printenv DATABASE_URL" 2>/dev/null)
+
+    if [ -n "$db_url" ]; then
+        local db_user=$(echo "$db_url" | sed -n 's/.*:\/\/\([^:]*\):.*/\1/p')
+        local db_pass=$(echo "$db_url" | sed -n 's/.*:\/\/[^:]*:\([^@]*\)@.*/\1/p')
+        local db_name=$(echo "$db_url" | sed -n 's/.*\/\([^?]*\).*/\1/p')
+
+        # Restore backup
+        if [[ "$backup_file" == *.gz ]]; then
+            gunzip -c "$backup_file" | PGPASSWORD="$db_pass" psql \
+                -h localhost \
+                -p 15432 \
+                -U "$db_user" \
+                -d "$db_name"
+        else
+            PGPASSWORD="$db_pass" psql \
+                -h localhost \
+                -p 15432 \
+                -U "$db_user" \
+                -d "$db_name" \
+                < "$backup_file"
+        fi
+
+        print_status "Database restored successfully"
+    else
+        print_error "Could not get database credentials"
+    fi
+
+    # Kill proxy
+    kill $proxy_pid 2>/dev/null || true
+}
+
+# Restore from Fly.io snapshot
+restore_fly_backup() {
+    local backup_id="$1"
+
+    print_status "Restoring from Fly.io snapshot: $backup_id"
+    fly postgres backup restore "$backup_id" -a "$DB_APP_NAME"
+    print_status "Database restored successfully"
+}
+
+# Run migrations
+run_migrations() {
+    print_status "Running database migrations..."
+
+    # Show pending migrations
+    print_status "Checking for pending migrations..."
+    fly ssh console -a "$APP_NAME" -C "python manage.py showmigrations --plan | grep '\[ \]'" || true
+
+    # Run migrations
+    fly ssh console -a "$APP_NAME" -C "python manage.py migrate --noinput"
+
+    print_status "Migrations completed"
+}
+
+# Create superuser
+create_superuser() {
+    print_status "Creating Django superuser..."
+
+    fly ssh console -a "$APP_NAME" -C "python manage.py createsuperuser"
+}
+
+# Database shell
+db_shell() {
+    print_status "Opening database shell..."
+
+    fly postgres connect -a "$DB_APP_NAME"
+}
+
+# Django shell
+django_shell() {
+    print_status "Opening Django shell..."
+
+    fly ssh console -a "$APP_NAME" -C "python manage.py shell"
+}
+
+# Reset database
+reset_database() {
+    print_warning "This will DELETE ALL DATA and reset the database!"
+    print_prompt "Type 'DELETE EVERYTHING' to confirm:"
+    read -r confirmation
+
+    if [ "$confirmation" != "DELETE EVERYTHING" ]; then
+        print_status "Reset cancelled"
+        return
+    fi
+
+    # Create backup first
+    print_status "Creating backup before reset..."
+    create_backup "before_reset"
+
+    # Reset database
+    print_status "Resetting database..."
+    fly ssh console -a "$APP_NAME" -C "python manage.py flush --noinput"
+
+    # Run migrations
+    run_migrations
+
+    print_status "Database reset completed"
+}
+
+# Check database status
+check_status() {
+    print_status "Checking database status..."
+
+    # Fly.io database status
+    fly postgres status -a "$DB_APP_NAME"
+
+    echo ""
+
+    # Django database status
+    print_status "Django database check..."
+    fly ssh console -a "$APP_NAME" -C "python manage.py dbshell -c 'SELECT version();'"
+
+    # Check migrations
+    print_status "Migration status..."
+    fly ssh console -a "$APP_NAME" -C "python manage.py showmigrations --plan | tail -20"
+}
+
+# Export data (Django fixtures)
+export_data() {
+    ensure_backup_dir
+
+    local export_file="$BACKUP_DIR/${APP_NAME}_data_${TIMESTAMP}.json"
+
+    print_status "Exporting Django data to fixtures..."
+
+    fly ssh console -a "$APP_NAME" -C "python manage.py dumpdata --indent 2" > "$export_file"
+
+    print_status "Data exported to: $export_file"
+}
+
+# Import data (Django fixtures)
+import_data() {
+    print_prompt "Enter path to fixture file:"
+    read -r fixture_file
+
+    if [ ! -f "$fixture_file" ]; then
+        print_error "File not found: $fixture_file"
+    fi
+
+    print_status "Importing Django data from fixtures..."
+
+    # Copy file to remote
+    cat "$fixture_file" | fly ssh console -a "$APP_NAME" -C "cat > /tmp/import.json"
+
+    # Load fixtures
+    fly ssh console -a "$APP_NAME" -C "python manage.py loaddata /tmp/import.json"
+
+    print_status "Data imported successfully"
+}
+
+# Main menu
+show_menu() {
+    echo "======================================"
+    echo "Fly.io Database Management for {{ project_name }}"
+    echo "======================================"
+    echo ""
+    echo "1.  List databases"
+    echo "2.  Get connection info"
+    echo "3.  Create backup"
+    echo "4.  List backups"
+    echo "5.  Restore backup"
+    echo "6.  Run migrations"
+    echo "7.  Create superuser"
+    echo "8.  Database shell"
+    echo "9.  Django shell"
+    echo "10. Check database status"
+    echo "11. Export data (fixtures)"
+    echo "12. Import data (fixtures)"
+    echo "13. Reset database (DANGER)"
+    echo "14. Exit"
+    echo ""
+    print_prompt "Select option (1-14):"
+}
+
+# Main execution
+main() {
+    check_dependencies
+
+    while true; do
+        show_menu
+        read -r option
+
+        case $option in
+            1) list_databases ;;
+            2) get_connection_info ;;
+            3) create_backup ;;
+            4) list_backups ;;
+            5) restore_backup ;;
+            6) run_migrations ;;
+            7) create_superuser ;;
+            8) db_shell ;;
+            9) django_shell ;;
+            10) check_status ;;
+            11) export_data ;;
+            12) import_data ;;
+            13) reset_database ;;
+            14) exit 0 ;;
+            *) print_error "Invalid option" ;;
+        esac
+
+        echo ""
+        print_prompt "Press any key to continue..."
+        read -n 1 -s
+        echo ""
+    done
+}
+
+# Parse command line arguments for direct commands
+case "${1:-}" in
+    backup)
+        check_dependencies
+        create_backup "${2:-backup}"
+        ;;
+    restore)
+        check_dependencies
+        restore_backup
+        ;;
+    migrate)
+        check_dependencies
+        run_migrations
+        ;;
+    status)
+        check_dependencies
+        check_status
+        ;;
+    shell)
+        check_dependencies
+        django_shell
+        ;;
+    dbshell)
+        check_dependencies
+        db_shell
+        ;;
+    *)
+        main
+        ;;
+esac

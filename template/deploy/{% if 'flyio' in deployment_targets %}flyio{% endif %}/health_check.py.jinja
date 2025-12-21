@@ -1,0 +1,143 @@
+"""
+Health check endpoint for Fly.io deployments.
+This module provides a simple health check view that Fly.io can use
+to monitor the application status.
+"""
+
+from django.http import JsonResponse
+from django.views import View
+from django.db import connection
+from django.core.cache import cache
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+class HealthCheckView(View):
+    """
+    Health check endpoint for Fly.io.
+
+    Returns:
+        - 200 OK: All checks pass
+        - 503 Service Unavailable: One or more checks fail
+    """
+
+    def get(self, request, *args, **kwargs):
+        """
+        Perform health checks and return status.
+        """
+        checks = {
+            'status': 'healthy',
+            'checks': {}
+        }
+
+        # Database check
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT 1")
+                cursor.fetchone()
+            checks['checks']['database'] = 'ok'
+        except Exception as e:
+            logger.error(f"Database health check failed: {e}")
+            checks['checks']['database'] = 'failed'
+            checks['status'] = 'unhealthy'
+
+        {% if cache == 'redis' -%}
+        # Cache check
+        try:
+            cache.set('health_check', 'test', 1)
+            cache.get('health_check')
+            checks['checks']['cache'] = 'ok'
+        except Exception as e:
+            logger.warning(f"Cache health check failed: {e}")
+            checks['checks']['cache'] = 'failed'
+            # Cache failure is a warning, not critical
+        {% endif %}
+
+        {% if media_storage == 'aws-s3' -%}
+        # S3 check (optional, non-critical)
+        try:
+            from django.core.files.storage import default_storage
+            # Just check if we can access the storage backend
+            default_storage.exists('health_check.txt')
+            checks['checks']['storage'] = 'ok'
+        except Exception as e:
+            logger.warning(f"Storage health check failed: {e}")
+            checks['checks']['storage'] = 'warning'
+            # Storage issues are warnings, not critical
+        {% endif %}
+
+        # Determine HTTP status
+        if checks['status'] == 'unhealthy':
+            status_code = 503
+        else:
+            status_code = 200
+
+        return JsonResponse(checks, status=status_code)
+
+
+class ReadinessCheckView(View):
+    """
+    Readiness check endpoint for Fly.io.
+
+    Checks if the application is ready to receive traffic.
+    """
+
+    def get(self, request, *args, **kwargs):
+        """
+        Check if app is ready to receive traffic.
+        """
+        ready = True
+        checks = {
+            'ready': True,
+            'checks': {}
+        }
+
+        # Check database migrations
+        try:
+            from django.db.migrations.executor import MigrationExecutor
+            executor = MigrationExecutor(connection)
+            plan = executor.migration_plan(executor.loader.graph.leaf_nodes())
+            if plan:
+                checks['checks']['migrations'] = 'pending'
+                ready = False
+            else:
+                checks['checks']['migrations'] = 'applied'
+        except Exception as e:
+            logger.error(f"Migration check failed: {e}")
+            checks['checks']['migrations'] = 'failed'
+            ready = False
+
+        {% if use_celery -%}
+        # Check Celery workers (optional)
+        try:
+            from celery import current_app
+            stats = current_app.control.inspect().stats()
+            if stats:
+                checks['checks']['celery'] = 'connected'
+            else:
+                checks['checks']['celery'] = 'no_workers'
+                # Don't fail readiness for missing workers
+        except Exception as e:
+            logger.warning(f"Celery check failed: {e}")
+            checks['checks']['celery'] = 'unknown'
+        {% endif %}
+
+        checks['ready'] = ready
+        status_code = 200 if ready else 503
+
+        return JsonResponse(checks, status=status_code)
+
+
+class LivenessCheckView(View):
+    """
+    Liveness check endpoint for Fly.io.
+
+    Simple check to verify the application is running.
+    """
+
+    def get(self, request, *args, **kwargs):
+        """
+        Simple liveness check.
+        """
+        return JsonResponse({'status': 'alive'}, status=200)

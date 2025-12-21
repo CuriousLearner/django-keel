@@ -9,7 +9,7 @@ jobs:
     name: Validate Pull Request
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Check PR title follows conventional commits
         uses: amannn/action-semantic-pull-request@v6
@@ -83,7 +83,7 @@ jobs:
           - use_stripe: advanced
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Set up Python
         uses: actions/setup-python@v6
@@ -93,16 +93,14 @@ jobs:
       - name: Install Copier
         run: pip install copier pyyaml
 
-      - name: Configure git for copier
-        run: |
-          git config --global user.email "ci@django-keel.test"
-          git config --global user.name "Django Keel CI"
-
       - name: Generate project with ${{ matrix }}
         run: |
           copier copy . ../test-project \
             --data project_name="Test Project" \
             --data project_slug=test_project \
+            --data project_description="A test project" \
+            --data author_name="Django Keel CI" \
+            --data author_email="ci@django-keel.test" \
             ${{ matrix.api && format('--data api_style={0}', matrix.api) || '' }} \
             ${{ matrix.frontend && format('--data frontend={0}', matrix.frontend) || '' }} \
             ${{ matrix.background_tasks && format('--data background_tasks={0}', matrix.background_tasks) || '' }} \
@@ -121,7 +119,7 @@ jobs:
     name: Check Template Size
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Calculate template size
         run: |

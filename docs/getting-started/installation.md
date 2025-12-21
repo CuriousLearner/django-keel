@@ -138,6 +138,8 @@ copier copy gh:CuriousLearner/django-keel your-project-name
 # Follow the interactive prompts
 ```
 
+After generation, the project README will include instructions for initializing Git.
+
 ### What Gets Generated
 
 ```
@@ -319,7 +321,7 @@ If you find Django Keel useful, please consider starring the repository!
 ## 📞 Support
 
 - **Issues**: [GitHub Issues](https://github.com/CuriousLearner/django-keel/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/CuriousLearner/django-keel/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/CuriousLearner/django-keel/discussions)
 - **Docs**: Generated in your project's `docs/` directory
 
 ---
