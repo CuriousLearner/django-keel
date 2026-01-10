@@ -90,4 +90,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `project_name` and `project_description` use placeholders with non-empty validators
   - `deployment_targets` converted to multiselect field
 
+### Fixed
+- Docker development on Linux: Added named volume for `.venv` to prevent permission errors due to UID mismatch between host and container
+- Clarified development workflow documentation to distinguish Docker vs local development approaches
+
 [Unreleased]: https://github.com/CuriousLearner/django-keel/compare/HEAD...HEAD
