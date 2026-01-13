@@ -1,12 +1,10 @@
 services:
   web:
     build: .
+    user: "${UID:-1000}:${GID:-1000}"
     command: {% if dependency_manager == 'uv' %}uv run {% endif %}gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 2 --reload
     volumes:
       - .:/app
-{% if dependency_manager == 'uv' %}
-      - app_venv:/app/.venv
-{% endif %}
     ports:
       - "8000:8000"
     depends_on:
@@ -118,6 +116,7 @@ services:
 
   temporal-worker:
     build: .
+    user: "${UID:-1000}:${GID:-1000}"
     command: python manage.py run_temporal_worker
     depends_on:
       - temporal
@@ -133,9 +132,6 @@ services:
 {% endif %}
     volumes:
       - .:/app
-{% if dependency_manager == 'uv' %}
-      - app_venv:/app/.venv
-{% endif %}
 {% endif %}
 {% if observability_level == 'full' %}
 
@@ -152,7 +148,4 @@ volumes:
   postgres_data:
 {% if cache == 'redis' %}
   redis_data:
-{% endif %}
-{% if dependency_manager == 'uv' %}
-  app_venv:
 {% endif %}

@@ -91,7 +91,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `deployment_targets` converted to multiselect field
 
 ### Fixed
-- Docker development on Linux: Added named volume for `.venv` to prevent permission errors due to UID mismatch between host and container
+- Docker development on Linux: Use host user's UID/GID in docker-compose to prevent permission errors with volume mounts
 - Clarified development workflow documentation to distinguish Docker vs local development approaches
 
 [Unreleased]: https://github.com/CuriousLearner/django-keel/compare/HEAD...HEAD
