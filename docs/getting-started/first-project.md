@@ -131,6 +131,13 @@ Your app is now running at [http://localhost:8000](http://localhost:8000).
 
 **Important:** Do NOT run `uv sync` locally when using this approach. The container manages its own virtual environment.
 
+**Linux users:** The docker-compose uses `${UID:-1000}:${GID:-1000}` for file permissions. Most shells export these automatically. If you encounter permission issues, set them explicitly:
+```bash
+export UID=$(id -u)
+export GID=$(id -g)
+docker compose up -d
+```
+
 ### Option B: Local Development
 
 Run everything locally without Docker. Requires local PostgreSQL and Redis (or choose SQLite during project generation).
