@@ -107,69 +107,60 @@ my-awesome-project/
 
 ## Set Up the Development Environment
 
-### 1. Install Dependencies
+Choose **one** of the following approaches:
+
+### Option A: Docker Development
+
+Everything runs inside Docker containers. No local Python setup needed.
 
 ```bash
-uv sync
-```
-
-This installs all Python dependencies defined in `pyproject.toml`.
-
-### 2. Configure Environment Variables
-
-```bash
+# 1. Configure environment variables
 cp .env.example .env
+
+# 2. Start all services
+docker compose up -d
+
+# 3. Run migrations
+docker compose exec web uv run python manage.py migrate
+
+# 4. Create a superuser
+docker compose exec web uv run python manage.py createsuperuser
 ```
 
-Edit `.env` and customize the values. For local development, the defaults usually work fine.
+Your app is now running at [http://localhost:8000](http://localhost:8000).
 
-### 3. Start Services
+**Important:** Do NOT run `uv sync` locally when using this approach. The container manages its own virtual environment.
 
+**Linux users:** The docker-compose uses `${UID:-1000}:${GID:-1000}` for file permissions. Most shells export these automatically. If you encounter permission issues, set them explicitly:
 ```bash
+export UID=$(id -u)
+export GID=$(id -g)
 docker compose up -d
 ```
 
-This starts:
+### Option B: Local Development
 
-- PostgreSQL (port 5432)
-- Redis (port 6379)
-- Mailpit for email testing (port 8025)
-
-### 4. Run Migrations
+Run everything locally without Docker. Requires local PostgreSQL and Redis (or choose SQLite during project generation).
 
 ```bash
-just migrate
-```
+# 1. Install dependencies
+uv sync
 
-Or manually:
+# 2. Configure environment variables
+cp .env.example .env
+# Edit .env to point to your local PostgreSQL/Redis
 
-```bash
+# 3. Run migrations
 uv run python manage.py migrate
-```
 
-### 5. Create a Superuser
-
-```bash
-just createsuperuser
-```
-
-Or manually:
-
-```bash
+# 4. Create a superuser
 uv run python manage.py createsuperuser
-```
 
-### 6. Start the Development Server
-
-```bash
-just dev
-```
-
-Or manually:
-
-```bash
+# 5. Start the development server
 uv run python manage.py runserver
 ```
+
+Your app is now running at [http://localhost:8000](http://localhost:8000).
 
 ## Verify Everything Works
 
