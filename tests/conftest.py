@@ -107,11 +107,7 @@ def generate(template_dir, temp_dir, copier_answers):
         Returns:
             Path to generated project
         """
-        final_answers = copier_answers.copy()
-        if answers:
-            final_answers.update(answers)
-        final_answers.update(kwargs)
-
+        final_answers = {**copier_answers, **(answers or {}), **kwargs}
         return generate_project(template_dir, temp_dir, final_answers)
 
     return _generate

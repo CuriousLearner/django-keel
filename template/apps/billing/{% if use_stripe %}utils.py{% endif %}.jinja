@@ -91,11 +91,9 @@ def get_customer_portal_url(customer_id, return_url):
 def get_or_create_customer(user):
     """Get or create a Stripe customer for a user."""
     try:
-        customer = Customer.objects.get(subscriber=user)
-        return customer
+        return Customer.objects.get(subscriber=user)
     except Customer.DoesNotExist:
-        customer = Customer.create(subscriber=user)
-        return customer
+        return Customer.create(subscriber=user)
 
 
 def create_checkout_session(user, price_id, success_url, cancel_url, metadata=None):
