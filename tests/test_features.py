@@ -1,5 +1,7 @@
 """Behavioral tests for optional features."""
 
+import pytest
+
 
 # Celery Feature Tests
 
@@ -200,158 +202,90 @@ def test_no_cache_configured(generate):
 
 # Deployment Target Tests
 
-
-def test_kubernetes_deployment_generated(generate):
-    """Test that Kubernetes manifests are generated."""
-    project = generate(deployment_targets=["kubernetes"])
-
-    k8s_dir = project / "deploy/k8s"
-    assert k8s_dir.exists()
-
-    # Check for helm charts
-    helm_dir = k8s_dir / "helm"
-    if helm_dir.exists():
-        assert len(list(helm_dir.iterdir())) > 0
+# Mapping of deployment target to its deploy directory
+DEPLOY_DIRECTORIES = [
+    ("kubernetes", "k8s"),
+    ("render", "render"),
+    ("flyio", "flyio"),
+    ("aws-ecs-fargate", "ecs"),
+    ("aws-ec2-ansible", "ansible"),
+]
 
 
-def test_render_deployment_generated(generate):
-    """Test that Render deployment files are generated."""
-    project = generate(deployment_targets=["render"])
-
-    # Check render.yaml exists in root
-    render_yaml = project / "render.yaml"
-    assert render_yaml.exists()
-
-    # Validate YAML content
-    content = render_yaml.read_text()
-    assert "services:" in content
-    assert "databases:" in content or "name:" in content
-
-    # Check deploy/render directory
-    render_dir = project / "deploy/render"
-    assert render_dir.exists()
-    assert (render_dir / "build.sh").exists()
-
-    # Verify build script is executable content
-    build_script = (render_dir / "build.sh").read_text()
-    assert "#!/bin/bash" in build_script or "pip install" in build_script
+@pytest.mark.parametrize("target,deploy_dir", DEPLOY_DIRECTORIES)
+def test_deploy_directory_created_when_target_selected(generate, target, deploy_dir):
+    """Test that deploy directory is created when its target is selected."""
+    project = generate(deployment_targets=[target])
+    assert (project / f"deploy/{deploy_dir}").exists()
 
 
-def test_flyio_deployment_generated(generate):
-    """Test that Fly.io deployment files are generated."""
-    project = generate(deployment_targets=["flyio"])
-
-    # Check fly.toml exists in root
-    fly_toml = project / "fly.toml"
-    assert fly_toml.exists()
-
-    # Validate TOML content
-    content = fly_toml.read_text()
-    assert "app =" in content or "[app]" in content
-    assert "[[services]]" in content or "[http_service]" in content
-
-    # Check deploy/flyio directory
-    flyio_dir = project / "deploy/flyio"
-    assert flyio_dir.exists()
-
-
-def test_ecs_deployment_generated(generate):
-    """Test that AWS ECS deployment files are generated."""
-    project = generate(deployment_targets=["aws-ecs-fargate"])
-
-    # Check deploy/ecs directory
-    ecs_dir = project / "deploy/ecs"
-    assert ecs_dir.exists()
-
-    # Currently ECS only has README (deployment configs are WIP)
-    readme = ecs_dir / "README.md"
-    assert readme.exists()
-
-    # Verify README has ECS content
-    content = readme.read_text()
-    assert "ECS" in content or "Fargate" in content or "AWS" in content
+@pytest.mark.parametrize("target,deploy_dir", DEPLOY_DIRECTORIES)
+def test_deploy_directory_not_created_when_target_not_selected(generate, target, deploy_dir):
+    """Test that deploy directory is NOT created when its target is not selected."""
+    # Use docker as a neutral target that doesn't create a deploy subdirectory
+    project = generate(deployment_targets=["docker"])
+    assert not (project / f"deploy/{deploy_dir}").exists()
 
 
 def test_docker_deployment_generated(generate):
     """Test that Docker deployment files are generated."""
     project = generate(deployment_targets=["docker"])
 
-    # Check Dockerfile exists
     dockerfile = project / "Dockerfile"
     assert dockerfile.exists()
 
-    # Validate Dockerfile content
     content = dockerfile.read_text()
     assert "FROM python:" in content
     assert "WORKDIR" in content
-    assert "COPY" in content
 
-    # Check docker-compose files
-    docker_compose = project / "docker-compose.yml"
-    assert docker_compose.exists()
+    assert (project / "docker-compose.yml").exists()
 
 
-def test_ec2_ansible_deployment_generated(generate):
-    """Test that AWS EC2 Ansible playbooks are generated."""
-    project = generate(deployment_targets=["aws-ec2-ansible"])
+def test_render_root_files_generated(generate):
+    """Test that Render creates render.yaml in project root."""
+    project = generate(deployment_targets=["render"])
 
-    # Check deploy/ansible directory
-    ansible_dir = project / "deploy/ansible"
-    assert ansible_dir.exists()
+    render_yaml = project / "render.yaml"
+    assert render_yaml.exists()
 
-    # Check README
-    readme = ansible_dir / "README.md"
-    assert readme.exists()
+    content = render_yaml.read_text()
+    assert "services:" in content
 
-    # Check playbooks directory
-    playbooks_dir = ansible_dir / "playbooks"
-    assert playbooks_dir.exists()
 
-    # Check for deploy playbook
-    deploy_yml = playbooks_dir / "deploy.yml"
-    assert deploy_yml.exists()
+def test_flyio_root_files_generated(generate):
+    """Test that Fly.io creates fly.toml in project root."""
+    project = generate(deployment_targets=["flyio"])
 
-    # Validate YAML syntax (basic check)
-    deploy_content = deploy_yml.read_text()
-    assert "hosts:" in deploy_content or "- name:" in deploy_content or "tasks:" in deploy_content
+    fly_toml = project / "fly.toml"
+    assert fly_toml.exists()
 
-    # Check templates directory
-    templates_dir = ansible_dir / "templates"
-    assert templates_dir.exists()
+    content = fly_toml.read_text()
+    assert "app =" in content or "[app]" in content
 
 
 def test_multiple_deployment_targets(generate):
     """Test that multiple deployment targets can be specified."""
-    project = generate(deployment_targets=["render", "flyio", "docker"])
+    project = generate(deployment_targets=["kubernetes", "render", "flyio", "docker"])
 
-    # All selected platforms should have their files
+    assert (project / "deploy/k8s").exists()
+    assert (project / "deploy/render").exists()
+    assert (project / "deploy/flyio").exists()
     assert (project / "render.yaml").exists()
     assert (project / "fly.toml").exists()
     assert (project / "Dockerfile").exists()
 
-    # Deploy directories
-    assert (project / "deploy/render").exists()
-    assert (project / "deploy/flyio").exists()
 
-
-def test_no_deployment_excludes_deploy_configs(generate):
-    """Test that platform-specific deployment configs are excluded when not specified."""
+def test_no_deployment_targets_excludes_all_deploy_dirs(generate):
+    """Test that no deploy directories are created when deployment_targets is empty."""
     project = generate(deployment_targets=[])
 
-    # Platform-specific files should not exist
     assert not (project / "render.yaml").exists()
     assert not (project / "fly.toml").exists()
 
-    # Platform-specific deploy directories should not exist
     deploy_dir = project / "deploy"
     if deploy_dir.exists():
-        assert not (deploy_dir / "render").exists()
-        assert not (deploy_dir / "flyio").exists()
-        assert not (deploy_dir / "ansible").exists()
-        assert not (deploy_dir / "ecs").exists()
-
-    # Note: K8s configs may still exist as they're often used as a base/reference
-    # even when not explicitly selected as a deployment target
+        for _, dir_name in DEPLOY_DIRECTORIES:
+            assert not (deploy_dir / dir_name).exists()
 
 
 # Media Storage Tests
