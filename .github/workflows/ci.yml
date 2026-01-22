@@ -94,6 +94,7 @@ jobs:
             --data author_name="Django Keel CI" \
             --data author_email="ci@django-keel.test" \
             --data project_type=${{ matrix.project-type }} \
+            --data background_tasks="temporal" \
             --defaults \
             --trust
 
@@ -137,6 +138,12 @@ jobs:
 
       - name: Generate project with Python ${{ matrix.python-version }} + Django ${{ matrix.django-version }}
         run: |
+          # Django 6.0 requires temporal/none for background_tasks (django-celery-beat incompatible)
+          if [ "${{ matrix.django-version }}" = "6.0" ]; then
+            BACKGROUND_TASKS="temporal"
+          else
+            BACKGROUND_TASKS="celery"
+          fi
           copier copy . ../test_versions \
             --data project_name="Test Versions" \
             --data project_slug="test_versions" \
@@ -145,6 +152,7 @@ jobs:
             --data author_email="ci@django-keel.test" \
             --data python_version="${{ matrix.python-version }}" \
             --data django_version="${{ matrix.django-version }}" \
+            --data background_tasks="$BACKGROUND_TASKS" \
             --defaults \
             --trust
 
