@@ -41,11 +41,12 @@ def test_celery_not_generated_when_disabled(generate):
     assert "django_celery_beat" not in content
 
 
-def test_celery_requires_django_52(template_dir, temp_dir, copier_answers):
+@pytest.mark.parametrize("background_tasks", ["celery", "both"])
+def test_celery_requires_django_52(template_dir, temp_dir, copier_answers, background_tasks):
     """Test that Celery with Django 6.0 is rejected by copier validation."""
     answers = copier_answers.copy()
     answers["django_version"] = "6.0"
-    answers["background_tasks"] = "celery"
+    answers["background_tasks"] = background_tasks
 
     with pytest.raises(
         ValueError,
