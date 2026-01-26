@@ -1,6 +1,7 @@
 """User impersonation for admin support."""
 import logging
-from django.conf import settings
+from functools import wraps
+
 from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.shortcuts import redirect, get_object_or_404
@@ -186,8 +187,6 @@ def prevent_while_impersonating(view_func):
         def sensitive_view(request):
             ...
     """
-    from functools import wraps
-
     @wraps(view_func)
     def wrapper(request, *args, **kwargs):
         if getattr(request, "is_impersonating", False):

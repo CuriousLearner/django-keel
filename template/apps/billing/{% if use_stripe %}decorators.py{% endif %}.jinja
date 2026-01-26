@@ -1,8 +1,9 @@
 """Feature gating decorators for subscription-based access control."""
 from functools import wraps
-from django.shortcuts import redirect
+
 from django.contrib import messages
-from django.http import JsonResponse, HttpResponseForbidden
+from django.http import JsonResponse
+from django.shortcuts import redirect
 from django.utils.translation import gettext_lazy as _
 
 from .utils import (

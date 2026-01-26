@@ -27,16 +27,17 @@ def is_feature_enabled(feature_name, request=None, user=None):
     """
     if request:
         return flag_is_active(request, feature_name)
-    elif user:
+
+    if user:
         # Create a minimal request-like object for waffle
         class MinimalRequest:
             def __init__(self, user):
                 self.user = user
 
         return flag_is_active(MinimalRequest(user), feature_name)
-    else:
-        # No user context, check if it's a switch
-        return switch_is_active(feature_name)
+
+    # No user context, check if it's a switch
+    return switch_is_active(feature_name)
 
 
 def is_switch_enabled(switch_name):

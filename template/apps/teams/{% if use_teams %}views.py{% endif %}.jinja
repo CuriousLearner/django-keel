@@ -235,7 +235,7 @@ class TeamMemberUpdateView(TeamAdminRequiredMixin, UpdateView):
     def form_valid(self, form):
         """Show success message."""
         response = super().form_valid(form)
-        messages.success(request, _("Member updated successfully!"))
+        messages.success(self.request, _("Member updated successfully!"))
         return response
 
     def get_success_url(self):
