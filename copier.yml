@@ -150,6 +150,8 @@ background_tasks:
     {%- elif project_type == 'web-app' -%}celery
     {%- elif project_type == 'internal-tool' -%}celery
     {%- else -%}celery{%- endif -%}
+  validator: >-
+    {% if django_version == '6.0' and background_tasks in ['celery', 'both'] %}Django 6.0 is not yet supported with Celery background tasks (django-celery-beat does not support Django 6.0). Please use Django 5.2 or choose 'temporal' or 'none' for background_tasks.{% endif %}
 
 use_channels:
   type: bool

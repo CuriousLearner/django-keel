@@ -1,6 +1,7 @@
 """Behavioral tests for optional features."""
 
 import pytest
+from copier import run_copy
 
 
 # Celery Feature Tests
@@ -8,7 +9,7 @@ import pytest
 
 def test_celery_files_generated_when_enabled(generate):
     """Test that Celery configuration is generated when enabled."""
-    project = generate(background_tasks="celery")
+    project = generate(django_version="5.2", background_tasks="celery")
 
     # Celery file should exist
     celery_file = project / "config/celery.py"
@@ -38,6 +39,27 @@ def test_celery_not_generated_when_disabled(generate):
     settings = project / "config/settings/base.py"
     content = settings.read_text()
     assert "django_celery_beat" not in content
+
+
+@pytest.mark.parametrize("background_tasks", ["celery", "both"])
+def test_celery_requires_django_52(template_dir, temp_dir, copier_answers, background_tasks):
+    """Test that Celery with Django 6.0 is rejected by copier validation."""
+    answers = copier_answers.copy()
+    answers["django_version"] = "6.0"
+    answers["background_tasks"] = background_tasks
+
+    with pytest.raises(
+        ValueError,
+        match=r"Django 6\.0 is not yet supported with Celery",
+    ):
+        run_copy(
+            str(template_dir),
+            str(temp_dir / "test_project"),
+            data=answers,
+            defaults=True,
+            unsafe=True,
+            vcs_ref="HEAD",
+        )
 
 
 # Channels Feature Tests
@@ -319,6 +341,7 @@ def test_aws_s3_storage_configuration(generate):
 def test_all_features_enabled_generates_successfully(generate):
     """Test that enabling all features generates a valid project."""
     project = generate(
+        django_version="5.2",  # Celery requires 5.2 (django-celery-beat incompatible with 6.0)
         dependency_manager="uv",
         api_style="both",
         frontend="htmx-tailwind",

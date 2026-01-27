@@ -62,25 +62,33 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # Test all API options
+          # Test all API options (use temporal since Django 6.0 default)
           - api: drf
             frontend: none
+            background_tasks: temporal
           - api: graphql-strawberry
             frontend: none
+            background_tasks: temporal
           - api: both
             frontend: none
+            background_tasks: temporal
           - api: none
             frontend: htmx-tailwind
+            background_tasks: temporal
 
           # Test all background task options
           - background_tasks: celery
+            django_version: "5.2"  # django-celery-beat incompatible with 6.0
           - background_tasks: temporal
           - background_tasks: both
+            django_version: "5.2"  # django-celery-beat incompatible with 6.0
           - background_tasks: none
 
-          # Test Stripe modes
+          # Test Stripe modes (use temporal since Django 6.0 default)
           - use_stripe: basic
+            background_tasks: temporal
           - use_stripe: advanced
+            background_tasks: temporal
 
     steps:
       - uses: actions/checkout@v6
@@ -101,6 +109,7 @@ jobs:
             --data project_description="A test project" \
             --data author_name="Django Keel CI" \
             --data author_email="ci@django-keel.test" \
+            ${{ matrix.django_version && format('--data django_version={0}', matrix.django_version) || '' }} \
             ${{ matrix.api && format('--data api_style={0}', matrix.api) || '' }} \
             ${{ matrix.frontend && format('--data frontend={0}', matrix.frontend) || '' }} \
             ${{ matrix.background_tasks && format('--data background_tasks={0}', matrix.background_tasks) || '' }} \
