@@ -1,0 +1,49 @@
+{
+  "name": "{{ project_name }}",
+  "dockerComposeFile": [
+    "../docker-compose.yml",
+    "docker-compose.devcontainer.yml"
+  ],
+  "service": "web",
+  "workspaceFolder": "/app",
+  "forwardPorts": [
+    8000,
+    5432,
+    8025{% if cache == 'redis' %},
+    6379{% endif %}{% if frontend == 'htmx-tailwind' and frontend_bundling == 'vite' %},
+    5173{% endif %}{% if background_tasks in ['temporal', 'both'] %},
+    7233,
+    8080{% endif %}{% if observability_level == 'full' %},
+    16686{% endif %}
+  ],
+  "portsAttributes": {
+    "8000": { "label": "Django", "onAutoForward": "notify" },
+    "5432": { "label": "PostgreSQL", "onAutoForward": "silent" },
+    "8025": { "label": "Mailpit UI", "onAutoForward": "silent" }{% if cache == 'redis' %},
+    "6379": { "label": "Redis", "onAutoForward": "silent" }{% endif %}{% if frontend == 'htmx-tailwind' and frontend_bundling == 'vite' %},
+    "5173": { "label": "Vite", "onAutoForward": "notify" }{% endif %}{% if background_tasks in ['temporal', 'both'] %},
+    "7233": { "label": "Temporal", "onAutoForward": "silent" },
+    "8080": { "label": "Temporal UI", "onAutoForward": "silent" }{% endif %}{% if observability_level == 'full' %},
+    "16686": { "label": "Jaeger UI", "onAutoForward": "silent" }{% endif %}
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "charliermarsh.ruff",
+        "batisteo.vscode-django",
+        "ms-azuretools.vscode-docker",
+        "eamodio.gitlens"
+      ],
+      "settings": {
+        "python.defaultInterpreterPath": "{% if dependency_manager == 'uv' %}/app/.venv/bin/python{% else %}/usr/local/bin/python{% endif %}",
+        "[python]": {
+          "editor.defaultFormatter": "charliermarsh.ruff",
+          "editor.formatOnSave": true
+        }
+      }
+    }
+  },
+  "postCreateCommand": "{% if dependency_manager == 'uv' %}uv sync && uv run python manage.py migrate{% else %}poetry install && python manage.py migrate{% endif %}"
+}
