@@ -45,5 +45,5 @@
       }
     }
   },
-  "postCreateCommand": "{% if dependency_manager == 'uv' %}uv sync && uv run python manage.py migrate{% else %}poetry install && python manage.py migrate{% endif %}"
+  "postCreateCommand": "{% if dependency_manager == 'uv' %}uv sync && uv run python manage.py migrate{% else %}poetry config virtualenvs.create false --local && poetry install && python manage.py migrate{% endif %}"
 }
