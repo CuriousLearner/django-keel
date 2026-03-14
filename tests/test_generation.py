@@ -1,5 +1,6 @@
 """Functional tests for template project generation."""
 
+import json
 import py_compile
 
 import pytest
@@ -313,3 +314,71 @@ def test_both_auth_backends(generate):
     content = settings.read_text()
     assert "allauth" in content
     assert "simplejwt" in content or "SIMPLE_JWT" in content
+
+
+# Devcontainer Tests
+
+
+def test_devcontainer_files_exist(generate):
+    """Test that devcontainer files are always generated."""
+    project = generate()
+    assert (project / ".devcontainer/devcontainer.json").exists()
+    assert (project / ".devcontainer/docker-compose.devcontainer.yml").exists()
+
+
+def test_devcontainer_json_is_valid_minimal(generate):
+    """Test that devcontainer.json is valid JSON with minimal options."""
+    project = generate(
+        cache="none",
+        frontend="none",
+        background_tasks="none",
+        observability_level="minimal",
+    )
+    content = (project / ".devcontainer/devcontainer.json").read_text()
+    config = json.loads(content)
+    assert config["service"] == "web"
+    assert 8000 in config["forwardPorts"]
+    assert 6379 not in config["forwardPorts"]
+
+
+def test_devcontainer_json_is_valid_all_options(generate):
+    """Test that devcontainer.json is valid JSON with all conditional options enabled."""
+    project = generate(
+        cache="redis",
+        frontend="htmx-tailwind",
+        frontend_bundling="vite",
+        background_tasks="temporal",
+        observability_level="full",
+    )
+    content = (project / ".devcontainer/devcontainer.json").read_text()
+    config = json.loads(content)
+    assert 6379 in config["forwardPorts"]
+    assert 5173 in config["forwardPorts"]
+    assert 7233 in config["forwardPorts"]
+    assert 16686 in config["forwardPorts"]
+
+
+def test_devcontainer_compose_override_is_valid_yaml(generate):
+    """Test that the devcontainer compose override is valid YAML."""
+    project = generate()
+    content = (project / ".devcontainer/docker-compose.devcontainer.yml").read_text()
+    config = yaml.safe_load(content)
+    assert config["services"]["web"]["command"] == "sleep infinity"
+
+
+def test_devcontainer_uv_interpreter_path(generate):
+    """Test that uv projects use the venv interpreter path."""
+    project = generate(dependency_manager="uv")
+    content = (project / ".devcontainer/devcontainer.json").read_text()
+    config = json.loads(content)
+    interpreter = config["customizations"]["vscode"]["settings"]
+    assert interpreter["python.defaultInterpreterPath"] == "/app/.venv/bin/python"
+
+
+def test_devcontainer_poetry_interpreter_path(generate):
+    """Test that Poetry projects use the system interpreter path."""
+    project = generate(dependency_manager="poetry")
+    content = (project / ".devcontainer/devcontainer.json").read_text()
+    config = json.loads(content)
+    interpreter = config["customizations"]["vscode"]["settings"]
+    assert interpreter["python.defaultInterpreterPath"] == "/usr/local/bin/python"
