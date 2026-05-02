@@ -153,6 +153,8 @@ jobs:
     needs: [full-matrix-test, dependency-check, link-checker, template-consistency, performance-test]
     runs-on: ubuntu-latest
     if: failure()
+    permissions:
+      issues: write
     steps:
       - name: Create issue on failure
         uses: actions/github-script@v9
