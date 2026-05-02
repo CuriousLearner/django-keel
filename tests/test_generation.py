@@ -376,9 +376,9 @@ def test_devcontainer_uv_interpreter_path(generate):
 
 
 def test_devcontainer_poetry_interpreter_path(generate):
-    """Test that Poetry projects use the system interpreter path."""
+    """Test that Poetry projects use the in-project venv interpreter path."""
     project = generate(dependency_manager="poetry")
     content = (project / ".devcontainer/devcontainer.json").read_text()
     config = json.loads(content)
     interpreter = config["customizations"]["vscode"]["settings"]
-    assert interpreter["python.defaultInterpreterPath"] == "/usr/local/bin/python"
+    assert interpreter["python.defaultInterpreterPath"] == "/app/.venv/bin/python"

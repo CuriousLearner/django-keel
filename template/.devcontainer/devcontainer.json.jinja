@@ -6,7 +6,7 @@
   ],
   "service": "web",
   "workspaceFolder": "/app",
-  "initializeCommand": "if [ ! -f .env ] && [ -f .env.example ]; then cp .env.example .env; fi",
+  "onCreateCommand": "if [ ! -f .env ] && [ -f .env.example ]; then cp .env.example .env; fi",
   "forwardPorts": [
     8000,
     5432,
@@ -38,7 +38,7 @@
         "eamodio.gitlens"
       ],
       "settings": {
-        "python.defaultInterpreterPath": "{% if dependency_manager == 'uv' %}/app/.venv/bin/python{% else %}/usr/local/bin/python{% endif %}",
+        "python.defaultInterpreterPath": "/app/.venv/bin/python",
         "[python]": {
           "editor.defaultFormatter": "charliermarsh.ruff",
           "editor.formatOnSave": true
@@ -46,5 +46,5 @@
       }
     }
   },
-  "postCreateCommand": "{% if dependency_manager == 'uv' %}uv sync && uv run python manage.py migrate{% else %}poetry config virtualenvs.create false --local && poetry install && python manage.py migrate{% endif %}"
+  "postCreateCommand": "{% if dependency_manager == 'uv' %}uv sync && uv run python manage.py migrate{% else %}poetry config virtualenvs.in-project true && poetry install && poetry run python manage.py migrate{% endif %}"
 }
