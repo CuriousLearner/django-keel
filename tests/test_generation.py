@@ -382,3 +382,11 @@ def test_devcontainer_poetry_interpreter_path(generate):
     config = json.loads(content)
     interpreter = config["customizations"]["vscode"]["settings"]
     assert interpreter["python.defaultInterpreterPath"] == "/app/.venv/bin/python"
+
+
+def test_devcontainer_project_name_with_special_chars(generate):
+    """Test that project_name with quotes/special chars produces valid JSON."""
+    project = generate(project_name='My "Awesome" Project')
+    content = (project / ".devcontainer/devcontainer.json").read_text()
+    config = json.loads(content)
+    assert config["name"] == 'My "Awesome" Project'
