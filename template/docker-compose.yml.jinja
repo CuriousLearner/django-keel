@@ -72,7 +72,7 @@ services:
 {% if frontend == 'htmx-tailwind' and frontend_bundling == 'vite' %}
 
   vite:
-    image: node:20-slim
+    image: node:26-slim
     working_dir: /app/frontend
     volumes:
       - ./frontend:/app/frontend
