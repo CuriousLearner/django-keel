@@ -1,0 +1,20 @@
+{% raw %}{% extends "base.html" %}
+
+{% block title %}Subscription{% endblock %}
+
+{% block content %}
+<h1>Subscription</h1>
+{% if subscription %}
+<p>Status: {{ subscription.status }}</p>
+<p>Current period ends: {{ subscription.current_period_end }}</p>
+<p><a href="{% url 'billing:customer_portal' %}">Manage billing</a></p>{% endraw %}
+{% if stripe_mode == 'basic' %}
+{% raw %}<form method="post" action="{% url 'billing:cancel_subscription' %}">
+    {% csrf_token %}
+    <button type="submit">Cancel subscription</button>
+</form>{% endraw %}
+{% endif %}
+{% raw %}{% else %}
+<p>You have no active subscription. <a href="{% url 'billing:pricing' %}">View plans</a>.</p>
+{% endif %}
+{% endblock %}{% endraw %}

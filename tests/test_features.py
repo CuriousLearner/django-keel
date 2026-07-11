@@ -113,6 +113,50 @@ def test_billing_app_not_generated_when_stripe_disabled(generate):
         assert not (billing_app / "models.py").exists()
 
 
+def test_billing_templates_generated_when_stripe_enabled(generate):
+    """Test that billing templates referenced by views are shipped."""
+    project = generate(use_stripe=True, stripe_mode="basic")
+
+    assert (project / "templates/billing/pricing.html").exists()
+    assert (project / "templates/billing/checkout_success.html").exists()
+    assert (project / "templates/billing/subscription.html").exists()
+
+
+# Teams Feature Tests
+
+
+def test_teams_templates_generated_when_enabled(generate):
+    """Test that teams templates referenced by views are shipped."""
+    project = generate(use_teams=True)
+
+    assert (project / "templates/teams/team_list.html").exists()
+    assert (project / "templates/teams/emails/invitation.txt").exists()
+
+
+def test_teams_templates_not_generated_when_disabled(generate):
+    """Test that teams templates are excluded without teams."""
+    project = generate(use_teams=False)
+
+    assert not (project / "templates/teams").exists()
+
+
+# Base Template Tests
+
+
+def test_base_template_generated_for_all_frontends(generate):
+    """Test that base.html exists even without an HTML frontend."""
+    project = generate(frontend="none")
+
+    base_html = project / "templates/base.html"
+    assert base_html.exists()
+
+    content = base_html.read_text()
+    assert "{% block content %}" in content
+    # Frontend-specific assets should not be included
+    assert "django_vite" not in content
+    assert "tailwindcss" not in content
+
+
 # 2FA Feature Tests
 
 

@@ -267,8 +267,12 @@ def test_no_frontend_has_minimal_templates(generate):
     templates_dir = project / "templates"
     # Should have directory but minimal content
     assert templates_dir.exists()
-    # base.html should not exist
-    assert not (templates_dir / "base.html").exists()
+    # base.html is always shipped (teams/billing templates extend it),
+    # but without frontend-specific assets
+    assert (templates_dir / "base.html").exists()
+    assert "tailwindcss" not in (templates_dir / "base.html").read_text()
+    # Frontend-specific pages should not exist
+    assert not (templates_dir / "core/index.html").exists()
 
 
 # Auth Backend Tests

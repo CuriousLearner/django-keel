@@ -1,0 +1,9 @@
+{% raw %}<!DOCTYPE html>
+<html lang="en">
+<body>
+    <p>You've been invited to join <strong>{{ team.name }}</strong>!</p>
+    <p>{{ invited_by.get_full_name|default:invited_by.email }} has invited you to join their team.</p>
+    <p><a href="{{ accept_url }}">Accept invitation</a></p>
+    <p>This invitation will expire in 7 days.</p>
+</body>
+</html>{% endraw %}
