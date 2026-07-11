@@ -61,7 +61,7 @@ Before diving in, here's what's **included by default**, **optional**, or **plan
 
 | Feature                                | Status      | Notes                                    |
 | -------------------------------------- | ----------- | ---------------------------------------- |
-| **Django 5.2 + Python 3.12/3.13/3.14** | ✅ Included | Always enabled                           |
+| **Django 6.0/5.2 + Python 3.12/3.13/3.14** | ✅ Included | Django 6.0 by default (`django_version`) |
 | **Custom User Model**                  | ✅ Included | Email-based authentication               |
 | **Split Settings (dev/test/prod)**     | ✅ Included | 12-Factor App ready                      |
 | **Docker + Compose**                   | ✅ Included | Local development                        |
@@ -71,12 +71,12 @@ Before diving in, here's what's **included by default**, **optional**, or **plan
 
 ### API & Frontend
 
-| Feature                   | Status      | Notes                                                         |
-| ------------------------- | ----------- | ------------------------------------------------------------- |
-| **Django REST Framework** | 📦 Optional | Enable with `api: drf` (or `api: both` for DRF + GraphQL)     |
-| **Strawberry GraphQL**    | 📦 Optional | Enable with `api: graphql` (or `api: both` for DRF + GraphQL) |
-| **HTMX + Tailwind CSS**   | 📦 Optional | Enable with `frontend: htmx-tailwind`                         |
-| **Next.js**               | 📦 Optional | Enable with `frontend: nextjs` (requires Node.js 20 LTS+)     |
+| Feature                   | Status      | Notes                                                                                     |
+| ------------------------- | ----------- | ----------------------------------------------------------------------------------------- |
+| **Django REST Framework** | 📦 Optional | Enable with `api_style: drf` (or `api_style: both` for DRF + GraphQL)                     |
+| **Strawberry GraphQL**    | 📦 Optional | Enable with `api_style: graphql-strawberry` (or `api_style: both` for DRF + GraphQL)      |
+| **HTMX + Tailwind CSS**   | 📦 Optional | Enable with `frontend: htmx-tailwind`; assets via `frontend_bundling: vite` (default) or `cdn` |
+| **Next.js**               | 📦 Optional | `frontend: nextjs` generates a `frontend/README.md` with `npx create-next-app` instructions — you scaffold Next.js yourself |
 
 ### Background Tasks & Async
 
@@ -86,31 +86,31 @@ Before diving in, here's what's **included by default**, **optional**, or **plan
 | **Temporal**                     | 📦 Optional | Enable with `background_tasks: temporal`                    |
 | **Django Channels (WebSockets)** | 📦 Optional | Enable with `use_channels: true`                            |
 
-**Note on Temporal**: Requires Temporal Cloud or a self-hosted Temporal cluster. Keel wires the **client SDK + example worker** with sample workflows/activities; **the Temporal server/Cloud is not provisioned**.
+**Note on Temporal**: For production, you need Temporal Cloud or a self-hosted Temporal cluster. Keel wires the **client SDK + example worker** with sample workflows/activities, and `docker-compose.yml` includes a local Temporal dev server + UI; **the production Temporal server/Cloud is not provisioned**.
 
 ### Observability
 
-| Feature                     | Status      | Notes                                                    |
-| --------------------------- | ----------- | -------------------------------------------------------- |
-| **Structured JSON Logging** | ✅ Included | Always enabled                                           |
-| **Sentry**                  | 📦 Optional | `observability: standard` or `full` (enabled by default) |
-| **OpenTelemetry**           | 📦 Optional | `observability: full` only                               |
-| **Prometheus metrics**      | 📦 Optional | `observability: full` only                               |
+| Feature                     | Status      | Notes                                                            |
+| --------------------------- | ----------- | ---------------------------------------------------------------- |
+| **Structured JSON Logging** | ✅ Included | Always enabled                                                   |
+| **Sentry**                  | 📦 Optional | Independent toggle: `use_sentry: true` (enabled by default)      |
+| **OpenTelemetry**           | 📦 Optional | `observability_level: full` only                                 |
+| **Prometheus metrics**      | 📦 Optional | `observability_level: full` only                                 |
 
 ### SaaS Features
 
 | Feature                       | Status      | Notes                              |
 | ----------------------------- | ----------- | ---------------------------------- |
-| **Multi-tenant teams (RBAC)** | 📦 Optional | Enable with `use_teams: true`      |
-| **Stripe (basic)**            | 📦 Optional | Enable with `use_stripe: basic`    |
-| **Stripe (dj-stripe)**        | 📦 Optional | Enable with `use_stripe: advanced` |
-| **2FA (TOTP)**                | 📦 Optional | Enable with `use_2fa: true`        |
+| **Multi-tenant teams (RBAC)** | 📦 Optional | Enable with `use_teams: true`                       |
+| **Stripe (basic)**            | 📦 Optional | `use_stripe: true` + `stripe_mode: basic`           |
+| **Stripe (dj-stripe)**        | 📦 Optional | `use_stripe: true` + `stripe_mode: advanced`        |
+| **2FA (TOTP)**                | 📦 Optional | Enable with `use_2fa: true`                         |
 
 ### Additional Features
 
 | Feature                      | Status      | Notes                                  |
 | ---------------------------- | ----------- | -------------------------------------- |
-| **SOPS (encrypted secrets)** | 📦 Optional | Enable with `use_sops: true`           |
+| **SOPS config scaffold**     | 📦 Optional | `use_sops: true` generates a minimal `.sops.yaml` (bring your own age keys/tooling) |
 | **PostgreSQL FTS**           | 📦 Optional | Enable with `use_search: postgres-fts` |
 | **OpenSearch**               | 📦 Optional | Enable with `use_search: opensearch`   |
 | **i18n/l10n**                | 📦 Optional | Enable with `use_i18n: true`           |
@@ -120,10 +120,13 @@ Before diving in, here's what's **included by default**, **optional**, or **plan
 | Feature                           | Status      | Notes                                               |
 | --------------------------------- | ----------- | --------------------------------------------------- |
 | **Kubernetes (Helm + Kustomize)** | 📦 Optional | Enable with `deployment_targets: [kubernetes]`      |
-| **AWS ECS Fargate (Terraform)**   | 📦 Optional | Enable with `deployment_targets: [ecs]`             |
+| **AWS ECS Fargate (Terraform)**   | 📦 Optional | Enable with `deployment_targets: [aws-ecs-fargate]` |
 | **Fly.io**                        | 📦 Optional | Enable with `deployment_targets: [flyio]`           |
 | **Render**                        | 📦 Optional | Enable with `deployment_targets: [render]`          |
 | **AWS EC2 (Ansible)**             | 📦 Optional | Enable with `deployment_targets: [aws-ec2-ansible]` |
+| **Docker Compose**                | 📦 Optional | Enable with `deployment_targets: [docker]`          |
+
+`deployment_targets` is a multiselect — pick any combination of the above.
 
 **Legend:**
 
@@ -149,113 +152,89 @@ When you press Enter on every prompt (choosing defaults for `project_type: custo
 # Project Type
 project_type: custom # Or: saas, api, web-app, internal-tool
 
-# Dependency Management
+# Tech Stack
+python_version: "3.14" # Or: "3.13", "3.12"
+django_version: "6.0" # Or: "5.2"
 dependency_manager: uv # Or: poetry
-python_version: "3.14" # Or: "3.12" Or: "3.13"
 
 # Database & Cache
-database: postgresql # Production-ready database
-db_managed: true # Use managed DB (RDS/Cloud SQL recommended)
+database: postgresql # Or: sqlite-dev-postgres-prod (SQLite in dev, PostgreSQL in prod)
 cache: redis # Or: none
 
 # API & Frontend
-api: drf # Or: graphql, both, none
+api_style: drf # Or: graphql-strawberry, both, none
 frontend: none # Or: htmx-tailwind, nextjs
-
-# Authentication
-auth: allauth # Or: jwt, both
-use_2fa: false # Two-factor authentication disabled
+frontend_bundling: vite # Or: cdn (asked only when frontend is htmx-tailwind)
 
 # Background Tasks
-background_tasks: celery # Or: temporal, both, none (optional, **enabled by default**)
+background_tasks: celery # Or: temporal, both, none (**celery by default**)
 use_channels: false # WebSockets disabled
 
+# Authentication
+auth_backend: allauth # Or: jwt, both
+use_2fa: false # Two-factor authentication disabled
+
 # Observability
-observability:
+observability_level:
   standard # Or: minimal, full
-  # minimal = JSON logs + health
-  # standard = minimal + Sentry
+  # minimal = JSON logs + health endpoints
+  # standard = minimal + production JSON logging config
   # full = standard + Prometheus + OTel
+use_sentry: true # Sentry error tracking (independent of observability_level)
+
+# Deployment (multiselect — pick any combination)
+deployment_targets: [kubernetes] # Or: render, flyio, aws-ecs-fargate, aws-ec2-ansible, docker
+
+# Storage
+media_storage: aws-s3 # Or: local-whitenoise, gcp-gcs, azure-storage
+
+# Security
+security_profile: standard # Or: strict (adds Content Security Policy via django-csp)
+use_sops: false # SOPS config scaffold disabled
 
 # SaaS Features
 use_teams: false # Multi-tenancy disabled
-use_stripe: false # Or: basic, advanced
+use_stripe: false # Stripe disabled
+stripe_mode: advanced # Or: basic (asked only when use_stripe is true)
 
 # Additional Features
 use_search: none # Or: postgres-fts, opensearch
 use_i18n: false # Internationalization disabled
-use_sops: false # Encrypted secrets disabled
-
-# Security
-security_profile: standard # Or: strict (see docs for differences)
-
-# Storage
-media_storage: aws-s3 # Or: gcs, azure, whitenoise-only
-
-# Deployment
-deployment_targets: [kubernetes] # Or: [aws-ec2-ansible, ecs, flyio, render]
 
 # CI/CD
 ci_provider: github-actions # Or: gitlab-ci, both
+
+# License
+license: MIT # Or: Apache-2.0, GPL-3.0, BSD-3-Clause, Proprietary
 ```
 
 **💡 Tip:** Select a [project type](https://django-keel.readthedocs.io/en/latest/getting-started/project-types/) (saas, api, web-app, internal-tool) for smarter defaults!
 
-**Note:** Some "optional" features are enabled by default for production-ready projects (e.g., Celery, Sentry via `observability: standard`). You can disable them during generation.
+**Note:** Some "optional" features are enabled by default for production-ready projects (e.g., Celery via `background_tasks: celery`, Sentry via `use_sentry: true`). You can disable them during generation.
 
 ## 🔒 Security Baseline
 
-Django Keel enforces production security out of the box:
+Generated projects ship with production security defaults:
 
 ### Included Security Features
 
-- ✅ **`python manage.py check --deploy`** runs in CI
-- ✅ **HSTS** (HTTP Strict Transport Security) enabled in production
-- ✅ **Secure cookies** (`SECURE_*` flags) in production
+- ✅ **HSTS** (HTTP Strict Transport Security) enabled in production, including `SECURE_HSTS_PRELOAD`
 - ✅ **SSL redirect** enforced in production
-- ✅ **CSP headers** (Content Security Policy) with sane defaults
-- ✅ **Admin hardening** - Custom admin URL, staff-only access
-- ✅ **Rate limiting** - Optional with django-ratelimit
-- ✅ **Brute-force protection** - Optional with django-axes
-- ✅ **SOPS (age)** - Encrypted secrets management (optional)
+- ✅ **Secure cookies** - Session and CSRF cookies are `Secure`, `HttpOnly`, `SameSite=Lax` in production
+- ✅ **Hardening headers** - `X-Frame-Options: DENY`, `SECURE_CONTENT_TYPE_NOSNIFF`
+- ✅ **Dependency audit tooling** - `pip-audit` and `safety` installed as dev dependencies
 - ✅ **`.env.example`** - Template for environment variables
 - ✅ **No secrets in repo** - Environment-based configuration
 
-### GitHub Security (when using GitHub Actions)
-
-- OIDC to cloud providers (no long-lived keys)
-- Dependabot enabled for dependency updates
-- Secret scanning enabled
-- Branch protection recommended
-
 ### security_profile: strict
 
-When you enable `security_profile: strict`, additional hardening is applied:
+`security_profile: strict` adds a Content Security Policy via **django-csp** (dependency + middleware), with directives locked down to `'self'` plus minimal allowances for inline styles, data URIs, and HTTPS images.
 
-- **CSP locked to 'self'** - Content Security Policy blocks all external resources
-- **Admin path randomized** - Admin URL is generated randomly (not `/admin/`)
-- **Session age shortened** - Sessions expire faster (15 min vs 2 weeks)
-- **HTTPS-only cookies** - All cookies require HTTPS, no fallback
-- **SECURE_HSTS_PRELOAD** - Enabled for HSTS preload list submission
-- **Stricter CORS** - No wildcards, explicit origins only
-- **Additional headers** - X-Frame-Options, X-Content-Type-Options, Referrer-Policy
-- **Permissions-Policy** - Restrictive policy (e.g., `camera=(), geolocation=(), microphone=()`)
+### Optional: SOPS
 
-### Production Checks
+`use_sops: true` generates a minimal `.sops.yaml` config scaffold for encrypted secrets. You bring your own age keys and SOPS tooling — no key generation or CI wiring is included.
 
-Every generated project includes:
-
-```bash
-# Security audit
-just security-check
-
-# This runs:
-# - python manage.py check --deploy
-# - pip-audit (dependency vulnerabilities)
-# - safety check (known security issues)
-```
-
-**🔐 Security Policy**: We follow Django's security best practices and respond to vulnerabilities within 24 hours. Report issues to security@django-keel (coming soon).
+**🔐 Security Policy**: We follow Django's security best practices. Report issues via [GitHub Issues](https://github.com/CuriousLearner/django-keel/issues).
 
 ## 🔄 Template Updates & Versioning
 
@@ -306,35 +285,25 @@ We mark breaking changes in the **CHANGELOG** with a `⚠️ BREAKING` label and
 
 ### Tested Combinations
 
-We test Django Keel against:
-
-| Python | Django | Status    |
-| ------ | ------ | --------- |
-| 3.12   | 5.2    | ✅ Tested |
-| 3.12   | 6.0    | ✅ Tested |
-| 3.13   | 5.2    | ✅ Tested |
-| 3.13   | 6.0    | ✅ Tested |
-| 3.14   | 5.2    | ✅ Tested |
-| 3.14   | 6.0    | ✅ Tested |
+The template's CI generates a project for every combination of Python 3.12/3.13/3.14 and Django 5.2/6.0 and verifies the versions are correctly pinned in the generated `pyproject.toml`.
 
 ### Support Policy
 
 - **Python**: Last 2-3 minor versions (currently 3.12, 3.13, 3.14)
 - **Django**: Last 2-3 minor versions (currently 5.2, 6.0)
-- **LTS versions** get priority bug fixes
-- **Security patches** backported for 1 year
 
 ### CI Testing
 
-Every commit is tested against:
+On every commit, the template repo's CI runs:
 
-- ✅ All Python + Django combinations
-- ✅ Template generation with all project types
-- ✅ Docker builds
-- ✅ Code quality (ruff, mypy)
-- ✅ Security checks (pip-audit, safety)
-- ✅ SBOM generation (Syft)
-- ✅ Container image scanning (Trivy)
+- ✅ Template test suite (pytest) on Python 3.12/3.13/3.14
+- ✅ Project generation for all project types (saas, api, web-app, internal-tool) with structure checks and a scan for unrendered Jinja syntax
+- ✅ Project generation for every Python + Django version combination with version pin checks
+- ✅ Code quality on the template repo (ruff, mypy)
+- ✅ YAML validation (yamllint) and secret scanning (TruffleHog)
+- ✅ Documentation build with link checking
+
+The repo CI does not build Docker images or run the generated project's test suite. Generated projects get their own CI workflow that lints, tests, builds the Docker image, generates an SBOM (Syft), and scans the image with Trivy.
 
 ## ✨ Features
 
@@ -357,16 +326,15 @@ Every commit is tested against:
   - Admin processes as one-off tasks
 - **Custom User Model** from day one
 - **Split Settings** (base/dev/test/prod)
-- **Docker + Compose** for local development - Postgres, Redis, and Mailpit included out-of-the-box
+- **Docker + Compose** for local development - Postgres, Redis, and Mailpit out-of-the-box, plus Celery worker/beat, Vite, Temporal dev server, Daphne, or Jaeger depending on your selections
 
 ### 🔐 Authentication & Security
 
 - django-allauth with email verification
 - JWT authentication (SimpleJWT)
 - 2FA support (TOTP)
-- Security hardening (HSTS, CSP, etc.)
-- SOPS for encrypted secrets
-- Rate limiting and brute-force protection
+- Security hardening (HSTS, SSL redirect, secure cookies; CSP via django-csp with `security_profile: strict`)
+- SOPS config scaffold for encrypted secrets (optional)
 
 ### 🌐 API Options
 
@@ -395,8 +363,8 @@ Every commit is tested against:
 
 - **Structured JSON Logging** (always included)
 - **Sentry** error tracking (optional)
-- **OpenTelemetry** distributed tracing (optional, `observability: full`)
-- **Prometheus** metrics (optional, `observability: full`)
+- **OpenTelemetry** distributed tracing (optional, `observability_level: full`)
+- **Prometheus** metrics (optional, `observability_level: full`)
 - **Health and readiness endpoints** (always included)
 
 **Note:** OpenTelemetry and Prometheus add overhead and cost. Enable only when needed and configure exporters appropriately.
@@ -404,12 +372,9 @@ Every commit is tested against:
 ### 🚀 Deployment
 
 - **Kubernetes** (Enterprise-scale):
-  - Helm charts
-  - Kustomize overlays (dev/staging/prod)
+  - Minimal Helm chart (`deploy/k8s/helm/<project_slug>/` with deployment, service, ingress, and optional Celery worker templates)
+  - Kustomize overlays (dev/prod)
   - PostgreSQL options: **Managed (RDS recommended)** or CloudNativePG operator
-  - Traefik + cert-manager for ingress
-  - Horizontal Pod Autoscaling
-  - ArgoCD ready
 
 **💡 K8s DB Guidance:** Start with managed Postgres (RDS/Cloud SQL/Azure Database) unless you have strong operational reasons for CloudNativePG. Both paths included.
 
@@ -419,14 +384,15 @@ Every commit is tested against:
   - Application Load Balancer with auto-scaling
   - Multi-AZ high availability
   - Terraform infrastructure-as-code
+  - `deploy.sh` helper script and a GitHub Actions deploy workflow (`deploy-ecs.yml`) using OIDC — no long-lived AWS keys
 
 - **Fly.io** (Global edge):
 
   - Deploy close to users worldwide
   - Automatic HTTPS & SSL
   - PostgreSQL & Redis included
-  - Free tier available
   - Multi-region deployment
+  - Helper scripts (`deploy.sh`, `setup_env.sh`, `manage_db.sh`) and a GitHub Actions deploy workflow (`deploy-flyio.yml`)
 
 - **Render** (Platform-as-a-Service, PaaS):
 
@@ -451,7 +417,7 @@ Every commit is tested against:
 ### 🧪 Developer Experience
 
 - **ruff** for linting and formatting (10-100x faster)
-  - Comprehensive rule set (13+ categories)
+  - Curated rule set (pycodestyle, pyflakes, isort, bugbear, pyupgrade, flake8-django, and more)
   - 100-character line length
   - Modern Python 3.12+ type hints
 - **mypy + django-stubs** for type checking
@@ -469,7 +435,7 @@ Every commit is tested against:
 - **Docker Compose** for local development
 - **VS Code Devcontainer** support
 - **MkDocs Material** documentation
-- **Infrastructure validation** (YAML, Docker Compose, Helm, Ansible)
+- **Infrastructure validation** just recipes: `validate-yaml`, `lint-docker`, `validate-compose`, `validate-k8s`, `lint-helm`, `validate-ansible`, or all at once with `just validate-infra`
 
 ### 💼 SaaS Features (Optional)
 
@@ -495,6 +461,7 @@ Every commit is tested against:
   - Flags, switches, and samples
   - User/group-based targeting
   - Gradual rollouts
+  - `python manage.py init_feature_flags` seeds default flags/switches/samples
 
 ### 📦 Additional Features
 
@@ -532,14 +499,20 @@ copier copy gh:CuriousLearner/django-keel your-project-name
 ```
 your-project/
 ├── apps/                      # Django applications
-│   ├── core/                 # Core functionality (health checks, etc.)
+│   ├── core/                 # Core functionality (health checks, feature flags, etc.)
 │   ├── users/                # Custom user model
-│   └── api/                  # API endpoints (if selected)
+│   ├── api/                  # API endpoints (if selected)
+│   ├── teams/                # Multi-tenant teams (if selected)
+│   └── billing/              # Stripe billing (if selected)
 ├── config/                    # Django configuration
 │   ├── settings/             # Split settings
 │   ├── urls.py
 │   ├── wsgi.py
 │   └── asgi.py
+├── temporal_app/              # Temporal workflows/activities (if selected)
+├── frontend/                  # Frontend assets (if selected)
+├── templates/                 # Django templates
+├── static/                    # Static files
 ├── deploy/                    # Deployment configs
 │   ├── k8s/                  # Kubernetes (Helm + Kustomize)
 │   ├── ecs/                  # AWS ECS Fargate (Terraform)
@@ -550,9 +523,13 @@ your-project/
 ├── render.yaml                # Render blueprint (if selected)
 ├── docs/                      # MkDocs documentation
 ├── tests/                     # Test suite
+├── .env.example               # Environment variable template
 ├── Dockerfile                 # Production image
 ├── docker-compose.yml         # Development environment
 ├── Justfile                   # Task runner
+├── Procfile                   # Process types (12-factor)
+├── release.sh                 # Release-phase script (migrations, etc.)
+├── pytest.ini                 # Test configuration
 ├── pyproject.toml            # Dependencies & config
 └── README.md
 ```
@@ -568,7 +545,8 @@ uv sync
 # Start services
 docker compose up -d
 
-# Run migrations
+# Create and run migrations (first run generates migrations for optional apps like teams/billing)
+just makemigrations
 just migrate
 
 # Create superuser
@@ -582,7 +560,7 @@ Visit:
 
 - Application: http://localhost:8000
 - Admin: http://localhost:8000/admin/
-- API Docs: http://localhost:8000/api/schema/swagger/ _(only when `api != none`)_
+- API Docs: http://localhost:8000/api/schema/swagger/ _(only when `api_style` is `drf` or `both`)_
 - Mailpit: http://localhost:8025 (email testing)
 
 ## 🧪 Testing
@@ -638,15 +616,12 @@ just test
 
 ### Generated Project Documentation
 
-Each generated project includes its own comprehensive documentation in the `docs/` directory:
+Each generated project includes starter documentation in the `docs/` directory (MkDocs):
 
-- Getting Started & Installation
-- Configuration
-- API Development
-- Testing Guide
-- Deployment (Kubernetes, EC2)
-- Architecture Overview
-- Monitoring & Observability
+- Home (`index.md`)
+- Installation (`getting-started/installation.md`)
+- Testing (`development/testing.md`)
+- Architecture Overview (`architecture/overview.md`)
 
 ## 🎨 Project Types & Examples
 
@@ -728,7 +703,8 @@ project_type: custom
 
 ```yaml
 project_type: saas
-use_stripe: advanced # Combines use_stripe + stripe_mode
+use_stripe: true
+stripe_mode: advanced
 use_teams: true
 frontend: nextjs
 deployment_targets: [kubernetes]
@@ -738,7 +714,7 @@ deployment_targets: [kubernetes]
 
 ```yaml
 project_type: api
-auth: jwt
+auth_backend: jwt
 use_channels: true # WebSockets for real-time features
 deployment_targets: [render]
 ```
