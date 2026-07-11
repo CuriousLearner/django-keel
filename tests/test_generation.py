@@ -179,6 +179,14 @@ def test_graphql_api_generated(generate):
     content = settings.read_text()
     assert "strawberry" in content
 
+    # config/urls.py includes apps.api.urls, so it must exist for graphql-only
+    assert (project / "apps/api/urls.py").exists()
+
+    # Schema must use the modern strawberry-graphql-django API (issue #73)
+    schema = (project / "apps/api/schema.py").read_text()
+    assert "from strawberry.django import auto" not in schema
+    assert "import strawberry_django" in schema
+
 
 def test_both_apis_generated(generate):
     """Test that both DRF and GraphQL can coexist."""
