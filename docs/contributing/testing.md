@@ -104,4 +104,4 @@ Tests run automatically on:
 - Pushes to main branch
 - Using GitHub Actions
 
-See `.github/workflows/test.yml` for CI configuration.
+See `.github/workflows/ci.yml` and `.github/workflows/pr-validation.yml` for CI configuration.

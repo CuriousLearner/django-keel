@@ -54,7 +54,7 @@ pytest --cov
 pytest tests/test_generation.py::test_basic_project_generates
 ```
 
-All tests must pass before merging. We currently have 49 tests with 100% pass rate.
+All tests must pass before merging. Use `pytest --collect-only -q` to see the current test count.
 
 ## Making Changes
 
@@ -115,7 +115,7 @@ git commit -m "docs: update installation guide"
 
 ```
 django-keel/
-├── tests/              # Test suite (49 tests)
+├── tests/              # Test suite
 │   ├── test_django_integration.py
 │   ├── test_features.py
 │   └── test_generation.py
@@ -158,8 +158,8 @@ copier copy . /tmp/test-basic
 # With specific features
 copier copy . /tmp/test-full \
   --data api_style=both \
-  --data use_celery=true \
-  --data deployment_targets=kubernetes
+  --data background_tasks=celery \
+  --data deployment_targets='["kubernetes"]'
 
 # Test the generated project
 cd /tmp/test-full

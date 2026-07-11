@@ -1,70 +1,43 @@
 """Integration tests that verify Django functionality."""
 
-import os
+import shutil
 import subprocess
 import sys
+
+import pytest
 
 
 # Django Command Tests
 
 
-def test_django_check_passes(generate, copier_answers):
-    """Test that Django system check passes on generated project."""
+@pytest.mark.slow
+def test_django_check_passes(generate):
+    """Boot test for the default combo (uv, drf, no frontend).
+
+    Installs the generated project's runtime dependencies with uv and runs
+    ``manage.py check`` against the dev settings, which fall back to SQLite
+    and need no external services. This catches broken imports, bad settings,
+    and missing dependencies that text assertions on template output cannot.
+    """
+    assert shutil.which("uv"), "uv is required for this test"
     project = generate()
 
-    # Create .env file
-    env_example = project / ".env.example"
-    env_file = project / ".env"
-    if env_example.exists():
-        env_file.write_text(env_example.read_text())
-
-    # Run Django check
-    result = subprocess.run(
-        [sys.executable, "manage.py", "check", "--deploy"],
-        cwd=project,
-        capture_output=True,
-        text=True,
-        env={**os.environ, "DJANGO_SETTINGS_MODULE": "config.settings.dev"},
-    )
-
-    # Should not have errors (warnings are OK for dev environment)
-    assert "ERRORS" not in result.stdout or "0 errors" in result.stdout
-    assert result.returncode in [0, 1]  # 1 is OK if only warnings
-
-
-def test_settings_can_be_imported(generate):
-    """Test that Django settings can be imported."""
-    project = generate()
-
-    # Create .env file from .env.example
-    env_example = project / ".env.example"
-    env_file = project / ".env"
-    if env_example.exists():
-        env_file.write_text(env_example.read_text())
-
-    # Try importing settings
-    result = subprocess.run(
-        [
-            sys.executable,
-            "-c",
-            "import sys; sys.path.insert(0, '.'); "
-            "from config.settings import dev; "
-            "print('Settings imported successfully')",
-        ],
+    sync = subprocess.run(
+        ["uv", "sync"],
         cwd=project,
         capture_output=True,
         text=True,
     )
+    assert sync.returncode == 0, f"uv sync failed:\n{sync.stderr}"
 
-    # Some import errors are expected without dependencies installed
-    # Just check that the files are syntactically correct
-    # Accept success OR specific import errors for missing dependencies
-    if result.returncode != 0:
-        # These are expected import errors when dependencies aren't installed
-        expected_errors = ["ModuleNotFoundError", "ImportError"]
-        assert any(err in result.stderr for err in expected_errors), (
-            f"Unexpected error: {result.stderr}"
-        )
+    result = subprocess.run(
+        [str(project / ".venv/bin/python"), "manage.py", "check"],
+        cwd=project,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, f"manage.py check failed:\n{result.stdout}\n{result.stderr}"
+    assert "ERRORS" not in result.stdout
 
 
 def test_manage_py_is_executable(generate):
