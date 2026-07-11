@@ -24,14 +24,18 @@ CSRF_COOKIE_HTTPONLY = True
 CSRF_COOKIE_SAMESITE = "Lax"
 
 {% if security_profile == 'strict' -%}
-# Content Security Policy
-CSP_DEFAULT_SRC = ("'self'",)
-CSP_SCRIPT_SRC = ("'self'",)
-CSP_STYLE_SRC = ("'self'", "'unsafe-inline'")
-CSP_IMG_SRC = ("'self'", "data:", "https:")
-CSP_FONT_SRC = ("'self'", "data:")
-CSP_CONNECT_SRC = ("'self'",)
-CSP_FRAME_ANCESTORS = ("'none'",)
+# Content Security Policy (django-csp 4.x)
+CONTENT_SECURITY_POLICY = {
+    "DIRECTIVES": {
+        "default-src": ("'self'",),
+        "script-src": ("'self'",),
+        "style-src": ("'self'", "'unsafe-inline'"),
+        "img-src": ("'self'", "data:", "https:"),
+        "font-src": ("'self'", "data:"),
+        "connect-src": ("'self'",),
+        "frame-ancestors": ("'none'",),
+    },
+}
 {% endif %}
 
 # Database connection pooling
@@ -115,7 +119,7 @@ from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
 from opentelemetry.instrumentation.django import DjangoInstrumentor
-from opentelemetry.instrumentation.psycopg2 import Psycopg2Instrumentor
+from opentelemetry.instrumentation.psycopg import PsycopgInstrumentor
 {% if background_tasks in ['celery', 'both'] -%}
 from opentelemetry.instrumentation.celery import CeleryInstrumentor
 {% endif %}
@@ -133,15 +137,19 @@ trace.get_tracer_provider().add_span_processor(span_processor)
 
 # Auto-instrument
 DjangoInstrumentor().instrument()
-Psycopg2Instrumentor().instrument()
+PsycopgInstrumentor().instrument()
 {% if background_tasks in ['celery', 'both'] -%}
 CeleryInstrumentor().instrument()
 {% endif -%}
 {% endif %}
 
-# Email configuration for production
-if EMAIL_BACKEND == "django.core.mail.backends.console.EmailBackend":  # noqa: F405
-    EMAIL_BACKEND = "anymail.backends.mailgun.EmailBackend"  # noqa: F405
+# Email - SMTP by default, configured via environment
+EMAIL_BACKEND = env("EMAIL_BACKEND", default="django.core.mail.backends.smtp.EmailBackend")  # noqa: F405
+EMAIL_HOST = env("EMAIL_HOST", default="localhost")  # noqa: F405
+EMAIL_PORT = env.int("EMAIL_PORT", default=587)  # noqa: F405
+EMAIL_HOST_USER = env("EMAIL_HOST_USER", default="")  # noqa: F405
+EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", default="")  # noqa: F405
+EMAIL_USE_TLS = env.bool("EMAIL_USE_TLS", default=True)  # noqa: F405
 
 # Admin
 ADMINS = [

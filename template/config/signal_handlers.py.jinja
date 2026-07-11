@@ -2,6 +2,7 @@
 import logging
 import signal
 import sys
+import threading
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +23,10 @@ def graceful_shutdown(signum, frame):
 
 def setup_signal_handlers():
     """Register signal handlers for graceful shutdown."""
+    if threading.current_thread() is not threading.main_thread():
+        # runserver's autoreloader imports wsgi/asgi in a worker thread where
+        # signal.signal() raises ValueError; the reloader handles signals itself.
+        return
     signal.signal(signal.SIGTERM, graceful_shutdown)
     signal.signal(signal.SIGINT, graceful_shutdown)
     logger.info("Signal handlers registered for graceful shutdown")
