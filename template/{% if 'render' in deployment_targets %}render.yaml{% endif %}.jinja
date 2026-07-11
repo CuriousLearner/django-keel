@@ -16,11 +16,11 @@ services:
         value: config.settings.prod
       - key: PYTHON_VERSION
         value: {{ python_version }}
-      - key: SECRET_KEY
+      - key: DJANGO_SECRET_KEY
         generateValue: true
       - key: DEBUG
         value: False
-      - key: ALLOWED_HOSTS
+      - key: DJANGO_ALLOWED_HOSTS
         sync: false  # Set in Render dashboard
       - key: DATABASE_URL
         fromDatabase:
@@ -49,16 +49,8 @@ services:
 {% endif %}
 
     healthCheckPath: /health/
+{% if cache == 'redis' or background_tasks in ['celery', 'both'] %}
 
-databases:
-  - name: {{ project_slug }}-db
-    databaseName: {{ project_slug }}
-    plan: free  # free, starter, standard, pro
-    region: oregon
-    ipAllowList: []  # Allow from web service
-{% if cache == 'redis' %}
-
-services:
   - type: redis
     name: {{ project_slug }}-redis
     plan: free  # free, starter, standard, pro
@@ -87,3 +79,10 @@ services:
           type: redis
           property: connectionString
 {% endif %}
+
+databases:
+  - name: {{ project_slug }}-db
+    databaseName: {{ project_slug }}
+    plan: free  # free, starter, standard, pro
+    region: oregon
+    ipAllowList: []  # Allow from web service

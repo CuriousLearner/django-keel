@@ -1,6 +1,7 @@
 """Behavioral tests for optional features."""
 
 import pytest
+import yaml
 
 
 # Celery Feature Tests
@@ -351,6 +352,60 @@ def test_docker_deployment_generated(generate):
     assert "WORKDIR" in content
 
     assert (project / "docker-compose.yml").exists()
+
+
+def test_compose_has_celery_services_when_celery_enabled(generate):
+    """Test that docker-compose includes celery worker and beat with celery."""
+    project = generate(background_tasks="celery", deployment_targets=["docker"])
+
+    compose = yaml.safe_load((project / "docker-compose.yml").read_text())
+    assert "celery-worker" in compose["services"]
+    assert "celery-beat" in compose["services"]
+    assert "celery -A config worker" in compose["services"]["celery-worker"]["command"]
+
+
+def test_compose_has_redis_when_celery_without_redis_cache(generate):
+    """Test that celery pulls in the redis broker even when cache is none."""
+    project = generate(cache="none", background_tasks="celery", deployment_targets=["docker"])
+
+    compose = yaml.safe_load((project / "docker-compose.yml").read_text())
+    assert "redis" in compose["services"]
+    assert "redis_data" in compose["volumes"]
+
+
+def test_kustomize_excludes_celery_when_disabled(generate):
+    """Test that kustomize base has no celery resources without celery."""
+    project = generate(background_tasks="none", deployment_targets=["kubernetes"])
+
+    base = project / "deploy/k8s/kustomize/base"
+    kustomization = yaml.safe_load((base / "kustomization.yaml").read_text())
+    assert "celery-worker.yaml" not in kustomization["resources"]
+    assert not (base / "celery-worker.yaml").exists()
+
+
+def test_helm_chart_structure(generate):
+    """Test that a real Helm chart directory is generated."""
+    project = generate(deployment_targets=["kubernetes"])
+
+    chart = project / "deploy/k8s/helm/test_project"
+    assert (chart / "Chart.yaml").exists()
+    assert (chart / "values.yaml").exists()
+    assert (chart / "templates/deployment.yaml").exists()
+
+    chart_meta = yaml.safe_load((chart / "Chart.yaml").read_text())
+    assert chart_meta["name"] == "test_project"
+
+
+def test_render_yaml_is_valid_yaml_with_redis(generate):
+    """Test that render.yaml parses as YAML with redis and celery enabled."""
+    project = generate(
+        cache="redis", background_tasks="celery", deployment_targets=["render"]
+    )
+
+    blueprint = yaml.safe_load((project / "render.yaml").read_text())
+    service_types = [s["type"] for s in blueprint["services"]]
+    assert service_types == ["web", "redis", "worker"]
+    assert "databases" in blueprint
 
 
 def test_render_root_files_generated(generate):

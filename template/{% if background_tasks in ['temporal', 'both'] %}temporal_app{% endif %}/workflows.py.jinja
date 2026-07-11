@@ -12,10 +12,10 @@ Best Practices:
 - Use single dataclass argument pattern for backwards compatibility
 """
 
+import logging
 from dataclasses import dataclass
 from datetime import timedelta
 
-import structlog
 from temporalio import workflow
 from temporalio.common import RetryPolicy
 
@@ -28,7 +28,7 @@ with workflow.unsafe.imports_passed_through():
         send_email_activity,
     )
 
-logger = structlog.get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -56,9 +56,7 @@ class UserOnboardingWorkflow:
     async def run(self, input: OnboardingWorkflowInput) -> dict:
         """Execute the user onboarding workflow."""
         workflow.logger.info(
-            "Starting user onboarding",
-            user_id=input.user_id,
-            email=input.email,
+            "Starting user onboarding user_id=%s email=%s", input.user_id, input.email
         )
 
         # Step 1: Process user
@@ -73,7 +71,7 @@ class UserOnboardingWorkflow:
             ),
         )
 
-        workflow.logger.info("User processed", result=process_result)
+        workflow.logger.info("User processed result=%s", process_result)
 
         # Step 2: Send welcome email
         email_result = await workflow.execute_activity(
@@ -91,7 +89,7 @@ class UserOnboardingWorkflow:
             ),
         )
 
-        workflow.logger.info("Welcome email sent", result=email_result)
+        workflow.logger.info("Welcome email sent result=%s", email_result)
 
         # Step 3: Wait for 24 hours before sending follow-up
         workflow.logger.info("Waiting 24 hours before follow-up")
@@ -113,7 +111,7 @@ class UserOnboardingWorkflow:
             ),
         )
 
-        workflow.logger.info("Follow-up email sent", result=followup_result)
+        workflow.logger.info("Follow-up email sent result=%s", followup_result)
 
         return {
             "status": "completed",
@@ -142,9 +140,9 @@ class BatchProcessingWorkflow:
     async def run(self, input: BatchProcessingWorkflowInput) -> dict:
         """Execute batch processing workflow."""
         workflow.logger.info(
-            "Starting batch processing",
-            batch_id=input.batch_id,
-            count=len(input.user_ids),
+            "Starting batch processing batch_id=%s count=%s",
+            input.batch_id,
+            len(input.user_ids),
         )
 
         # Process all users in parallel
@@ -170,10 +168,10 @@ class BatchProcessingWorkflow:
         failures = len(results) - successes
 
         workflow.logger.info(
-            "Batch processing completed",
-            batch_id=input.batch_id,
-            successes=successes,
-            failures=failures,
+            "Batch processing completed batch_id=%s successes=%s failures=%s",
+            input.batch_id,
+            successes,
+            failures,
         )
 
         return {

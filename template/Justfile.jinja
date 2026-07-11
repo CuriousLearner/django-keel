@@ -116,7 +116,7 @@ validate-k8s:
 # Lint Helm chart
 lint-helm:
     @echo "Linting Helm chart..."
-    @helm lint deploy/k8s/helm/{{ project_slug }}-Chart.yaml || echo "Helm not available"
+    @helm lint deploy/k8s/helm/{{ project_slug }} || echo "Helm not available"
 {% endif %}
 
 {% if 'aws-ec2-ansible' in deployment_targets -%}

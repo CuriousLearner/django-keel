@@ -35,12 +35,6 @@ resources:
     cpu: 250m
     memory: 256Mi
 
-autoscaling:
-  enabled: true
-  minReplicas: 2
-  maxReplicas: 10
-  targetCPUUtilizationPercentage: 80
-
 postgresql:
   enabled: true
   auth:
@@ -48,7 +42,7 @@ postgresql:
     username: {{ project_slug }}_user
     password: changeme
 
-{% if cache == 'redis' -%}
+{% if cache == 'redis' or background_tasks in ['celery', 'both'] -%}
 redis:
   enabled: true
   architecture: standalone

@@ -11,14 +11,14 @@ Best Practices:
 - Use proper error handling and retries
 """
 
+import logging
 from dataclasses import dataclass
 from typing import Any
 
-import structlog
 from asgiref.sync import sync_to_async
 from temporalio import activity
 
-logger = structlog.get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -42,11 +42,7 @@ async def send_email_activity(payload: EmailPayload) -> dict[str, Any]:
     - Proper logging
     - Integration with Django's email system
     """
-    logger.info(
-        "Sending email",
-        to=payload.to,
-        subject=payload.subject,
-    )
+    logger.info("Sending email to=%s subject=%s", payload.to, payload.subject)
 
     # Import Django's send_mail here to avoid import issues
     from django.core.mail import send_mail
@@ -64,10 +60,10 @@ async def send_email_activity(payload: EmailPayload) -> dict[str, Any]:
 
     try:
         await _send_mail()
-        logger.info("Email sent successfully", to=payload.to)
+        logger.info("Email sent successfully to=%s", payload.to)
         return {"status": "sent", "to": payload.to}
     except Exception as e:
-        logger.error("Failed to send email", to=payload.to, error=str(e))
+        logger.error("Failed to send email to=%s error=%s", payload.to, e)
         raise
 
 
@@ -88,11 +84,7 @@ async def process_user_activity(payload: UserProcessingPayload) -> dict[str, Any
     """
     from apps.users.models import User
 
-    logger.info(
-        "Processing user",
-        user_id=payload.user_id,
-        action=payload.action,
-    )
+    logger.info("Processing user user_id=%s action=%s", payload.user_id, payload.action)
 
     @sync_to_async
     def _get_user():
@@ -100,23 +92,15 @@ async def process_user_activity(payload: UserProcessingPayload) -> dict[str, Any
 
     try:
         user = await _get_user()
-        logger.info(
-            "User processed",
-            user_id=payload.user_id,
-            username=user.email,
-        )
+        logger.info("User processed user_id=%s username=%s", payload.user_id, user.email)
         return {
             "status": "processed",
             "user_id": payload.user_id,
             "action": payload.action,
         }
     except User.DoesNotExist:
-        logger.error("User not found", user_id=payload.user_id)
+        logger.error("User not found user_id=%s", payload.user_id)
         raise
     except Exception as e:
-        logger.error(
-            "Failed to process user",
-            user_id=payload.user_id,
-            error=str(e),
-        )
+        logger.error("Failed to process user user_id=%s error=%s", payload.user_id, e)
         raise
