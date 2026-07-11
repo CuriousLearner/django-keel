@@ -76,7 +76,7 @@ tests/
 {% if api_style != 'none' -%}
 ├── test_api.py              # API endpoint tests
 {% endif -%}
-{% if use_celery -%}
+{% if background_tasks in ['celery', 'both'] -%}
 ├── test_tasks.py            # Celery task tests
 {% endif -%}
 {% if use_stripe -%}
@@ -181,7 +181,7 @@ def test_api_endpoint(authenticated_api_client):
 ```
 
 {% endif -%}
-{% if use_celery -%}
+{% if background_tasks in ['celery', 'both'] -%}
 ### Testing Celery Tasks
 
 ```python

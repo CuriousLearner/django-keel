@@ -29,7 +29,7 @@ Welcome to the {{ project_name }} documentation!
 {% endif -%}
 
 ### Background Tasks & Real-time
-{% if use_celery -%}
+{% if background_tasks in ['celery', 'both'] -%}
 - **Background Jobs**: Celery with Redis broker
 - **Periodic Tasks**: Celery Beat for scheduled jobs
 - **Monitoring**: Flower dashboard for task monitoring
@@ -118,7 +118,7 @@ Welcome to the {{ project_name }} documentation!
 
 ```bash
 # Clone the repository
-git clone {{ repository_url }}
+git clone {{ git_repository_url }}
 cd {{ project_slug }}
 
 # Install dependencies
@@ -154,7 +154,7 @@ After starting the development server:
 {% endif -%}
 {% endif -%}
 - **Email Testing (Mailpit)**: http://localhost:8025
-{% if use_celery -%}
+{% if background_tasks in ['celery', 'both'] -%}
 - **Celery Flower**: http://localhost:5555 (after running `just celery-flower`)
 {% endif -%}
 

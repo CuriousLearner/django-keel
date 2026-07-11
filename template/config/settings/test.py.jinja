@@ -30,7 +30,7 @@ MIGRATION_MODULES = DisableMigrations()
 # Email backend for tests
 EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
 
-{% if use_celery -%}
+{% if background_tasks in ['celery', 'both'] -%}
 # Celery - always eager in tests
 CELERY_TASK_ALWAYS_EAGER = True
 CELERY_TASK_EAGER_PROPAGATES = True

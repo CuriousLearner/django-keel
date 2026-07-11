@@ -16,7 +16,7 @@
 {% if frontend != 'none' -%}
 - **Frontend**: {% if frontend == 'htmx-tailwind' %}HTMX + Tailwind CSS{% else %}Next.js{% endif %}
 {% endif -%}
-{% if use_celery -%}
+{% if background_tasks in ['celery', 'both'] -%}
 - **Background Tasks**: Celery with Redis broker
 {% endif -%}
 {% if use_channels -%}
@@ -272,7 +272,7 @@ just migrate
 # Check for migration issues
 just migrate-check
 ```
-{% if use_celery %}
+{% if background_tasks in ['celery', 'both'] %}
 ### Background Tasks
 
 Start Celery worker:

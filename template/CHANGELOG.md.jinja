@@ -22,7 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 {% elif frontend == 'nextjs' -%}
 - Next.js frontend
 {% endif -%}
-{% if use_celery -%}
+{% if background_tasks in ['celery', 'both'] -%}
 - Celery background task queue with Redis broker
 {% endif -%}
 {% if use_channels -%}
@@ -49,7 +49,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 {% if api_style != 'none' -%}
   - API endpoint tests
 {% endif -%}
-{% if use_celery -%}
+{% if background_tasks in ['celery', 'both'] -%}
   - Celery task tests
 {% endif -%}
 {% if use_stripe -%}

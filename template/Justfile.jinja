@@ -59,7 +59,7 @@ down:
 logs:
     docker compose logs -f
 
-{% if use_celery -%}
+{% if background_tasks in ['celery', 'both'] -%}
 # Run Celery worker
 celery-worker:
     {% if dependency_manager == 'uv' -%}uv run {% endif %}celery -A config worker -l info

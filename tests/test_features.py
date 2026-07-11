@@ -25,6 +25,15 @@ def test_celery_files_generated_when_enabled(generate):
     assert "django_celery_results" in settings_content
     assert "CELERY_BROKER_URL" in settings_content
 
+    # Tasks module should exist
+    assert (project / "apps/core/tasks.py").exists()
+
+    # celery_app must be imported so @shared_task works
+    assert "celery_app" in (project / "config/__init__.py").read_text()
+
+    # Justfile should have celery recipes
+    assert "celery-worker" in (project / "Justfile").read_text()
+
 
 def test_celery_not_generated_when_disabled(generate):
     """Test that Celery is excluded when disabled."""

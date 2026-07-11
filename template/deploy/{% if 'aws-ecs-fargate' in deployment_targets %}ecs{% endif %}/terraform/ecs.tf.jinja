@@ -329,7 +329,7 @@ resource "aws_ecs_service" "app" {
   }
 }
 
-{% if use_celery -%}
+{% if background_tasks in ['celery', 'both'] -%}
 # Task Definition for Celery Worker
 resource "aws_ecs_task_definition" "celery_worker" {
   count = var.enable_celery ? 1 : 0

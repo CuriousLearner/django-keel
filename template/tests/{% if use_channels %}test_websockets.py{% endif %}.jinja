@@ -21,7 +21,7 @@ def test_channel_layer_works():
     assert channel_layer is not None
 
 
-{% if cache_backend == 'redis' -%}
+{% if cache == 'redis' -%}
 def test_redis_channel_layer_configured():
     """Test that Redis channel layer is configured."""
     from django.conf import settings
