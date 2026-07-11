@@ -42,7 +42,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          uv sync --frozen
+          uv sync --all-extras
 
       - name: Run tests
         run: |
@@ -50,8 +50,6 @@ jobs:
       {% else -%}
       - name: Install Poetry
         uses: snok/install-poetry@v1
-        with:
-          version: 1.7.0
 
       - name: Install dependencies
         run: |

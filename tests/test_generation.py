@@ -150,6 +150,40 @@ def test_poetry_pyproject_generated(generate):
     assert "django" in content
 
 
+def test_poetry_whitenoise_unconditional(generate):
+    """whitenoise is required by base settings regardless of media storage."""
+    project = generate(dependency_manager="poetry", media_storage="aws-s3")
+    content = (project / "pyproject.toml").read_text()
+    assert "whitenoise" in content
+    assert "package-mode = false" in content
+
+
+def test_poetry_justfile_uses_poetry_run(generate):
+    """Justfile recipes must run tools through the poetry venv."""
+    project = generate(dependency_manager="poetry")
+    content = (project / "Justfile").read_text()
+    assert "poetry run pytest" in content
+    assert "poetry run python manage.py migrate" in content
+
+
+def test_uv_ci_installs_dev_extras(generate):
+    """CI needs --all-extras so ruff/mypy/pytest from the dev extra are installed."""
+    project = generate(dependency_manager="uv", ci_provider="github-actions")
+    content = (project / ".github/workflows/ci.yml").read_text()
+    assert "uv sync --all-extras" in content
+
+
+@pytest.mark.parametrize("dep_manager", ["uv", "poetry"])
+def test_coverage_targets_apps_and_config(generate, dep_manager):
+    """Coverage must measure apps/config (where code lives), from one config location."""
+    project = generate(dependency_manager=dep_manager)
+    pyproject = (project / "pyproject.toml").read_text()
+    assert 'source = ["apps", "config"]' in pyproject
+    # pytest.ini is the single canonical pytest config
+    assert "[tool.pytest.ini_options]" not in pyproject
+    assert (project / "pytest.ini").exists()
+
+
 # API Style Tests
 
 

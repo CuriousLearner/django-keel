@@ -98,14 +98,11 @@ Description: {{ project_description }}"
    docker compose up -d
    ```
 
-5. **Run migrations**
+5. **Create and apply migrations**
    ```bash
-   {% if dependency_manager == 'uv' -%}
-   uv run python manage.py migrate
-   {% else -%}
-   poetry run python manage.py migrate
-   {% endif -%}
+   just makemigrations && just migrate
    ```
+   Some bundled apps ship without migrations, so `makemigrations` is required on first run. Commit the generated migration files so CI's migration check passes.
 
 6. **Create superuser**
    ```bash
@@ -147,14 +144,11 @@ Description: {{ project_description }}"
    docker compose up -d
    ```
 
-4. **Run migrations**
+4. **Create and apply migrations**
    ```bash
-   {% if dependency_manager == 'uv' -%}
-   uv run python manage.py migrate
-   {% else -%}
-   poetry run python manage.py migrate
-   {% endif -%}
+   just makemigrations && just migrate
    ```
+   Some bundled apps ship without migrations, so `makemigrations` is required on first run. Commit the generated migration files so CI's migration check passes.
 
 5. **Create superuser**
    ```bash
@@ -268,9 +262,6 @@ just makemigrations
 
 # Apply migrations
 just migrate
-
-# Check for migration issues
-just migrate-check
 ```
 {% if use_celery %}
 ### Background Tasks

@@ -21,7 +21,7 @@ jobs:
         run: uv python install {{ python_version }}
 
       - name: Install dependencies
-        run: uv sync
+        run: uv sync --all-extras
 
       - name: Lint with ruff
         run: uv run ruff check .
@@ -93,7 +93,7 @@ jobs:
         run: uv python install {{ python_version }}
 
       - name: Install dependencies
-        run: uv sync
+        run: uv sync --all-extras
 
       - name: Check for missing migrations
         env:

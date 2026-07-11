@@ -67,8 +67,8 @@ COPY --from=frontend-builder /app/static/dist ./static/dist
 {% endif -%}
 
 {% else -%}
-# Install poetry
-RUN pip install poetry==1.7.0
+# Install poetry (1.8+ required for package-mode in pyproject.toml)
+RUN pip install poetry==2.2.1
 
 # Copy dependency files and README (required by hatchling)
 COPY pyproject.toml ./
@@ -81,7 +81,7 @@ COPY config/ ./config/
 
 # Install dependencies
 RUN poetry config virtualenvs.create false \
-    && poetry install --no-dev --no-interaction --no-ansi
+    && poetry install --without dev --no-root --no-interaction --no-ansi
 
 # Copy rest of application
 COPY . .

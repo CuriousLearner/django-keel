@@ -6,46 +6,46 @@ default:
 
 # Development server
 dev:
-    {% if dependency_manager == 'uv' -%}uv run {% endif %}python manage.py runserver
+    {% if dependency_manager == 'uv' -%}uv run {% else -%}poetry run {% endif %}python manage.py runserver
 
 # Run tests
 test:
-    {% if dependency_manager == 'uv' -%}uv run {% endif %}pytest
+    {% if dependency_manager == 'uv' -%}uv run {% else -%}poetry run {% endif %}pytest
 
 # Run tests with coverage
 test-cov:
-    {% if dependency_manager == 'uv' -%}uv run {% endif %}pytest --cov --cov-report=html --cov-report=term
+    {% if dependency_manager == 'uv' -%}uv run {% else -%}poetry run {% endif %}pytest --cov --cov-report=html --cov-report=term
 
 # Format code
 format:
-    {% if dependency_manager == 'uv' -%}uv run {% endif %}ruff format .
+    {% if dependency_manager == 'uv' -%}uv run {% else -%}poetry run {% endif %}ruff format .
 
 # Lint code
 lint:
-    {% if dependency_manager == 'uv' -%}uv run {% endif %}ruff check .
+    {% if dependency_manager == 'uv' -%}uv run {% else -%}poetry run {% endif %}ruff check .
 
 # Type check
 typecheck:
-    {% if dependency_manager == 'uv' -%}uv run {% endif %}mypy .
+    {% if dependency_manager == 'uv' -%}uv run {% else -%}poetry run {% endif %}mypy .
 
 # Run all quality checks
 check: lint typecheck test
 
 # Django shell
 shell:
-    {% if dependency_manager == 'uv' -%}uv run {% endif %}python manage.py shell_plus
+    {% if dependency_manager == 'uv' -%}uv run {% else -%}poetry run {% endif %}python manage.py shell_plus
 
 # Make migrations
 makemigrations:
-    {% if dependency_manager == 'uv' -%}uv run {% endif %}python manage.py makemigrations
+    {% if dependency_manager == 'uv' -%}uv run {% else -%}poetry run {% endif %}python manage.py makemigrations
 
 # Run migrations
 migrate:
-    {% if dependency_manager == 'uv' -%}uv run {% endif %}python manage.py migrate
+    {% if dependency_manager == 'uv' -%}uv run {% else -%}poetry run {% endif %}python manage.py migrate
 
 # Create superuser
 createsuperuser:
-    {% if dependency_manager == 'uv' -%}uv run {% endif %}python manage.py createsuperuser
+    {% if dependency_manager == 'uv' -%}uv run {% else -%}poetry run {% endif %}python manage.py createsuperuser
 
 # Docker compose up
 up:
@@ -75,11 +75,11 @@ celery-flower:
 
 # Serve documentation
 docs-serve:
-    {% if dependency_manager == 'uv' -%}uv run {% endif %}mkdocs serve
+    {% if dependency_manager == 'uv' -%}uv run {% else -%}poetry run {% endif %}mkdocs serve
 
 # Build documentation
 docs-build:
-    {% if dependency_manager == 'uv' -%}uv run {% endif %}mkdocs build
+    {% if dependency_manager == 'uv' -%}uv run {% else -%}poetry run {% endif %}mkdocs build
 
 # Install dependencies
 install:
