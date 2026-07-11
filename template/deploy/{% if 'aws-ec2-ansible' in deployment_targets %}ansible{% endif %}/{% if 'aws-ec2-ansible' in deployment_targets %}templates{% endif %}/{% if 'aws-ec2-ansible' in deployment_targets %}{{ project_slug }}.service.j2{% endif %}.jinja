@@ -4,22 +4,24 @@ After=network.target
 
 [Service]
 Type=notify
+{% raw %}
 User={{ app_user }}
 Group={{ app_user }}
 WorkingDirectory={{ app_dir }}
+{% endraw %}
 {% if dependency_manager == 'uv' -%}
-Environment="PATH={{ app_user_home }}/.cargo/bin:/usr/bin:/bin"
+Environment="PATH={% raw %}{{ app_user_home }}{% endraw %}/.cargo/bin:/usr/bin:/bin"
 {% if use_channels -%}
-ExecStart={{ app_user_home }}/.cargo/bin/uv run daphne -b 127.0.0.1 -p 8000 config.asgi:application
+ExecStart={% raw %}{{ app_user_home }}{% endraw %}/.cargo/bin/uv run daphne -b 127.0.0.1 -p 8000 config.asgi:application
 {% else -%}
-ExecStart={{ app_user_home }}/.cargo/bin/uv run gunicorn config.wsgi:application --bind 127.0.0.1:8000 --workers 4
+ExecStart={% raw %}{{ app_user_home }}{% endraw %}/.cargo/bin/uv run gunicorn config.wsgi:application --bind 127.0.0.1:8000 --workers 4
 {% endif -%}
 {% else -%}
-Environment="PATH={{ app_user_home }}/.local/bin:{{ app_dir }}/.venv/bin:/usr/bin:/bin"
+Environment="PATH={% raw %}{{ app_user_home }}{% endraw %}/.local/bin:{% raw %}{{ app_dir }}{% endraw %}/.venv/bin:/usr/bin:/bin"
 {% if use_channels -%}
-ExecStart={{ app_user_home }}/.local/bin/poetry run daphne -b 127.0.0.1 -p 8000 config.asgi:application
+ExecStart={% raw %}{{ app_user_home }}{% endraw %}/.local/bin/poetry run daphne -b 127.0.0.1 -p 8000 config.asgi:application
 {% else -%}
-ExecStart={{ app_user_home }}/.local/bin/poetry run gunicorn config.wsgi:application --bind 127.0.0.1:8000 --workers 4
+ExecStart={% raw %}{{ app_user_home }}{% endraw %}/.local/bin/poetry run gunicorn config.wsgi:application --bind 127.0.0.1:8000 --workers 4
 {% endif -%}
 {% endif -%}
 Restart=always

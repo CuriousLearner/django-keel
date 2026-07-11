@@ -313,3 +313,37 @@ def test_both_auth_backends(generate):
     content = settings.read_text()
     assert "allauth" in content
     assert "simplejwt" in content or "SIMPLE_JWT" in content
+
+
+# License Tests
+
+
+@pytest.mark.parametrize(
+    "license_choice,expected_phrase",
+    [
+        ("MIT", "MIT License"),
+        ("Apache-2.0", "Apache License"),
+        ("GPL-3.0", "GNU GENERAL PUBLIC LICENSE"),
+        ("BSD-3-Clause", "Redistribution and use in source and binary forms"),
+        ("Proprietary", "Proprietary"),
+    ],
+)
+def test_license_content(generate, license_choice, expected_phrase):
+    """Test that each license choice generates the correct license text."""
+    project = generate(license=license_choice)
+
+    content = (project / "LICENSE").read_text()
+    assert expected_phrase in content
+
+
+# Ansible Deployment Tests
+
+
+def test_ansible_playbook_preserves_runtime_variables(generate):
+    """Test that ansible runtime variables are not consumed by copier."""
+    project = generate(deployment_targets=["aws-ec2-ansible"])
+
+    playbook = project / "deploy/ansible/playbooks/deploy.yml"
+    content = playbook.read_text()
+    assert '"{{ app_user }}"' in content
+    assert "test_project" in content  # copier vars still rendered
