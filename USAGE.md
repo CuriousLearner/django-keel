@@ -70,7 +70,7 @@ Some questions only appear when relevant (e.g., "Frontend asset bundling" for `h
 cd my-awesome-project
 
 # Install dependencies
-uv sync
+uv sync --all-extras
 
 # Start services
 docker compose up -d
@@ -434,7 +434,7 @@ docker compose exec redis redis-cli ping
 ```bash
 # Reinstall dependencies
 rm -rf .venv
-uv sync
+uv sync --all-extras
 ```
 
 ### Migration Conflicts

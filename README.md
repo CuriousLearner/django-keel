@@ -175,8 +175,7 @@ auth_backend: allauth # Or: jwt, both
 use_2fa: false # Two-factor authentication disabled
 
 # Observability
-observability_level:
-  standard # Or: minimal, full
+observability_level: standard # Or: minimal, full
   # minimal = JSON logs + health endpoints
   # standard = minimal + production JSON logging config
   # full = standard + Prometheus + OTel
@@ -540,7 +539,7 @@ your-project/
 cd your-project
 
 # Install dependencies (uv)
-uv sync
+uv sync --all-extras
 
 # Start services
 docker compose up -d

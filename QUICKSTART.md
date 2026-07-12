@@ -54,7 +54,7 @@ cd ../test-project
 curl -LsSf https://astral.sh/uv/install.sh | sh
 
 # Install dependencies
-uv sync
+uv sync --all-extras
 
 # Start services
 docker compose up -d
@@ -143,7 +143,7 @@ copier copy ../django-keel ../api-only \
   --data background_tasks=none
 
 cd ../api-only
-uv sync
+uv sync --all-extras
 just test
 ```
 
@@ -157,7 +157,7 @@ copier copy ../django-keel ../fullstack-htmx \
   --data observability_level=full
 
 cd ../fullstack-htmx
-uv sync
+uv sync --all-extras
 docker compose up -d
 just makemigrations
 just migrate
@@ -178,7 +178,7 @@ copier copy ../django-keel ../saas-project \
   --data deployment_targets='["kubernetes","aws-ec2-ansible"]'
 
 cd ../saas-project
-uv sync
+uv sync --all-extras
 docker compose up -d
 just makemigrations
 just migrate
@@ -275,7 +275,7 @@ If you get import errors:
 ```bash
 # Reinstall
 rm -rf .venv
-uv sync
+uv sync --all-extras
 ```
 
 ### Port Already in Use
