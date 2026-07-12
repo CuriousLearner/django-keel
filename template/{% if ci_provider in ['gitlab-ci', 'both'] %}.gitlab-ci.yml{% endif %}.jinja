@@ -17,8 +17,8 @@ lint:
 {% if dependency_manager == 'uv' %}
   before_script:
     - curl -LsSf https://astral.sh/uv/install.sh | sh
-    - export PATH="$HOME/.cargo/bin:$PATH"
-    - uv sync
+    - export PATH="$HOME/.local/bin:$PATH"
+    - uv sync --all-extras
   script:
     - uv run ruff check .
     - uv run ruff format --check .
@@ -46,8 +46,8 @@ test:
 {% if dependency_manager == 'uv' %}
   before_script:
     - curl -LsSf https://astral.sh/uv/install.sh | sh
-    - export PATH="$HOME/.cargo/bin:$PATH"
-    - uv sync
+    - export PATH="$HOME/.local/bin:$PATH"
+    - uv sync --all-extras
   script:
     - uv run pytest --cov --cov-report=xml
 {% else %}

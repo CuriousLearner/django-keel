@@ -219,20 +219,8 @@ ignore_missing_imports = true
 [tool.django-stubs]
 django_settings_module = "config.settings.dev"
 
-[tool.pytest.ini_options]
-DJANGO_SETTINGS_MODULE = "config.settings.test"
-python_files = ["test_*.py", "*_test.py", "tests.py"]
-addopts = [
-    "--reuse-db",
-    "--cov={{ project_slug }}",
-    "--cov-report=html",
-    "--cov-report=term-missing",
-    "--cov-fail-under=80",
-]
-testpaths = ["tests"]
-
 [tool.coverage.run]
-source = ["{{ project_slug }}"]
+source = ["apps", "config"]
 omit = [
     "*/migrations/*",
     "*/tests/*",

@@ -5,6 +5,7 @@ description = "{{ project_description }}"
 authors = ["{{ author_name }} <{{ author_email }}>"]
 readme = "README.md"
 license = "{{ license }}"
+package-mode = false
 
 [tool.poetry.dependencies]
 python = "^{{ python_version }}"
@@ -16,6 +17,7 @@ redis = "^5.0.0"
 django-redis = "^5.4.0"
 {% endif -%}
 gunicorn = "^22.0.0"
+whitenoise = {extras = ["brotli"], version = "^6.6.0"}
 python-json-logger = "^2.0.7"
 {% if api_style in ['drf', 'both'] -%}
 djangorestframework = "^3.15.0"
@@ -57,8 +59,6 @@ boto3 = "^1.34.0"
 django-storages = {extras = ["google"], version = "^1.14.0"}
 {% elif media_storage == 'azure-storage' -%}
 django-storages = {extras = ["azure"], version = "^1.14.0"}
-{% else -%}
-whitenoise = {extras = ["brotli"], version = "^6.6.0"}
 {% endif -%}
 {% if use_sentry -%}
 sentry-sdk = {extras = ["django"], version = "^2.0.0"}
@@ -200,20 +200,8 @@ ignore_missing_imports = true
 [tool.django-stubs]
 django_settings_module = "config.settings.dev"
 
-[tool.pytest.ini_options]
-DJANGO_SETTINGS_MODULE = "config.settings.test"
-python_files = ["test_*.py", "*_test.py", "tests.py"]
-addopts = [
-    "--reuse-db",
-    "--cov={{ project_slug }}",
-    "--cov-report=html",
-    "--cov-report=term-missing",
-    "--cov-fail-under=80",
-]
-testpaths = ["tests"]
-
 [tool.coverage.run]
-source = ["{{ project_slug }}"]
+source = ["apps", "config"]
 omit = [
     "*/migrations/*",
     "*/tests/*",
