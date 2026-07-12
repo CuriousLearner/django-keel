@@ -433,20 +433,11 @@ def test_devcontainer_installs_dev_extras(generate):
     assert "uv sync --all-extras" in config["postCreateCommand"]
 
 
-def test_devcontainer_uv_interpreter_path(generate):
-    """Test that uv projects use the venv interpreter path."""
-    project = generate(dependency_manager="uv")
-    content = (project / ".devcontainer/devcontainer.json").read_text()
-    config = json.loads(content)
-    interpreter = config["customizations"]["vscode"]["settings"]
-    assert interpreter["python.defaultInterpreterPath"] == "/app/.venv/bin/python"
-
-
-def test_devcontainer_poetry_interpreter_path(generate):
-    """Test that Poetry projects use the in-project venv interpreter path."""
-    project = generate(dependency_manager="poetry")
-    content = (project / ".devcontainer/devcontainer.json").read_text()
-    config = json.loads(content)
+@pytest.mark.parametrize("dependency_manager", ["uv", "poetry"])
+def test_devcontainer_interpreter_path(generate, dependency_manager):
+    """Both dependency managers resolve to the in-project venv interpreter."""
+    project = generate(dependency_manager=dependency_manager)
+    config = json.loads((project / ".devcontainer/devcontainer.json").read_text())
     interpreter = config["customizations"]["vscode"]["settings"]
     assert interpreter["python.defaultInterpreterPath"] == "/app/.venv/bin/python"
 
