@@ -122,15 +122,31 @@ def test_billing_templates_generated_when_stripe_enabled(generate):
     assert (project / "templates/billing/subscription.html").exists()
 
 
+def test_billing_templates_not_generated_when_stripe_disabled(generate):
+    """Test that billing templates are excluded without Stripe."""
+    project = generate(use_stripe=False)
+
+    assert not (project / "templates/billing").exists()
+
+
 # Teams Feature Tests
 
 
 def test_teams_templates_generated_when_enabled(generate):
-    """Test that teams templates referenced by views are shipped."""
+    """Test that all view-referenced teams templates are shipped."""
     project = generate(use_teams=True)
 
-    assert (project / "templates/teams/team_list.html").exists()
-    assert (project / "templates/teams/emails/invitation.txt").exists()
+    for name in [
+        "team_list.html",
+        "team_form.html",
+        "team_detail.html",
+        "team_confirm_delete.html",
+        "invitation_form.html",
+        "member_form.html",
+        "emails/invitation.txt",
+        "emails/invitation.html",
+    ]:
+        assert (project / "templates/teams" / name).exists(), name
 
 
 def test_teams_templates_not_generated_when_disabled(generate):
