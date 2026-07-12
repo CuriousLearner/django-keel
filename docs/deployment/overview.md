@@ -217,7 +217,8 @@ Deployment files are created in `deploy/` directory and root:
 ```bash
 cd my-project
 ls deploy/
-# Output: render/ docker/ (based on your selection)
+# Output: the subdirs for your selected targets, e.g. render/ k8s/ ecs/ flyio/ ansible/
+# (the docker target is a docs-only toggle and generates no deploy/ files)
 ```
 
 ### 3. Follow Platform Guide

@@ -292,17 +292,22 @@ def test_htmx_frontend_cdn_mode(generate):
 
 
 def test_nextjs_frontend_generated(generate):
-    """Test that Next.js frontend generates scaffolding instructions, not a stub app."""
+    """Test that Next.js frontend generates a runnable minimal App Router app."""
     project = generate(frontend="nextjs")
 
     frontend_dir = project / "frontend"
     assert frontend_dir.exists()
     assert (frontend_dir / "README.md").exists()
-    # No half-stub package.json; users scaffold with create-next-app
-    assert not (frontend_dir / "package.json").exists()
 
-    readme = (frontend_dir / "README.md").read_text()
-    assert "create-next-app" in readme
+    # A runnable app, not a bare README stub: package.json + app/ entrypoints.
+    package_json = frontend_dir / "package.json"
+    assert package_json.exists()
+    pkg = json.loads(package_json.read_text())
+    assert pkg["scripts"]["dev"] == "next dev"
+    for dep in ("next", "react", "react-dom"):
+        assert dep in pkg["dependencies"]
+    assert (frontend_dir / "app/layout.js").exists()
+    assert (frontend_dir / "app/page.js").exists()
 
 
 def test_no_frontend_has_minimal_templates(generate):
@@ -486,3 +491,65 @@ def test_ansible_playbook_preserves_runtime_variables(generate):
     assert "{{ app_dir }}" in content
     assert "{{ git_repo }}" in content
     assert "test_project" in content  # copier vars still rendered
+
+
+# Migration Tests
+#
+# Guards two boot/CI-fatal regressions: teams/billing shipping no migrations
+# (makemigrations --check fails, migrate creates no tables), and the users
+# initial migration recording a stale manager (makemigrations wants a 0002).
+
+
+def test_teams_migrations_shipped(generate):
+    """Teams app ships an initial migration so `migrate` creates its tables."""
+    project = generate(use_teams=True)
+
+    migrations = project / "apps/teams/migrations"
+    assert (migrations / "__init__.py").exists()
+    assert (migrations / "0001_initial.py").exists()
+    content = (migrations / "0001_initial.py").read_text()
+    for model in ("Team", "TeamMember", "TeamInvitation"):
+        assert f'name="{model}"' in content
+
+
+@pytest.mark.parametrize(
+    ("stripe_mode", "expected_models"),
+    [
+        ("advanced", ("PlanConfiguration", "UsageRecord", "SubscriptionMetadata")),
+        ("basic", ("StripeCustomer", "Subscription")),
+    ],
+)
+def test_billing_migrations_shipped(generate, stripe_mode, expected_models):
+    """Billing ships the initial migration matching the selected stripe mode."""
+    project = generate(use_teams=True, use_stripe=True, stripe_mode=stripe_mode)
+
+    migrations = project / "apps/billing/migrations"
+    assert (migrations / "__init__.py").exists()
+    content = (migrations / "0001_initial.py").read_text()
+    for model in expected_models:
+        assert f'name="{model}"' in content
+
+
+def test_disabled_feature_apps_are_absent(generate):
+    """Teams/billing/api apps are gated at the directory level.
+
+    With the feature off the whole app dir (and its migrations) must be absent,
+    not shipped as dead files or an empty ``migrations/`` dir.
+    """
+    project = generate(use_teams=False, use_stripe=False, api_style="none")
+
+    assert not (project / "apps/teams").exists()
+    assert not (project / "apps/billing").exists()
+    assert not (project / "apps/api").exists()
+    # apps that always ship are unaffected
+    assert (project / "apps/users").exists()
+    assert (project / "apps/core").exists()
+
+
+def test_users_initial_migration_has_no_stale_manager(generate):
+    """Users 0001 must not record a manager, or makemigrations wants a 0002."""
+    project = generate()
+
+    content = (project / "apps/users/migrations/0001_initial.py").read_text()
+    assert "managers=" not in content
+    assert "django.contrib.auth.models" not in content
