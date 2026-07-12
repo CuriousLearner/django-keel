@@ -129,6 +129,9 @@ Tests that verify Django-specific functionality - all function-based:
 
 **Example:**
 ```python
+import pytest
+
+
 @pytest.mark.slow
 def test_django_check_passes(generate):
     """Boot test: install deps with uv, then run manage.py check."""
