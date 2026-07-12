@@ -1,5 +1,4 @@
 # Generated migration for custom User model
-import django.contrib.auth.models
 import django.utils.timezone
 from django.db import migrations, models
 
@@ -100,8 +99,5 @@ class Migration(migrations.Migration):
                 "verbose_name": "user",
                 "verbose_name_plural": "users",
             },
-            managers=[
-                ("objects", django.contrib.auth.models.UserManager()),
-            ],
         ),
     ]

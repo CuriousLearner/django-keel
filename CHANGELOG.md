@@ -53,17 +53,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Health check endpoints with django-alive
 
 #### Security
-- SOPS for encrypted secrets management
+- SOPS config scaffold for encrypted secrets management
 - Security profiles: standard or strict
-- Content Security Policy with django-csp
-- Rate limiting and brute-force protection
+- Content Security Policy with django-csp (security_profile=strict)
 
 #### Development Tools
 - Ruff for linting and formatting
 - mypy for type checking
 - pre-commit hooks
 - pytest test suite
-- Justfile with 50+ common tasks
+- Justfile with common developer and infrastructure tasks
 - Infrastructure validation commands
 
 #### CI/CD

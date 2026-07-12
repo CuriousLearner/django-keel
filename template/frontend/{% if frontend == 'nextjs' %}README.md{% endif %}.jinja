@@ -1,11 +1,16 @@
 # {{ project_name }} Frontend
 
-This directory is reserved for a Next.js frontend. Scaffold it with:
+A minimal Next.js (App Router) frontend, ready to run:
 
 ```bash
 cd frontend
-npx create-next-app@latest .
+npm install
+npm run dev
 ```
+
+The dev server starts on http://localhost:3000. `app/page.js` is the landing
+page and `app/layout.js` the root layout; extend from there (add `create-next-app`
+niceties like TypeScript, ESLint, or Tailwind if you want them).
 
 ## Pointing at the Django API
 

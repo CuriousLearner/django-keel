@@ -1,0 +1,248 @@
+# Initial migration for teams models
+import django.db.models.deletion
+from django.conf import settings
+from django.db import migrations, models
+
+
+class Migration(migrations.Migration):
+
+    initial = True
+
+    dependencies = [
+        migrations.swappable_dependency(settings.AUTH_USER_MODEL),
+    ]
+
+    operations = [
+        migrations.CreateModel(
+            name="Team",
+            fields=[
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("name", models.CharField(max_length=100, verbose_name="team name")),
+                (
+                    "slug",
+                    models.SlugField(max_length=100, unique=True, verbose_name="slug"),
+                ),
+                (
+                    "description",
+                    models.TextField(blank=True, verbose_name="description"),
+                ),
+                (
+                    "stripe_customer_id",
+                    models.CharField(
+                        blank=True,
+                        max_length=255,
+                        null=True,
+                        verbose_name="Stripe customer ID",
+                    ),
+                ),
+                (
+                    "stripe_subscription_id",
+                    models.CharField(
+                        blank=True,
+                        max_length=255,
+                        null=True,
+                        verbose_name="Stripe subscription ID",
+                    ),
+                ),
+                (
+                    "subscription_status",
+                    models.CharField(
+                        choices=[
+                            ("active", "Active"),
+                            ("trialing", "Trialing"),
+                            ("past_due", "Past Due"),
+                            ("canceled", "Canceled"),
+                            ("incomplete", "Incomplete"),
+                        ],
+                        default="active",
+                        max_length=20,
+                        verbose_name="subscription status",
+                    ),
+                ),
+                (
+                    "created_at",
+                    models.DateTimeField(auto_now_add=True, verbose_name="created at"),
+                ),
+                (
+                    "updated_at",
+                    models.DateTimeField(auto_now=True, verbose_name="updated at"),
+                ),
+                ("is_active", models.BooleanField(default=True, verbose_name="active")),
+                (
+                    "owner",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.PROTECT,
+                        related_name="owned_teams",
+                        to=settings.AUTH_USER_MODEL,
+                        verbose_name="owner",
+                    ),
+                ),
+            ],
+            options={
+                "verbose_name": "team",
+                "verbose_name_plural": "teams",
+                "ordering": ["name"],
+            },
+        ),
+        migrations.CreateModel(
+            name="TeamInvitation",
+            fields=[
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "email",
+                    models.EmailField(max_length=254, verbose_name="email address"),
+                ),
+                (
+                    "role",
+                    models.CharField(
+                        choices=[
+                            ("owner", "Owner"),
+                            ("admin", "Admin"),
+                            ("member", "Member"),
+                        ],
+                        default="member",
+                        max_length=20,
+                        verbose_name="role",
+                    ),
+                ),
+                (
+                    "token",
+                    models.CharField(
+                        editable=False, max_length=64, unique=True, verbose_name="token"
+                    ),
+                ),
+                (
+                    "status",
+                    models.CharField(
+                        choices=[
+                            ("pending", "Pending"),
+                            ("accepted", "Accepted"),
+                            ("declined", "Declined"),
+                            ("expired", "Expired"),
+                        ],
+                        default="pending",
+                        max_length=20,
+                        verbose_name="status",
+                    ),
+                ),
+                (
+                    "created_at",
+                    models.DateTimeField(auto_now_add=True, verbose_name="created at"),
+                ),
+                ("expires_at", models.DateTimeField(verbose_name="expires at")),
+                (
+                    "accepted_at",
+                    models.DateTimeField(
+                        blank=True, null=True, verbose_name="accepted at"
+                    ),
+                ),
+                (
+                    "invited_by",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="sent_invitations",
+                        to=settings.AUTH_USER_MODEL,
+                        verbose_name="invited by",
+                    ),
+                ),
+                (
+                    "team",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="invitations",
+                        to="teams.team",
+                        verbose_name="team",
+                    ),
+                ),
+            ],
+            options={
+                "verbose_name": "team invitation",
+                "verbose_name_plural": "team invitations",
+                "ordering": ["-created_at"],
+                "unique_together": {("team", "email", "status")},
+            },
+        ),
+        migrations.CreateModel(
+            name="TeamMember",
+            fields=[
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "role",
+                    models.CharField(
+                        choices=[
+                            ("owner", "Owner"),
+                            ("admin", "Admin"),
+                            ("member", "Member"),
+                        ],
+                        default="member",
+                        max_length=20,
+                        verbose_name="role",
+                    ),
+                ),
+                ("is_active", models.BooleanField(default=True, verbose_name="active")),
+                (
+                    "joined_at",
+                    models.DateTimeField(auto_now_add=True, verbose_name="joined at"),
+                ),
+                (
+                    "added_by",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="+",
+                        to=settings.AUTH_USER_MODEL,
+                        verbose_name="added by",
+                    ),
+                ),
+                (
+                    "team",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="members",
+                        to="teams.team",
+                        verbose_name="team",
+                    ),
+                ),
+                (
+                    "user",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="team_memberships",
+                        to=settings.AUTH_USER_MODEL,
+                        verbose_name="user",
+                    ),
+                ),
+            ],
+            options={
+                "verbose_name": "team member",
+                "verbose_name_plural": "team members",
+                "ordering": ["-joined_at"],
+                "unique_together": {("team", "user")},
+            },
+        ),
+    ]

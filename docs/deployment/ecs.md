@@ -215,10 +215,11 @@ aws ecs update-service \
   --force-new-deployment
 ```
 
-Or use Terraform:
+Or use Terraform directly (flat config, no modules):
 
 ```bash
-terraform apply -target=module.ecs
+cd deploy/ecs/terraform
+terraform apply
 ```
 
 ## Auto-Scaling
