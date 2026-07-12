@@ -25,7 +25,7 @@
           - caddy
           - git
         state: present
-
+{% raw %}
     - name: Create application user
       user:
         name: "{{ app_user }}"
@@ -47,20 +47,23 @@
         version: "{{ git_branch | default('main') }}"
       become_user: "{{ app_user }}"
       notify: restart application
-
+{% endraw %}
 {% if dependency_manager == 'uv' -%}
+{% raw %}
     - name: Install uv
       shell: curl -LsSf https://astral.sh/uv/install.sh | sh
       args:
-        creates: ~/.cargo/bin/uv
+        creates: ~/.local/bin/uv
       become_user: "{{ app_user }}"
 
     - name: Install Python dependencies
-      shell: ~/.cargo/bin/uv sync
+      shell: ~/.local/bin/uv sync
       args:
         chdir: "{{ app_dir }}"
       become_user: "{{ app_user }}"
+{% endraw %}
 {% else -%}
+{% raw %}
     - name: Install Poetry
       shell: curl -sSL https://install.python-poetry.org | python3 -
       args:
@@ -68,24 +71,24 @@
       become_user: "{{ app_user }}"
 
     - name: Install Python dependencies
-      shell: ~/.local/bin/poetry install --no-dev
+      shell: ~/.local/bin/poetry install --without dev --no-root
       args:
         chdir: "{{ app_dir }}"
       become_user: "{{ app_user }}"
-{% endif -%}
-
+{% endraw %}
+{% endif %}
     - name: Run database migrations
-      shell: {% if dependency_manager == 'uv' %}~/.cargo/bin/uv run {% else %}~/.local/bin/poetry run {% endif %}python manage.py migrate --noinput
+      shell: {% if dependency_manager == 'uv' %}~/.local/bin/uv run {% else %}~/.local/bin/poetry run {% endif %}python manage.py migrate --noinput
       args:
-        chdir: "{{ app_dir }}"
-      become_user: "{{ app_user }}"
+        chdir: "{% raw %}{{ app_dir }}{% endraw %}"
+      become_user: "{% raw %}{{ app_user }}{% endraw %}"
 
     - name: Collect static files
-      shell: {% if dependency_manager == 'uv' %}~/.cargo/bin/uv run {% else %}~/.local/bin/poetry run {% endif %}python manage.py collectstatic --noinput
+      shell: {% if dependency_manager == 'uv' %}~/.local/bin/uv run {% else %}~/.local/bin/poetry run {% endif %}python manage.py collectstatic --noinput
       args:
-        chdir: "{{ app_dir }}"
-      become_user: "{{ app_user }}"
-
+        chdir: "{% raw %}{{ app_dir }}{% endraw %}"
+      become_user: "{% raw %}{{ app_user }}{% endraw %}"
+{% raw %}
     - name: Configure Caddyfile
       template:
         src: templates/Caddyfile.j2
@@ -118,3 +121,4 @@
       systemd:
         name: caddy
         state: reloaded
+{% endraw %}
