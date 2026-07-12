@@ -33,6 +33,13 @@ services:
           type: redis
           property: connectionString
 {% endif %}
+{% if background_tasks in ['celery', 'both'] %}
+      - key: CELERY_BROKER_URL
+        fromService:
+          name: {{ project_slug }}-redis
+          type: redis
+          property: connectionString
+{% endif %}
 {% if use_sentry %}
       - key: SENTRY_DSN
         sync: false
@@ -74,6 +81,11 @@ services:
           name: {{ project_slug }}-db
           property: connectionString
       - key: REDIS_URL
+        fromService:
+          name: {{ project_slug }}-redis
+          type: redis
+          property: connectionString
+      - key: CELERY_BROKER_URL
         fromService:
           name: {{ project_slug }}-redis
           type: redis

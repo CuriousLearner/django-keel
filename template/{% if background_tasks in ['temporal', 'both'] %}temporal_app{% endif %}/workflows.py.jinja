@@ -12,7 +12,6 @@ Best Practices:
 - Use single dataclass argument pattern for backwards compatibility
 """
 
-import logging
 from dataclasses import dataclass
 from datetime import timedelta
 
@@ -27,8 +26,6 @@ with workflow.unsafe.imports_passed_through():
         process_user_activity,
         send_email_activity,
     )
-
-logger = logging.getLogger(__name__)
 
 
 @dataclass
