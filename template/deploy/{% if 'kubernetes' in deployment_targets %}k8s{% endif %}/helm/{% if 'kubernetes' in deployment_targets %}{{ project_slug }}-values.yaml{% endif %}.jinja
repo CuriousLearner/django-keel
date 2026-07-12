@@ -54,7 +54,7 @@ redis:
   architecture: standalone
 {% endif %}
 
-{% if use_celery -%}
+{% if background_tasks in ['celery', 'both'] -%}
 celery:
   worker:
     replicaCount: 2

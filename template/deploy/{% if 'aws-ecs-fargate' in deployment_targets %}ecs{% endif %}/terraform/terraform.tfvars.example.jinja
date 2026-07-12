@@ -36,7 +36,7 @@ enable_redis    = true
 redis_node_type = "cache.t3.micro"
 {% endif %}
 
-{% if use_celery -%}
+{% if background_tasks in ['celery', 'both'] -%}
 # Celery Configuration
 enable_celery       = true
 celery_worker_count = 2

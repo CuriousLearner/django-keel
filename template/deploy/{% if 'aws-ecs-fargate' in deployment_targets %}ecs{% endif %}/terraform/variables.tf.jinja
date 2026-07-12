@@ -135,7 +135,7 @@ variable "redis_node_type" {
 }
 {% endif %}
 
-{% if use_celery -%}
+{% if background_tasks in ['celery', 'both'] -%}
 variable "enable_celery" {
   description = "Enable Celery workers"
   type        = bool

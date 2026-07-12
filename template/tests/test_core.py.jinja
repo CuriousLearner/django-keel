@@ -223,7 +223,7 @@ def test_default_database_configured():
 # Cache Tests
 
 
-{% if cache_backend == 'redis' -%}
+{% if cache == 'redis' -%}
 @pytest.mark.django_db
 def test_redis_cache_configured():
     """Test that Redis cache is configured."""

@@ -69,7 +69,7 @@ LOGGING = {  # noqa: F405
             "level": "ERROR",
             "propagate": False,
         },
-{% if use_celery -%}
+{% if background_tasks in ['celery', 'both'] -%}
         "celery": {
             "handlers": ["console"],
             "level": "INFO",
@@ -84,7 +84,7 @@ LOGGING = {  # noqa: F405
 # Sentry
 import sentry_sdk
 from sentry_sdk.integrations.django import DjangoIntegration
-{% if use_celery -%}
+{% if background_tasks in ['celery', 'both'] -%}
 from sentry_sdk.integrations.celery import CeleryIntegration
 {% endif -%}
 {% if observability_level == 'full' -%}
@@ -95,7 +95,7 @@ sentry_sdk.init(
     dsn=env("SENTRY_DSN", default=""),  # noqa: F405
     integrations=[
         DjangoIntegration(),
-{% if use_celery -%}
+{% if background_tasks in ['celery', 'both'] -%}
         CeleryIntegration(),
 {% endif -%}
 {% if observability_level == 'full' -%}
@@ -116,7 +116,7 @@ from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
 from opentelemetry.instrumentation.django import DjangoInstrumentor
 from opentelemetry.instrumentation.psycopg2 import Psycopg2Instrumentor
-{% if use_celery -%}
+{% if background_tasks in ['celery', 'both'] -%}
 from opentelemetry.instrumentation.celery import CeleryInstrumentor
 {% endif %}
 
@@ -134,7 +134,7 @@ trace.get_tracer_provider().add_span_processor(span_processor)
 # Auto-instrument
 DjangoInstrumentor().instrument()
 Psycopg2Instrumentor().instrument()
-{% if use_celery -%}
+{% if background_tasks in ['celery', 'both'] -%}
 CeleryInstrumentor().instrument()
 {% endif -%}
 {% endif %}

@@ -86,18 +86,6 @@ export STRIPE_SECRET_KEY=""
 export STRIPE_WEBHOOK_SECRET=""
 {% endif %}
 
-{% if use_sendgrid or use_mailgun -%}
-# Email Configuration
-{% if use_sendgrid -%}
-export SENDGRID_API_KEY=""
-{% endif %}
-{% if use_mailgun -%}
-export MAILGUN_API_KEY=""
-export MAILGUN_DOMAIN=""
-{% endif %}
-export DEFAULT_FROM_EMAIL="noreply@{{ project_slug }}.fly.dev"
-{% endif %}
-
 # Custom Domain (optional)
 export CUSTOM_DOMAIN=""
 EOF
