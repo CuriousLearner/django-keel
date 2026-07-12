@@ -530,6 +530,57 @@ def test_billing_migrations_shipped(generate, stripe_mode, expected_models):
         assert f'name="{model}"' in content
 
 
+def test_teams_migration_gates_stripe_fields(generate):
+    """Teams migration must gate the stripe fields on use_stripe, like the model.
+
+    Team.stripe_customer_id / stripe_subscription_id / subscription_status are
+    gated on use_stripe in the model; the migration must match or
+    makemigrations --check wants a RemoveField.
+    """
+    with_stripe = generate(project_slug="teamstripe", use_teams=True, use_stripe=True)
+    without_stripe = generate(
+        project_slug="teamnostripe", use_teams=True, use_stripe=False
+    )
+
+    with_content = (with_stripe / "apps/teams/migrations/0001_initial.py").read_text()
+    without_content = (
+        without_stripe / "apps/teams/migrations/0001_initial.py"
+    ).read_text()
+
+    assert "stripe_customer_id" in with_content
+    assert "stripe_customer_id" not in without_content
+
+
+def test_advanced_billing_migration_gates_teams(generate):
+    """Advanced billing migration must not reference teams when teams is off.
+
+    The SubscriptionMetadata.team FK is gated on use_teams in the model, so the
+    migration (dependency + field) must be gated too, or migrate hits
+    NodeNotFoundError and makemigrations --check wants a RemoveField.
+    """
+    with_teams = generate(
+        project_slug="withteams",
+        use_stripe=True,
+        stripe_mode="advanced",
+        use_teams=True,
+    )
+    without_teams = generate(
+        project_slug="noteams",
+        use_stripe=True,
+        stripe_mode="advanced",
+        use_teams=False,
+    )
+
+    with_content = (with_teams / "apps/billing/migrations/0001_initial.py").read_text()
+    without_content = (
+        without_teams / "apps/billing/migrations/0001_initial.py"
+    ).read_text()
+
+    assert '("teams", "0001_initial")' in with_content
+    assert 'to="teams.team"' in with_content
+    assert "teams" not in without_content
+
+
 def test_disabled_feature_apps_are_absent(generate):
     """Teams/billing/api apps are gated at the directory level.
 

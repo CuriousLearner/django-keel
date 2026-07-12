@@ -34,6 +34,7 @@ class Migration(migrations.Migration):
                     "description",
                     models.TextField(blank=True, verbose_name="description"),
                 ),
+                {% if use_stripe -%}
                 (
                     "stripe_customer_id",
                     models.CharField(
@@ -67,6 +68,7 @@ class Migration(migrations.Migration):
                         verbose_name="subscription status",
                     ),
                 ),
+                {% endif -%}
                 (
                     "created_at",
                     models.DateTimeField(auto_now_add=True, verbose_name="created at"),
