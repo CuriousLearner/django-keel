@@ -133,7 +133,7 @@ set_secrets() {
         DJANGO_SECRET_KEY="$DJANGO_SECRET_KEY" \
         DJANGO_SETTINGS_MODULE="config.settings.prod" \
         DEBUG="False" \
-        ALLOWED_HOSTS="$APP_NAME.fly.dev" \
+        DJANGO_ALLOWED_HOSTS="$APP_NAME.fly.dev" \
         --app "$APP_NAME"
 
     {% if use_sentry -%}
@@ -209,7 +209,7 @@ setup_custom_domain() {
         fly certs add "$CUSTOM_DOMAIN" --app "$APP_NAME"
 
         # Update allowed hosts
-        fly secrets set ALLOWED_HOSTS="$APP_NAME.fly.dev,$CUSTOM_DOMAIN,www.$CUSTOM_DOMAIN" --app "$APP_NAME"
+        fly secrets set DJANGO_ALLOWED_HOSTS="$APP_NAME.fly.dev,$CUSTOM_DOMAIN,www.$CUSTOM_DOMAIN" --app "$APP_NAME"
 
         print_status "Custom domain configured. Please update your DNS records:"
         fly certs show "$CUSTOM_DOMAIN" --app "$APP_NAME"

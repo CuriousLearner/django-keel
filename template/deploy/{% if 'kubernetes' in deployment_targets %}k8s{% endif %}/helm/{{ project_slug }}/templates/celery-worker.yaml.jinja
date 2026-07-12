@@ -25,6 +25,12 @@ spec:
           imagePullPolicy: {{ .Values.image.pullPolicy }}
 {%- endraw %}
           command: [{% if dependency_manager == 'uv' %}"uv", "run", {% endif %}"celery", "-A", "config", "worker", "-l", "info"]
+{% raw %}          envFrom:
+            - configMapRef:
+                name: {{ .Values.envFrom.configMapName }}
+            - secretRef:
+                name: {{ .Values.envFrom.secretName }}
+{% endraw %}
 {% raw %}          resources:
             {{- toYaml .Values.celery.worker.resources | nindent 12 }}
 {{- if .Values.celery.beat.enabled }}
@@ -54,6 +60,12 @@ spec:
           imagePullPolicy: {{ .Values.image.pullPolicy }}
 {%- endraw %}
           command: [{% if dependency_manager == 'uv' %}"uv", "run", {% endif %}"celery", "-A", "config", "beat", "-l", "info", "--scheduler", "django_celery_beat.schedulers:DatabaseScheduler"]
+{% raw %}          envFrom:
+            - configMapRef:
+                name: {{ .Values.envFrom.configMapName }}
+            - secretRef:
+                name: {{ .Values.envFrom.secretName }}
+{% endraw %}
 {% raw %}          resources:
             {{- toYaml .Values.celery.beat.resources | nindent 12 }}
 {{- end }}

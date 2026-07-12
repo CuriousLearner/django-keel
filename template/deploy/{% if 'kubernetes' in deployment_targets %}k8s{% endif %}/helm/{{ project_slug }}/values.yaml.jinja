@@ -2,6 +2,13 @@
 
 replicaCount: 2
 
+# Environment injection for all pods (web, celery worker/beat). Both refs must
+# exist in the namespace before install; the kustomize base ships matching
+# ConfigMap/Secret manifests, or create them from your .env file.
+envFrom:
+  configMapName: {{ project_slug | replace("_", "-") }}-config
+  secretName: {{ project_slug | replace("_", "-") }}-secrets
+
 image:
   repository: {{ project_slug }}
   pullPolicy: IfNotPresent

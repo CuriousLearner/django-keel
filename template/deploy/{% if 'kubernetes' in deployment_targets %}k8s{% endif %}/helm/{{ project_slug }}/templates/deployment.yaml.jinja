@@ -22,6 +22,11 @@ spec:
         - name: web
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          envFrom:
+            - configMapRef:
+                name: {{ .Values.envFrom.configMapName }}
+            - secretRef:
+                name: {{ .Values.envFrom.secretName }}
           ports:
             - name: http
               containerPort: {{ .Values.service.targetPort }}

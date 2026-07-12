@@ -115,7 +115,7 @@ The `fly launch` command will:
 # Required secrets
 fly secrets set DJANGO_SECRET_KEY="$(python -c 'from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())')"
 fly secrets set DEBUG=False
-fly secrets set ALLOWED_HOSTS="{{ project_slug }}.fly.dev"
+fly secrets set DJANGO_ALLOWED_HOSTS="{{ project_slug }}.fly.dev"
 
 {% if cache == 'redis' -%}
 # Optional: Redis (if using cache/Celery)
@@ -502,7 +502,7 @@ Set up custom domains with the deployment script:
 
 This will:
 1. Add SSL certificate
-2. Update ALLOWED_HOSTS
+2. Update DJANGO_ALLOWED_HOSTS
 3. Show DNS configuration
 
 ## Previous Documentation
