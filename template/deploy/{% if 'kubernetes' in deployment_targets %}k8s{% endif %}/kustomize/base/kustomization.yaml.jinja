@@ -9,8 +9,12 @@ resources:
   - configmap.yaml
   - secret.yaml
   - postgresql-cluster.yaml
+{% if cache == 'redis' or background_tasks in ['celery', 'both'] %}
   - redis.yaml
+{% endif %}
+{% if background_tasks in ['celery', 'both'] %}
   - celery-worker.yaml
+{% endif %}
 
 images:
   - name: {{ project_slug | replace("_", "-") }}

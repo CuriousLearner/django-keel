@@ -69,7 +69,7 @@
   - Health check endpoints (`/health/`)
   - Middleware (security, logging{% if use_teams %}, team context{% endif %})
   - Utility functions and helpers
-{% if use_celery -%}
+{% if background_tasks in ['celery', 'both'] -%}
   - Celery tasks
 {% endif -%}
 
@@ -244,7 +244,7 @@ View / API Endpoint
 {% if cache == 'redis' -%}
      ├─ Cache Lookups (Redis)
 {% endif -%}
-{% if use_celery -%}
+{% if background_tasks in ['celery', 'both'] -%}
      └─ Background Tasks (Celery)
 {% endif -%}
      ↓
@@ -253,7 +253,7 @@ Serialization / Template Rendering
 Response (JSON{% if frontend != 'none' %} / HTML{% endif %})
 ```
 
-{% if use_celery -%}
+{% if background_tasks in ['celery', 'both'] -%}
 ### Background Task Flow
 
 ```
@@ -460,7 +460,7 @@ Feature gating allows access to premium features
 - **Compatibility**: Works with existing Poetry projects
 {% endif -%}
 
-{% if use_celery -%}
+{% if background_tasks in ['celery', 'both'] -%}
 ### Why Celery?
 - **Battle-tested**: Production-ready background tasks
 - **Scalable**: Horizontal worker scaling

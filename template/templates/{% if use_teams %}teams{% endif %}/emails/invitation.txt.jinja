@@ -1,0 +1,7 @@
+{% raw %}You've been invited to join {{ team.name }}!
+
+{{ invited_by.get_full_name|default:invited_by.email }} has invited you to join their team.
+
+Click here to accept: {{ accept_url }}
+
+This invitation will expire in 7 days.{% endraw %}

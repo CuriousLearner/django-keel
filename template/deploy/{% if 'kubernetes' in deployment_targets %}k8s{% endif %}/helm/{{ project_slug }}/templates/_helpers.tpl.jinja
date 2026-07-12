@@ -1,0 +1,44 @@
+{% raw -%}
+{{/*
+Expand the name of the chart (sanitized for Kubernetes resource names).
+*/}}
+{{- define "app.name" -}}
+{{- .Chart.Name | replace "_" "-" | trunc 63 | trimSuffix "-" }}
+{{- end }}
+
+{{/*
+Create a fully qualified app name.
+*/}}
+{{- define "app.fullname" -}}
+{{- if contains (include "app.name" .) .Release.Name }}
+{{- .Release.Name | trunc 63 | trimSuffix "-" }}
+{{- else }}
+{{- printf "%s-%s" .Release.Name (include "app.name" .) | replace "_" "-" | trunc 63 | trimSuffix "-" }}
+{{- end }}
+{{- end }}
+
+{{/*
+Chart name and version as used by the chart label.
+*/}}
+{{- define "app.chart" -}}
+{{- printf "%s-%s" (include "app.name" .) .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" }}
+{{- end }}
+
+{{/*
+Common labels.
+*/}}
+{{- define "app.labels" -}}
+helm.sh/chart: {{ include "app.chart" . }}
+{{ include "app.selectorLabels" . }}
+app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
+app.kubernetes.io/managed-by: {{ .Release.Service }}
+{{- end }}
+
+{{/*
+Selector labels.
+*/}}
+{{- define "app.selectorLabels" -}}
+app.kubernetes.io/name: {{ include "app.name" . }}
+app.kubernetes.io/instance: {{ .Release.Name }}
+{{- end }}
+{%- endraw %}

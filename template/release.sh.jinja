@@ -17,7 +17,7 @@ python manage.py migrate --noinput
 {% if use_search == 'opensearch' -%}
 # Initialize search indexes
 echo "Initializing search indexes..."
-python manage.py search_index --rebuild -f
+python manage.py opensearch index rebuild --force
 {% endif -%}
 
 {% if use_stripe and stripe_mode == 'advanced' -%}

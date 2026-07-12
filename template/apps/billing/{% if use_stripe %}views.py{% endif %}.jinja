@@ -164,10 +164,10 @@ class SubscriptionView(LoginRequiredMixin, TemplateView):
         context["subscription"] = subscription
 
         # Get plan details
-        if subscription and hasattr(subscription, "metadata"):
-            context["features"] = subscription.metadata.features
-            context["usage"] = subscription.metadata.current_usage
-            context["limits"] = subscription.metadata.usage_limits
+        if subscription and hasattr(subscription, "subscription_metadata"):
+            context["features"] = subscription.subscription_metadata.features
+            context["usage"] = subscription.subscription_metadata.current_usage
+            context["limits"] = subscription.subscription_metadata.usage_limits
 
         # Get plan configuration
         if subscription and subscription.plan:
@@ -223,10 +223,10 @@ class UsageStatsView(LoginRequiredMixin, View):
     def get(self, request, *args, **kwargs):
         subscription = get_active_subscription(request.user)
 
-        if not subscription or not hasattr(subscription, "metadata"):
+        if not subscription or not hasattr(subscription, "subscription_metadata"):
             return JsonResponse({"error": "No subscription found"}, status=404)
 
-        metadata = subscription.metadata
+        metadata = subscription.subscription_metadata
 
         # Build usage stats
         stats = {}
@@ -268,8 +268,8 @@ class UpdateUsageView(LoginRequiredMixin, View):
         usage = record_usage(subscription, metric, quantity)
 
         # Update current usage in metadata
-        if hasattr(subscription, "metadata"):
-            metadata = subscription.metadata
+        if hasattr(subscription, "subscription_metadata"):
+            metadata = subscription.subscription_metadata
             current = metadata.current_usage.get(metric, 0)
             metadata.current_usage[metric] = current + quantity
             metadata.save()

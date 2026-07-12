@@ -50,10 +50,13 @@ Django Keel provides two Stripe integration modes:
 
 ```bash
 # .env
-STRIPE_PUBLIC_KEY=pk_test_51...
-STRIPE_SECRET_KEY=sk_test_51...
+STRIPE_TEST_PUBLIC_KEY=pk_test_51...
+STRIPE_TEST_SECRET_KEY=sk_test_51...
+STRIPE_LIVE_MODE=False
 STRIPE_WEBHOOK_SECRET=whsec_...
 ```
+
+Settings derive `STRIPE_PUBLIC_KEY` / `STRIPE_SECRET_KEY` from the test or live key pair based on `STRIPE_LIVE_MODE`. In production, set `STRIPE_LIVE_PUBLIC_KEY`, `STRIPE_LIVE_SECRET_KEY`, and `STRIPE_LIVE_MODE=True`.
 
 #### 3. Create Products in Stripe Dashboard
 
@@ -121,7 +124,7 @@ Webhooks automatically update subscriptions in `apps/billing/webhooks.py`:
 
 Configure webhook endpoint in Stripe Dashboard:
 ```
-https://yourdomain.com/billing/webhook/
+https://yourdomain.com/billing/webhook/stripe/
 ```
 
 Select events to listen to:
@@ -202,24 +205,25 @@ Already included when you select `stripe_mode: advanced` during project generati
 
 #### 2. Configure Settings
 
+The generated `config/settings/base.py` already contains:
+
 ```python
-# config/settings/base.py
-INSTALLED_APPS = [
-    # ...
-    'djstripe',
-]
-
 # Stripe Configuration
-STRIPE_LIVE_PUBLIC_KEY = env('STRIPE_PUBLIC_KEY')
-STRIPE_LIVE_SECRET_KEY = env('STRIPE_SECRET_KEY')
-STRIPE_TEST_PUBLIC_KEY = env('STRIPE_PUBLIC_KEY')
-STRIPE_TEST_SECRET_KEY = env('STRIPE_SECRET_KEY')
-STRIPE_LIVE_MODE = False  # Set to True in production
+STRIPE_LIVE_PUBLIC_KEY = env("STRIPE_LIVE_PUBLIC_KEY", default="")
+STRIPE_LIVE_SECRET_KEY = env("STRIPE_LIVE_SECRET_KEY", default="")
+STRIPE_TEST_PUBLIC_KEY = env("STRIPE_TEST_PUBLIC_KEY", default="")
+STRIPE_TEST_SECRET_KEY = env("STRIPE_TEST_SECRET_KEY", default="")
+STRIPE_LIVE_MODE = env.bool("STRIPE_LIVE_MODE", default=False)
 
-DJSTRIPE_WEBHOOK_SECRET = env('STRIPE_WEBHOOK_SECRET')
-DJSTRIPE_FOREIGN_KEY_TO_FIELD = 'id'
+# dj-stripe advanced integration
+STRIPE_PUBLISHABLE_KEY = STRIPE_LIVE_PUBLIC_KEY if STRIPE_LIVE_MODE else STRIPE_TEST_PUBLIC_KEY
+STRIPE_SECRET_KEY = STRIPE_LIVE_SECRET_KEY if STRIPE_LIVE_MODE else STRIPE_TEST_SECRET_KEY
+DJSTRIPE_WEBHOOK_SECRET = env("DJSTRIPE_WEBHOOK_SECRET", default="")
+DJSTRIPE_FOREIGN_KEY_TO_FIELD = "id"
 DJSTRIPE_USE_NATIVE_JSONFIELD = True
 ```
+
+Set `STRIPE_TEST_PUBLIC_KEY`, `STRIPE_TEST_SECRET_KEY`, and `DJSTRIPE_WEBHOOK_SECRET` in your `.env`.
 
 #### 3. Run Migrations
 
@@ -250,7 +254,7 @@ class SubscriptionMetadata(models.Model):
     subscription = models.OneToOneField(
         Subscription,
         on_delete=models.CASCADE,
-        related_name='metadata'
+        related_name='subscription_metadata'
     )
     features = models.JSONField(default=dict)
     usage_limits = models.JSONField(default=dict)
@@ -352,25 +356,18 @@ def dashboard_view(request):
 #### Track Usage
 
 ```python
-from apps.billing.utils import record_usage, check_usage_limit
+from apps.billing.utils import record_usage, check_usage_limit, get_active_subscription
 
 def api_endpoint(request):
-    subscription = get_active_subscription(request.user)
-
-    # Check if user is within limits
-    can_use, remaining = check_usage_limit(
-        subscription,
-        metric='api_calls',
-        limit=10000
-    )
-
-    if not can_use:
+    # check_usage_limit(user, metric) returns True when the user is OVER the limit
+    if check_usage_limit(request.user, 'api_calls'):
         return JsonResponse({'error': 'API limit exceeded'}, status=429)
 
     # Process API request
     result = process_request(request)
 
     # Record usage
+    subscription = get_active_subscription(request.user)
     record_usage(subscription, metric='api_calls', quantity=1)
 
     return JsonResponse(result)
@@ -406,9 +403,9 @@ def handle_payment_succeeded(sender, event, **kwargs):
     subscription = Subscription.objects.get(
         id=invoice['subscription']
     )
-    if hasattr(subscription, 'metadata'):
-        subscription.metadata.current_usage = {}
-        subscription.metadata.save()
+    if hasattr(subscription, 'subscription_metadata'):
+        subscription.subscription_metadata.current_usage = {}
+        subscription.subscription_metadata.save()
 
 
 @receiver(webhooks.WEBHOOK_SIGNALS['customer.subscription.deleted'])
@@ -422,7 +419,7 @@ def handle_subscription_deleted(sender, event, **kwargs):
 
 Configure webhook endpoint in Stripe Dashboard:
 ```
-https://yourdomain.com/djstripe/webhook/
+https://yourdomain.com/billing/webhook/stripe/
 ```
 
 ### Customer Portal
@@ -444,7 +441,7 @@ def customer_portal(request):
 ```python
 from apps.billing.decorators import subscription_required
 
-@subscription_required
+@subscription_required()
 def premium_feature(request):
     """Requires active subscription."""
     return render(request, 'premium.html')
@@ -460,7 +457,7 @@ def pro_only_feature(request):
     """Only for Pro subscribers."""
     return render(request, 'pro_feature.html')
 
-@plan_required(['pro', 'enterprise'])
+@plan_required('pro', 'enterprise')
 def premium_feature(request):
     """For Pro or Enterprise subscribers."""
     return render(request, 'premium.html')
@@ -480,27 +477,28 @@ def analytics_view(request):
 ### Usage Limits
 
 ```python
-from apps.billing.decorators import usage_limit
+from apps.billing.decorators import usage_limit_check
 
-@usage_limit('api_calls', limit=10000, period='month')
+@usage_limit_check('api_calls')
 def api_endpoint(request):
-    """Limited to 10,000 API calls per month."""
-    # Usage tracked automatically
+    """Blocked once the user is over their limit for this metric."""
+    # Record usage yourself with record_usage()
     return JsonResponse({'data': 'response'})
 ```
+
+See [Feature Gating](feature-gating.md) for details on limits and usage recording.
 
 ## Templates
 
 ### Display Pricing Plans
 
-```django
-{% load billing_tags %}
+Pass `PlanConfiguration` objects to the template as `plans`:
 
+```django
 <div class="pricing-plans">
   {% for plan in plans %}
   <div class="plan {% if plan.is_popular %}popular{% endif %}">
     <h3>{{ plan.name }}</h3>
-    <p class="price">${{ plan.stripe_price.unit_amount|divide:100 }}/mo</p>
 
     <ul class="features">
       {% for feature, enabled in plan.features.items %}
@@ -532,10 +530,10 @@ def api_endpoint(request):
 
 ### Subscription Status
 
-```django
-{% load billing_tags %}
+Pass the subscription from your view (e.g. via `get_active_subscription(request.user)`):
 
-{% if user.has_active_subscription %}
+```django
+{% if subscription %}
 <div class="subscription-status">
   <h3>Your Subscription</h3>
   <p>Plan: {{ subscription.plan.product.name }}</p>
@@ -552,31 +550,6 @@ def api_endpoint(request):
   <a href="{% url 'billing:pricing' %}" class="btn">View Plans</a>
 </div>
 {% endif %}
-```
-
-### Usage Meters
-
-```django
-{% load billing_tags %}
-
-{% get_usage user 'api_calls' as api_usage %}
-
-<div class="usage-meter">
-  <h4>API Calls</h4>
-  <p>{{ api_usage.current }} / {{ api_usage.limit }}</p>
-
-  <div class="progress-bar">
-    <div class="progress" style="width: {{ api_usage.percentage }}%"></div>
-  </div>
-
-  {% if api_usage.is_near_limit %}
-  <p class="warning">⚠️ Approaching limit. Consider upgrading.</p>
-  {% endif %}
-
-  {% if api_usage.is_over_limit %}
-  <p class="error">❌ Limit exceeded. Please upgrade to continue.</p>
-  {% endif %}
-</div>
 ```
 
 ## Testing
@@ -650,7 +623,7 @@ def test_subscription_created_webhook():
         mock_verify.return_value = payload
 
         response = client.post(
-            '/djstripe/webhook/',
+            '/billing/webhook/stripe/',
             data=json.dumps(payload),
             content_type='application/json',
             HTTP_STRIPE_SIGNATURE='test_signature'
@@ -697,11 +670,14 @@ class TestStripeIntegration:
 
 ```bash
 # Production .env
-STRIPE_PUBLIC_KEY=pk_live_...
-STRIPE_SECRET_KEY=sk_live_...
+STRIPE_LIVE_PUBLIC_KEY=pk_live_...
+STRIPE_LIVE_SECRET_KEY=sk_live_...
+STRIPE_LIVE_MODE=True
+
+# Basic mode
 STRIPE_WEBHOOK_SECRET=whsec_...
 
-# For dj-stripe
+# Advanced mode (dj-stripe)
 DJSTRIPE_WEBHOOK_SECRET=whsec_...
 ```
 
@@ -709,9 +685,7 @@ DJSTRIPE_WEBHOOK_SECRET=whsec_...
 
 1. Go to [Stripe Dashboard → Developers → Webhooks](https://dashboard.stripe.com/webhooks)
 2. Click "Add endpoint"
-3. Enter URL:
-   - Basic mode: `https://yourdomain.com/billing/webhook/`
-   - Advanced mode: `https://yourdomain.com/djstripe/webhook/`
+3. Enter URL (same path in both modes): `https://yourdomain.com/billing/webhook/stripe/`
 4. Select events to listen to
 5. Copy webhook signing secret to `.env`
 
@@ -719,7 +693,7 @@ DJSTRIPE_WEBHOOK_SECRET=whsec_...
 
 - [ ] Switch to live API keys (`pk_live_...`, `sk_live_...`)
 - [ ] Configure production webhook endpoint
-- [ ] Test webhooks with Stripe CLI: `stripe listen --forward-to localhost:8000/djstripe/webhook/`
+- [ ] Test webhooks with Stripe CLI: `stripe listen --forward-to localhost:8000/billing/webhook/stripe/`
 - [ ] Enable Stripe Radar for fraud protection
 - [ ] Set up billing email notifications
 - [ ] Configure customer portal settings
@@ -738,14 +712,14 @@ DJSTRIPE_WEBHOOK_SECRET=whsec_...
 
 1. Verify webhook endpoint is accessible:
    ```bash
-   curl https://yourdomain.com/djstripe/webhook/
+   curl https://yourdomain.com/billing/webhook/stripe/
    ```
 
 2. Check webhook signing secret matches `.env`
 
 3. Test with Stripe CLI:
    ```bash
-   stripe listen --forward-to localhost:8000/djstripe/webhook/
+   stripe listen --forward-to localhost:8000/billing/webhook/stripe/
    stripe trigger customer.subscription.created
    ```
 

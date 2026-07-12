@@ -17,11 +17,10 @@ Django Keel supports multiple deployment targets, from self-hosted Kubernetes to
 
 **Production-grade orchestration for large-scale applications**
 
-- Helm charts for package management
-- Kustomize overlays for environment-specific configs
+- Helm chart for package management
+- Kustomize overlays for environment-specific configs (dev/prod)
 - CloudNativePG for PostgreSQL
-- Traefik + cert-manager for ingress
-- Horizontal Pod Autoscaling
+- Values-driven ingress configuration
 - Multi-region support
 
 **When to use:**
@@ -51,7 +50,7 @@ See [Kubernetes Deployment](../deployment/kubernetes.md) for details.
 
 **Quick start:**
 ```bash
-# Deploy directory included when deployment_targets includes 'ecs'
+# Deploy directory included when deployment_targets includes 'aws-ecs-fargate'
 cd deploy/ecs/terraform
 terraform init
 terraform apply
@@ -122,7 +121,6 @@ See [Render Deployment](../deployment/render.md) for details.
 - Automated provisioning with Ansible
 - Caddy reverse proxy with auto-HTTPS
 - Systemd service management
-- Zero-downtime deployments
 - Full control over infrastructure
 
 **When to use:**
@@ -138,8 +136,7 @@ See [AWS EC2 Deployment](../deployment/aws-ec2.md) for details.
 **Containerized deployment for any platform**
 
 All projects include:
-- Optimized Dockerfile
-- Multi-stage builds
+- Optimized Dockerfile (single Python stage, plus a Node build stage with Vite)
 - docker-compose.yml for local development
 - Production-ready configuration
 
@@ -216,23 +213,29 @@ See [Docker Deployment](../deployment/docker.md) for details.
 
 ### Deployment Targets
 
-When creating a project, specify deployment targets:
+When creating a project, pick deployment targets in the interactive multi-select, or pre-answer them in a data file:
+
+```yaml
+# answers.yml
+deployment_targets:
+  - kubernetes
+  - flyio
+  - render
+```
 
 ```bash
-# Single platform
-copier copy . myproject -d deployment_targets=render
-
-# Multiple platforms (comma-separated)
-copier copy . myproject -d deployment_targets=kubernetes,flyio,render
+copier copy --data-file answers.yml gh:CuriousLearner/django-keel myproject
 ```
 
 Available options:
-- `kubernetes` - K8s with Helm
-- `ecs` - AWS ECS Fargate
-- `flyio` - Fly.io
+- `kubernetes` - K8s with Helm + Kustomize
 - `render` - Render.com
+- `flyio` - Fly.io
+- `aws-ecs-fargate` - AWS ECS Fargate (Terraform)
 - `aws-ec2-ansible` - EC2 with Ansible
-- `none` - Docker only
+- `docker` - Docker Compose
+
+The multi-select can be left empty; `Dockerfile` and `docker-compose.yml` are always generated regardless.
 
 ### Generated Files
 
@@ -259,7 +262,7 @@ Each deployment target generates specific files:
 - `deploy/ansible/` - Ansible playbooks
 
 **Docker (always included):**
-- `Dockerfile` - Multi-stage build
+- `Dockerfile` - Container image
 - `docker-compose.yml` - Local development
 
 ## Migration Between Platforms
@@ -268,7 +271,7 @@ Each deployment target generates specific files:
 
 ```bash
 # Export database
-render db dump {{ project_slug }}-db > dump.sql
+render db dump myproject-db > dump.sql
 
 # Import to Fly.io
 fly postgres connect
@@ -279,7 +282,7 @@ psql < dump.sql
 
 ```bash
 # Export from Fly.io
-fly postgres connect -a {{ project_slug }}-db
+fly postgres connect -a myproject-db
 pg_dump > dump.sql
 
 # Import to RDS

@@ -64,7 +64,7 @@ export FLY_REGION="iad"
 # Django Settings
 export DJANGO_SECRET_KEY=""
 export DEBUG="False"
-export ALLOWED_HOSTS=""
+export DJANGO_ALLOWED_HOSTS=""
 
 {% if use_sentry -%}
 # Sentry Configuration
@@ -81,21 +81,9 @@ export AWS_S3_REGION_NAME="us-east-1"
 
 {% if use_stripe -%}
 # Stripe Configuration
-export STRIPE_PUBLISHABLE_KEY=""
-export STRIPE_SECRET_KEY=""
+export STRIPE_LIVE_PUBLIC_KEY=""
+export STRIPE_LIVE_SECRET_KEY=""
 export STRIPE_WEBHOOK_SECRET=""
-{% endif %}
-
-{% if use_sendgrid or use_mailgun -%}
-# Email Configuration
-{% if use_sendgrid -%}
-export SENDGRID_API_KEY=""
-{% endif %}
-{% if use_mailgun -%}
-export MAILGUN_API_KEY=""
-export MAILGUN_DOMAIN=""
-{% endif %}
-export DEFAULT_FROM_EMAIL="noreply@{{ project_slug }}.fly.dev"
 {% endif %}
 
 # Custom Domain (optional)
@@ -142,9 +130,9 @@ interactive_setup() {
     read -r CUSTOM_DOMAIN
 
     if [ -n "$CUSTOM_DOMAIN" ]; then
-        ALLOWED_HOSTS="$APP_NAME.fly.dev,$CUSTOM_DOMAIN,www.$CUSTOM_DOMAIN"
+        DJANGO_ALLOWED_HOSTS="$APP_NAME.fly.dev,$CUSTOM_DOMAIN,www.$CUSTOM_DOMAIN"
     else
-        ALLOWED_HOSTS="$APP_NAME.fly.dev"
+        DJANGO_ALLOWED_HOSTS="$APP_NAME.fly.dev"
     fi
 
     {% if use_sentry -%}
@@ -183,10 +171,10 @@ interactive_setup() {
     echo
     if [[ $REPLY =~ ^[Yy]$ ]]; then
         print_prompt "Enter Stripe Publishable Key:"
-        read -r STRIPE_PUBLISHABLE_KEY
+        read -r STRIPE_LIVE_PUBLIC_KEY
 
         print_prompt "Enter Stripe Secret Key:"
-        read -rs STRIPE_SECRET_KEY
+        read -rs STRIPE_LIVE_SECRET_KEY
         echo
 
         print_prompt "Enter Stripe Webhook Secret (optional):"
@@ -215,7 +203,7 @@ export FLY_REGION="$FLY_REGION"
 # Django Settings
 export DJANGO_SECRET_KEY="$DJANGO_SECRET_KEY"
 export DEBUG="False"
-export ALLOWED_HOSTS="$ALLOWED_HOSTS"
+export DJANGO_ALLOWED_HOSTS="$DJANGO_ALLOWED_HOSTS"
 
 {% if use_sentry -%}
 # Sentry Configuration
@@ -232,8 +220,8 @@ export AWS_S3_REGION_NAME="${AWS_S3_REGION_NAME:-}"
 
 {% if use_stripe -%}
 # Stripe Configuration
-export STRIPE_PUBLISHABLE_KEY="${STRIPE_PUBLISHABLE_KEY:-}"
-export STRIPE_SECRET_KEY="${STRIPE_SECRET_KEY:-}"
+export STRIPE_LIVE_PUBLIC_KEY="${STRIPE_LIVE_PUBLIC_KEY:-}"
+export STRIPE_LIVE_SECRET_KEY="${STRIPE_LIVE_SECRET_KEY:-}"
 export STRIPE_WEBHOOK_SECRET="${STRIPE_WEBHOOK_SECRET:-}"
 {% endif %}
 
@@ -271,7 +259,7 @@ apply_to_fly() {
     secrets_cmd="$secrets_cmd DJANGO_SECRET_KEY='$DJANGO_SECRET_KEY'"
     secrets_cmd="$secrets_cmd DJANGO_SETTINGS_MODULE='config.settings.prod'"
     secrets_cmd="$secrets_cmd DEBUG='False'"
-    secrets_cmd="$secrets_cmd ALLOWED_HOSTS='$ALLOWED_HOSTS'"
+    secrets_cmd="$secrets_cmd DJANGO_ALLOWED_HOSTS='$DJANGO_ALLOWED_HOSTS'"
 
     {% if use_sentry -%}
     if [ -n "${SENTRY_DSN:-}" ]; then
@@ -289,11 +277,12 @@ apply_to_fly() {
     {% endif %}
 
     {% if use_stripe -%}
-    if [ -n "${STRIPE_SECRET_KEY:-}" ]; then
-        secrets_cmd="$secrets_cmd STRIPE_PUBLISHABLE_KEY='$STRIPE_PUBLISHABLE_KEY'"
-        secrets_cmd="$secrets_cmd STRIPE_SECRET_KEY='$STRIPE_SECRET_KEY'"
+    if [ -n "${STRIPE_LIVE_SECRET_KEY:-}" ]; then
+        secrets_cmd="$secrets_cmd STRIPE_LIVE_PUBLIC_KEY='$STRIPE_LIVE_PUBLIC_KEY'"
+        secrets_cmd="$secrets_cmd STRIPE_LIVE_SECRET_KEY='$STRIPE_LIVE_SECRET_KEY'"
+        secrets_cmd="$secrets_cmd STRIPE_LIVE_MODE='True'"
         if [ -n "${STRIPE_WEBHOOK_SECRET:-}" ]; then
-            secrets_cmd="$secrets_cmd STRIPE_WEBHOOK_SECRET='$STRIPE_WEBHOOK_SECRET'"
+            secrets_cmd="$secrets_cmd {% if stripe_mode == 'advanced' %}DJSTRIPE_WEBHOOK_SECRET{% else %}STRIPE_WEBHOOK_SECRET{% endif %}='$STRIPE_WEBHOOK_SECRET'"
         fi
     fi
     {% endif %}

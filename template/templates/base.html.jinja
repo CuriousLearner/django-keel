@@ -1,4 +1,4 @@
-{% if frontend_bundling == 'vite' %}{% raw %}{% load django_vite %}{% endraw %}
+{% if frontend == 'htmx-tailwind' and frontend_bundling == 'vite' %}{% raw %}{% load django_vite %}{% endraw %}
 {% endif %}<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -6,10 +6,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% raw %}{% block title %}{% endraw %}{{ project_name }}{% raw %}{% endblock %}{% endraw %}</title>
 
-{% if frontend_bundling == 'vite' %}
+{% if frontend == 'htmx-tailwind' and frontend_bundling == 'vite' %}
     {% raw %}{% vite_hmr_client %}{% endraw %}
     {% raw %}{% vite_asset 'src/main.js' %}{% endraw %}
-{% else %}
+{% elif frontend == 'htmx-tailwind' %}
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
 
@@ -38,7 +38,12 @@
 
     <!-- Main Content -->
     <main class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        {% raw %}{% block content %}{% endblock %}{% endraw %}
+        {% raw %}{% if messages %}
+        {% for message in messages %}
+        <div class="mb-4 rounded border px-4 py-3{% if message.tags %} {{ message.tags }}{% endif %}">{{ message }}</div>
+        {% endfor %}
+        {% endif %}
+        {% block content %}{% endblock %}{% endraw %}
     </main>
 
     <!-- Footer -->

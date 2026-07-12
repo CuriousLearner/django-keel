@@ -151,6 +151,40 @@ def test_poetry_pyproject_generated(generate):
     assert "django" in content
 
 
+def test_poetry_whitenoise_unconditional(generate):
+    """whitenoise is required by base settings regardless of media storage."""
+    project = generate(dependency_manager="poetry", media_storage="aws-s3")
+    content = (project / "pyproject.toml").read_text()
+    assert "whitenoise" in content
+    assert "package-mode = false" in content
+
+
+def test_poetry_justfile_uses_poetry_run(generate):
+    """Justfile recipes must run tools through the poetry venv."""
+    project = generate(dependency_manager="poetry")
+    content = (project / "Justfile").read_text()
+    assert "poetry run pytest" in content
+    assert "poetry run python manage.py migrate" in content
+
+
+def test_uv_ci_installs_dev_extras(generate):
+    """CI needs --all-extras so ruff/mypy/pytest from the dev extra are installed."""
+    project = generate(dependency_manager="uv", ci_provider="github-actions")
+    content = (project / ".github/workflows/ci.yml").read_text()
+    assert "uv sync --all-extras" in content
+
+
+@pytest.mark.parametrize("dep_manager", ["uv", "poetry"])
+def test_coverage_targets_apps_and_config(generate, dep_manager):
+    """Coverage must measure apps/config (where code lives), from one config location."""
+    project = generate(dependency_manager=dep_manager)
+    pyproject = (project / "pyproject.toml").read_text()
+    assert 'source = ["apps", "config"]' in pyproject
+    # pytest.ini is the single canonical pytest config
+    assert "[tool.pytest.ini_options]" not in pyproject
+    assert (project / "pytest.ini").exists()
+
+
 # API Style Tests
 
 
@@ -179,6 +213,14 @@ def test_graphql_api_generated(generate):
     settings = project / "config/settings/base.py"
     content = settings.read_text()
     assert "strawberry" in content
+
+    # config/urls.py includes apps.api.urls, so it must exist for graphql-only
+    assert (project / "apps/api/urls.py").exists()
+
+    # Schema must use the modern strawberry-graphql-django API (issue #73)
+    schema = (project / "apps/api/schema.py").read_text()
+    assert "from strawberry.django import auto" not in schema
+    assert "import strawberry_django" in schema
 
 
 def test_both_apis_generated(generate):
@@ -250,15 +292,17 @@ def test_htmx_frontend_cdn_mode(generate):
 
 
 def test_nextjs_frontend_generated(generate):
-    """Test that Next.js frontend is generated."""
+    """Test that Next.js frontend generates scaffolding instructions, not a stub app."""
     project = generate(frontend="nextjs")
 
     frontend_dir = project / "frontend"
     assert frontend_dir.exists()
-    assert (frontend_dir / "package.json").exists()
+    assert (frontend_dir / "README.md").exists()
+    # No half-stub package.json; users scaffold with create-next-app
+    assert not (frontend_dir / "package.json").exists()
 
-    package_json = (frontend_dir / "package.json").read_text()
-    assert "next" in package_json
+    readme = (frontend_dir / "README.md").read_text()
+    assert "create-next-app" in readme
 
 
 def test_no_frontend_has_minimal_templates(generate):
@@ -268,8 +312,12 @@ def test_no_frontend_has_minimal_templates(generate):
     templates_dir = project / "templates"
     # Should have directory but minimal content
     assert templates_dir.exists()
-    # base.html should not exist
-    assert not (templates_dir / "base.html").exists()
+    # base.html is always shipped (teams/billing templates extend it),
+    # but without frontend-specific assets
+    assert (templates_dir / "base.html").exists()
+    assert "tailwindcss" not in (templates_dir / "base.html").read_text()
+    # Frontend-specific pages should not exist
+    assert not (templates_dir / "core/index.html").exists()
 
 
 # Auth Backend Tests
@@ -390,3 +438,41 @@ def test_devcontainer_project_name_with_special_chars(generate):
     content = (project / ".devcontainer/devcontainer.json").read_text()
     config = json.loads(content)
     assert config["name"] == 'My "Awesome" Project'
+
+
+# License Tests
+
+
+@pytest.mark.parametrize(
+    "license_choice,expected_phrase",
+    [
+        ("MIT", "MIT License"),
+        ("Apache-2.0", "TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION"),
+        ("GPL-3.0", "GNU GENERAL PUBLIC LICENSE"),
+        ("BSD-3-Clause", "Redistribution and use in source and binary forms"),
+        ("Proprietary", "Proprietary"),
+    ],
+)
+def test_license_content(generate, license_choice, expected_phrase):
+    """Test that each license choice generates the correct license text."""
+    project = generate(license=license_choice)
+
+    content = (project / "LICENSE").read_text()
+    assert expected_phrase in content
+    assert "would go here" not in content  # no placeholder bodies
+
+
+# Ansible Deployment Tests
+
+
+def test_ansible_playbook_preserves_runtime_variables(generate):
+    """Test that ansible runtime variables are not consumed by copier."""
+    project = generate(deployment_targets=["aws-ec2-ansible"])
+
+    playbook = project / "deploy/ansible/playbooks/deploy.yml"
+    content = playbook.read_text()
+    assert yaml.safe_load(content)  # valid YAML after rendering
+    assert '"{{ app_user }}"' in content
+    assert "{{ app_dir }}" in content
+    assert "{{ git_repo }}" in content
+    assert "test_project" in content  # copier vars still rendered

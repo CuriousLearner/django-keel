@@ -9,7 +9,9 @@ jobs:
     name: Validate Pull Request
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0  # Needed so origin/main exists for the CHANGELOG diff
 
       - name: Check PR title follows conventional commits
         uses: amannn/action-semantic-pull-request@v6
@@ -83,7 +85,7 @@ jobs:
           - use_stripe: advanced
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Set up Python
         uses: actions/setup-python@v6
@@ -93,7 +95,7 @@ jobs:
       - name: Install Copier
         run: pip install copier pyyaml
 
-      - name: Generate project with ${{ matrix }}
+      - name: Generate project (api=${{ matrix.api }}, frontend=${{ matrix.frontend }}, tasks=${{ matrix.background_tasks }}, stripe=${{ matrix.use_stripe }})
         run: |
           copier copy . ../test-project \
             --data project_name="Test Project" \
@@ -119,7 +121,7 @@ jobs:
     name: Check Template Size
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Calculate template size
         run: |

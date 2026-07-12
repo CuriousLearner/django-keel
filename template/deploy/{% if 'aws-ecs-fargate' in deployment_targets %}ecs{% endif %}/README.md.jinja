@@ -469,7 +469,7 @@ aws logs filter-log-events \
 # View specific service logs
 aws logs tail /ecs/{{ project_slug }}-{environment} --follow --filter-pattern "app"
 aws logs tail /ecs/{{ project_slug }}-{environment} --follow --filter-pattern "migrate"
-{% if use_celery -%}
+{% if background_tasks in ['celery', 'both'] -%}
 aws logs tail /ecs/{{ project_slug }}-{environment} --follow --filter-pattern "celery"
 {% endif -%}
 ```

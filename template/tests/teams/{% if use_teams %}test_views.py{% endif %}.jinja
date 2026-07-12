@@ -30,21 +30,13 @@ def team_owner(db):
 
 @pytest.fixture
 def team(db, team_owner):
-    """Create a test team with owner membership."""
-    team = Team.objects.create(
+    """Create a test team (owner membership is created by the post_save signal)."""
+    return Team.objects.create(
         name="Test Team",
         slug="test-team",
         owner=team_owner,
         description="A test team"
     )
-    # Create owner membership
-    TeamMember.objects.create(
-        team=team,
-        user=team_owner,
-        role="owner",
-        added_by=team_owner
-    )
-    return team
 
 
 @pytest.mark.django_db

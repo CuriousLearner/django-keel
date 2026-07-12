@@ -54,12 +54,10 @@ Django Keel is a comprehensive Copier template for Django projects that combines
 
 ### 🚀 Deployment
 - **Kubernetes** (Enterprise-scale):
-  - Helm charts
-  - Kustomize overlays (dev/staging/prod)
+  - Helm chart (deployment, service, ingress, optional Celery)
+  - Kustomize overlays (dev/prod)
   - CloudNativePG operator for PostgreSQL
-  - Traefik + cert-manager for ingress
-  - Horizontal Pod Autoscaling
-  - ArgoCD ready
+  - Values-driven ingress configuration
 
 - **AWS ECS Fargate** (Serverless containers):
   - No EC2 instance management
@@ -86,7 +84,7 @@ Django Keel is a comprehensive Copier template for Django projects that combines
   - Zero-downtime deployments
 
 - **Docker** (Universal):
-  - Multi-stage optimized builds
+  - Production-ready Dockerfile (plus a Node build stage with Vite)
   - Deploy to any container platform
 
 ### 🧪 Developer Experience
@@ -104,7 +102,7 @@ Django Keel is a comprehensive Copier template for Django projects that combines
   - YAML/JSON/TOML validation
   - Automatic linting and formatting
   - Type checking
-- **Just** for task running (50+ commands)
+- **Just** for task running (dev, test, lint, migrations, Docker, and more)
 - **Docker Compose** for local development
 - **VS Code Devcontainer** support
 - **MkDocs Material** documentation
@@ -114,7 +112,7 @@ Django Keel is a comprehensive Copier template for Django projects that combines
 - Stripe payment integration
 - PostgreSQL Full-Text Search or OpenSearch
 - Internationalization (i18n/l10n)
-- Multi-tenancy (planned)
+- Multi-tenancy with Teams/Organizations
 - Feature flags with django-waffle
 
 ### 🔄 Template Updates
@@ -210,7 +208,7 @@ pytest
 # Run with coverage
 pytest --cov
 
-# 49 tests covering:
+# The suite covers:
 # - Django integration
 # - Feature generation
 # - Project structure validation
@@ -240,12 +238,9 @@ just test
 Full documentation is available in the generated project's `docs/` directory.
 
 Key topics:
-- Getting Started
-- Configuration
-- API Development
-- Deployment (Kubernetes, EC2)
-- Monitoring & Observability
-- Architecture Decision Records
+- Getting Started (installation)
+- Testing
+- Architecture Overview
 
 ## 🎨 Example Configurations
 
@@ -256,7 +251,8 @@ api_style: drf
 frontend: none
 background_tasks: none
 observability_level: minimal
-deployment_targets: render
+deployment_targets:
+  - render
 ```
 
 ### Full-Stack SaaS
@@ -266,7 +262,9 @@ frontend: nextjs
 background_tasks: both  # Celery + Temporal
 use_stripe: true
 observability_level: full
-deployment_targets: kubernetes,ecs
+deployment_targets:
+  - kubernetes
+  - aws-ecs-fargate
 ```
 
 ### HTMX Monolith
@@ -275,7 +273,8 @@ api_style: drf
 frontend: htmx-tailwind
 background_tasks: celery
 observability_level: standard
-deployment_targets: flyio
+deployment_targets:
+  - flyio
 ```
 
 ### Hobby Project
@@ -284,7 +283,8 @@ api_style: drf
 frontend: htmx-tailwind
 background_tasks: celery
 observability_level: minimal
-deployment_targets: render
+deployment_targets:
+  - render
 ```
 
 ## 🔄 Updating Your Project

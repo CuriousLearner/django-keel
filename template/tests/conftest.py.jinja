@@ -2,7 +2,8 @@
 import os
 import pytest
 from django.conf import settings
-from django.test import Client
+from django.contrib.messages.storage.fallback import FallbackStorage
+from django.test import Client, RequestFactory
 
 
 def pytest_load_initial_conftests(args, early_config, parser):
@@ -12,6 +13,22 @@ def pytest_load_initial_conftests(args, early_config, parser):
 {% if api_style in ['drf', 'both'] -%}
 from rest_framework.test import APIClient
 {% endif -%}
+
+
+class MessagesRequestFactory(RequestFactory):
+    """RequestFactory whose requests support sessions and messages."""
+
+    def request(self, **kwargs):
+        request = super().request(**kwargs)
+        request.session = {}
+        request._messages = FallbackStorage(request)
+        return request
+
+
+@pytest.fixture
+def rf():
+    """Request factory with session and messages support."""
+    return MessagesRequestFactory()
 
 
 @pytest.fixture
@@ -116,21 +133,14 @@ def staff_user(db):
 @pytest.fixture
 def team(db, user):
     """Create a test team with owner membership."""
-    from apps.teams.models import Team, TeamMember
+    from apps.teams.models import Team
 
+    # Owner membership is created automatically by the post_save signal
     team = Team.objects.create(
         name="Test Team",
         slug="test-team",
         owner=user,
         description="A test team"
-    )
-
-    # Create owner membership
-    TeamMember.objects.create(
-        team=team,
-        user=user,
-        role="owner",
-        added_by=user
     )
 
     return team
@@ -215,8 +225,8 @@ def subscription(db, stripe_customer):
 
     subscription = Subscription.objects.create(
         customer=stripe_customer,
-        status="active",
-        livemode=False
+        livemode=False,
+        stripe_data={"status": "active"}
     )
 
     # Create metadata
@@ -243,9 +253,10 @@ def plan_config(db):
 
     price = Price.objects.create(
         product=product,
-        unit_amount=2900,  # $29.00
         currency="usd",
-        livemode=False
+        active=True,
+        livemode=False,
+        stripe_data={"unit_amount": 2900}  # $29.00
     )
 
     return PlanConfiguration.objects.create(

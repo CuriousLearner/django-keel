@@ -87,7 +87,7 @@ class Query:
 schema = strawberry.Schema(query=Query)
 ```
 
-Visit `/graphql/` for GraphiQL interface.
+Visit `/api/graphql/` for GraphiQL interface.
 
 ## Both DRF + GraphQL
 
@@ -102,16 +102,15 @@ Get the best of both worlds!
 
 ### Example Structure
 
+The generated `apps/api/` app uses flat modules:
+
 ```
 apps/api/
-├── rest/                  # DRF endpoints
-│   ├── views.py
-│   ├── serializers.py
-│   └── urls.py
-└── graphql/              # GraphQL schema
-    ├── schema.py
-    ├── types.py
-    └── mutations.py
+├── urls.py           # DRF router, schema/docs endpoints
+├── views.py          # DRF views
+├── schema.py         # Strawberry GraphQL schema
+├── graphql_urls.py   # GraphQL endpoint (/api/graphql/)
+└── auth_urls.py      # JWT auth endpoints (with JWT auth)
 ```
 
 ## No API
@@ -153,7 +152,10 @@ All API configurations include CORS support:
 
 ```python
 # config/settings/base.py
-CORS_ALLOWED_ORIGINS = env.list("CORS_ALLOWED_ORIGINS", default=[])
+CORS_ALLOWED_ORIGINS = env.list(
+    "CORS_ALLOWED_ORIGINS",
+    default=["http://localhost:3000", "http://127.0.0.1:3000"],
+)
 CORS_ALLOW_CREDENTIALS = True
 ```
 
@@ -210,7 +212,7 @@ def test_products_query(client):
         }
     }
     '''
-    response = client.post('/graphql/', {'query': query})
+    response = client.post('/api/graphql/', {'query': query})
     assert response.status_code == 200
     assert 'data' in response.json()
 ```

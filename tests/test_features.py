@@ -1,6 +1,7 @@
 """Behavioral tests for optional features."""
 
 import pytest
+import yaml
 
 
 # Celery Feature Tests
@@ -24,6 +25,15 @@ def test_celery_files_generated_when_enabled(generate):
     assert "django_celery_beat" in settings_content
     assert "django_celery_results" in settings_content
     assert "CELERY_BROKER_URL" in settings_content
+
+    # Tasks module should exist
+    assert (project / "apps/core/tasks.py").exists()
+
+    # celery_app must be imported so @shared_task works
+    assert "celery_app" in (project / "config/__init__.py").read_text()
+
+    # Justfile should have celery recipes
+    assert "celery-worker" in (project / "Justfile").read_text()
 
 
 def test_celery_not_generated_when_disabled(generate):
@@ -52,8 +62,16 @@ def test_channels_asgi_when_enabled(generate):
 
     assert "channels" in content
     assert "ASGI_APPLICATION" in content
-    # Should not have WSGI when channels enabled
-    assert "WSGI_APPLICATION" not in content or content.count("ASGI_APPLICATION") > 0
+    # Channels replaces WSGI entirely
+    assert "WSGI_APPLICATION" not in content
+
+    # Channel layers must be configured (Redis-backed with the default redis cache)
+    assert "CHANNEL_LAYERS" in content
+    assert "channels_redis.core.RedisChannelLayer" in content
+
+    # Tests must force the in-memory layer
+    test_settings = (project / "config/settings/test.py").read_text()
+    assert "InMemoryChannelLayer" in test_settings
 
 
 def test_wsgi_when_channels_disabled(generate):
@@ -101,6 +119,11 @@ def test_billing_app_generated_when_stripe_advanced(generate):
     assert "UsageRecord" in models
     assert "djstripe" in models
 
+    # .env.example keys must match what settings read
+    env_example = (project / ".env.example").read_text()
+    assert "STRIPE_TEST_SECRET_KEY" in env_example
+    assert "DJSTRIPE_WEBHOOK_SECRET" in env_example
+
 
 def test_billing_app_not_generated_when_stripe_disabled(generate):
     """Test that billing app is excluded without Stripe."""
@@ -111,6 +134,66 @@ def test_billing_app_not_generated_when_stripe_disabled(generate):
     if billing_app.exists():
         # Should not have models.py
         assert not (billing_app / "models.py").exists()
+
+
+def test_billing_templates_generated_when_stripe_enabled(generate):
+    """Test that billing templates referenced by views are shipped."""
+    project = generate(use_stripe=True, stripe_mode="basic")
+
+    assert (project / "templates/billing/pricing.html").exists()
+    assert (project / "templates/billing/checkout_success.html").exists()
+    assert (project / "templates/billing/subscription.html").exists()
+
+
+def test_billing_templates_not_generated_when_stripe_disabled(generate):
+    """Test that billing templates are excluded without Stripe."""
+    project = generate(use_stripe=False)
+
+    assert not (project / "templates/billing").exists()
+
+
+# Teams Feature Tests
+
+
+def test_teams_templates_generated_when_enabled(generate):
+    """Test that all view-referenced teams templates are shipped."""
+    project = generate(use_teams=True)
+
+    for name in [
+        "team_list.html",
+        "team_form.html",
+        "team_detail.html",
+        "team_confirm_delete.html",
+        "invitation_form.html",
+        "member_form.html",
+        "emails/invitation.txt",
+        "emails/invitation.html",
+    ]:
+        assert (project / "templates/teams" / name).exists(), name
+
+
+def test_teams_templates_not_generated_when_disabled(generate):
+    """Test that teams templates are excluded without teams."""
+    project = generate(use_teams=False)
+
+    assert not (project / "templates/teams").exists()
+
+
+# Base Template Tests
+
+
+def test_base_template_generated_for_all_frontends(generate):
+    """Test that base.html exists even without an HTML frontend."""
+    project = generate(frontend="none")
+
+    base_html = project / "templates/base.html"
+    assert base_html.exists()
+
+    content = base_html.read_text()
+    assert "{% block content %}" in content
+    # Frontend-specific assets should not be included
+    assert "django_vite" not in content
+    assert "tailwindcss" not in content
 
 
 # 2FA Feature Tests
@@ -163,6 +246,36 @@ def test_i18n_disabled_when_not_needed(generate):
 
     assert "USE_I18N = False" in content
     assert "parler" not in content
+
+
+# Security Profile Tests
+
+
+def test_strict_security_profile_enables_csp(generate):
+    """Test that the strict profile wires up django-csp."""
+    project = generate(security_profile="strict")
+
+    settings = (project / "config/settings/base.py").read_text()
+    assert "csp.middleware.CSPMiddleware" in settings
+
+    prod_settings = (project / "config/settings/prod.py").read_text()
+    assert "CONTENT_SECURITY_POLICY" in prod_settings
+
+    pyproject = (project / "pyproject.toml").read_text()
+    assert "django-csp" in pyproject
+
+
+# Search Backend Tests
+
+
+def test_opensearch_connection_configured(generate):
+    """Test that OpenSearch gets connection settings."""
+    project = generate(use_search="opensearch")
+
+    settings = (project / "config/settings/base.py").read_text()
+    assert "django_opensearch_dsl" in settings
+    assert "OPENSEARCH_DSL" in settings
+    assert "OPENSEARCH_HOST" in settings
 
 
 # Cache Option Tests
@@ -239,6 +352,58 @@ def test_docker_deployment_generated(generate):
     assert "WORKDIR" in content
 
     assert (project / "docker-compose.yml").exists()
+
+
+def test_compose_has_celery_services_when_celery_enabled(generate):
+    """Test that docker-compose includes celery worker and beat with celery."""
+    project = generate(background_tasks="celery", deployment_targets=["docker"])
+
+    compose = yaml.safe_load((project / "docker-compose.yml").read_text())
+    assert "celery-worker" in compose["services"]
+    assert "celery-beat" in compose["services"]
+    assert "celery -A config worker" in compose["services"]["celery-worker"]["command"]
+
+
+def test_compose_has_redis_when_celery_without_redis_cache(generate):
+    """Test that celery pulls in the redis broker even when cache is none."""
+    project = generate(cache="none", background_tasks="celery", deployment_targets=["docker"])
+
+    compose = yaml.safe_load((project / "docker-compose.yml").read_text())
+    assert "redis" in compose["services"]
+    assert "redis_data" in compose["volumes"]
+
+
+def test_kustomize_excludes_celery_when_disabled(generate):
+    """Test that kustomize base has no celery resources without celery."""
+    project = generate(background_tasks="none", deployment_targets=["kubernetes"])
+
+    base = project / "deploy/k8s/kustomize/base"
+    kustomization = yaml.safe_load((base / "kustomization.yaml").read_text())
+    assert "celery-worker.yaml" not in kustomization["resources"]
+    assert not (base / "celery-worker.yaml").exists()
+
+
+def test_helm_chart_structure(generate):
+    """Test that a real Helm chart directory is generated."""
+    project = generate(deployment_targets=["kubernetes"])
+
+    chart = project / "deploy/k8s/helm/test_project"
+    assert (chart / "Chart.yaml").exists()
+    assert (chart / "values.yaml").exists()
+    assert (chart / "templates/deployment.yaml").exists()
+
+    chart_meta = yaml.safe_load((chart / "Chart.yaml").read_text())
+    assert chart_meta["name"] == "test_project"
+
+
+def test_render_yaml_is_valid_yaml_with_redis(generate):
+    """Test that render.yaml parses as YAML with redis and celery enabled."""
+    project = generate(cache="redis", background_tasks="celery", deployment_targets=["render"])
+
+    blueprint = yaml.safe_load((project / "render.yaml").read_text())
+    service_types = [s["type"] for s in blueprint["services"]]
+    assert service_types == ["web", "redis", "worker"]
+    assert "databases" in blueprint
 
 
 def test_render_root_files_generated(generate):
@@ -375,3 +540,73 @@ def test_all_features_enabled_generates_successfully(generate):
 
     for py_file in project.rglob("*.py"):
         py_compile.compile(str(py_file), doraise=True)
+
+
+# Audit leftover regression tests
+
+
+def test_billing_decorators_only_in_advanced_mode(generate):
+    """Feature-gating decorators depend on advanced-mode models."""
+    project = generate(use_stripe=True, stripe_mode="advanced")
+
+    assert (project / "apps/billing/decorators.py").exists()
+    assert (project / "tests/billing/test_decorators.py").exists()
+
+
+def test_billing_decorators_absent_in_basic_mode(generate):
+    """Basic mode lacks the models the decorators import."""
+    project = generate(use_stripe=True, stripe_mode="basic")
+
+    assert not (project / "apps/billing/decorators.py").exists()
+    assert not (project / "tests/billing/test_decorators.py").exists()
+
+
+def test_gitlab_ci_skips_github_deploy_workflows(generate):
+    """GitHub deploy workflows should not generate for GitLab-only CI."""
+    project = generate(ci_provider="gitlab-ci", deployment_targets=["flyio", "aws-ecs-fargate"])
+
+    assert (project / ".gitlab-ci.yml").exists()
+    assert not (project / ".github/workflows/deploy-flyio.yml").exists()
+    assert not (project / ".github/workflows/deploy-ecs.yml").exists()
+
+
+def test_jwt_without_api_skips_simplejwt(generate):
+    """JWT deps and settings are dead weight without an API."""
+    project = generate(auth_backend="jwt", api_style="none")
+
+    assert "simplejwt" not in (project / "pyproject.toml").read_text()
+    assert "SIMPLE_JWT" not in (project / "config/settings/base.py").read_text()
+
+
+def test_gcs_media_storage_configured(generate):
+    """GCS backend and settings are wired for gcp-gcs."""
+    project = generate(media_storage="gcp-gcs")
+
+    content = (project / "config/settings/base.py").read_text()
+    assert "storages.backends.gcloud.GoogleCloudStorage" in content
+    assert "GS_BUCKET_NAME" in content
+    assert "google" in (project / "pyproject.toml").read_text()
+
+
+def test_azure_media_storage_configured(generate):
+    """Azure backend and settings are wired for azure-storage."""
+    project = generate(media_storage="azure-storage")
+
+    content = (project / "config/settings/base.py").read_text()
+    assert "storages.backends.azure_storage.AzureStorage" in content
+    assert "AZURE_ACCOUNT_NAME" in content
+    assert "azure" in (project / "pyproject.toml").read_text()
+
+
+def test_generated_pytest_collects_test_classes(generate):
+    """python_classes must not be blanked out or class-based tests never run."""
+    project = generate(use_teams=True)
+
+    assert "python_classes" not in (project / "pytest.ini").read_text()
+
+
+def test_base_template_displays_messages(generate):
+    """Views set django.contrib.messages; base.html must render them."""
+    project = generate(frontend="none")
+
+    assert "{% for message in messages %}" in (project / "templates/base.html").read_text()

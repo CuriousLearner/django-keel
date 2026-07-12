@@ -29,27 +29,32 @@ copier copy gh:CuriousLearner/django-keel my-awesome-project
 You'll be asked a series of questions. Here's an example session:
 
 ```
-🎤 What is your project name? My Awesome Project
+🎤 Project name? My Awesome Project
 🎤 Python package name (slug)? my_awesome_project
-🎤 Brief project description? An awesome Django application
-🎤 Your name? John Doe
-🎤 Your email? john@example.com
+🎤 Project description? An awesome Django application
+🎤 Author name? John Doe
+🎤 Author email? john@example.com
+🎤 Git repository URL (leave empty if not created yet)?
+🎤 Project type? custom
 🎤 Python version? 3.14
+🎤 Django version? 6.0
 🎤 Package manager? uv
 🎤 Database? postgresql
 🎤 Cache backend? redis
 🎤 API framework? drf
 🎤 Frontend approach? htmx-tailwind
-🎤 Include Celery for background tasks? Yes
+🎤 Frontend asset bundling? vite
+🎤 Background task processing? celery
 🎤 Include Django Channels for WebSockets? No
-🎤 Authentication? allauth
+🎤 Authentication backend? allauth
 🎤 Include 2FA (TOTP)? No
-🎤 Observability features? standard
+🎤 Observability level? standard
 🎤 Include Sentry error tracking? Yes
 🎤 Deployment targets? kubernetes
 🎤 Media file storage? aws-s3
 🎤 Security level? standard
 🎤 Use SOPS for encrypted secrets? No
+🎤 Include Teams/Organizations (multi-tenancy)? No
 🎤 Include Stripe payment integration? No
 🎤 Search backend? none
 🎤 Enable internationalization? No
@@ -57,18 +62,21 @@ You'll be asked a series of questions. Here's an example session:
 🎤 Project license? MIT
 ```
 
+Some questions only appear when relevant (e.g., "Frontend asset bundling" for `htmx-tailwind`, "Stripe integration mode" when Stripe is enabled).
+
 ### 3. Start Development
 
 ```bash
 cd my-awesome-project
 
 # Install dependencies
-uv sync
+uv sync --all-extras
 
 # Start services
 docker compose up -d
 
-# Run migrations
+# Create and run migrations (first run generates migrations for optional apps like teams/billing)
+just makemigrations
 just migrate
 
 # Create superuser
@@ -80,6 +88,11 @@ just dev
 
 ## Template Options
 
+### Database Options
+
+- **`postgresql`**: PostgreSQL for all environments
+- **`sqlite-dev-postgres-prod`**: SQLite for local development, PostgreSQL in production
+
 ### API Styles
 
 - **`drf`**: Django REST Framework with OpenAPI docs
@@ -90,24 +103,32 @@ just dev
 ### Frontend Options
 
 - **`none`**: API-only backend
-- **`htmx-tailwind`**: HTMX + Tailwind CSS + Alpine.js (recommended for Django developers)
-- **`nextjs`**: Full Next.js frontend (separate project)
+- **`htmx-tailwind`**: HTMX + Tailwind CSS + Alpine.js (recommended for Django developers); assets bundled with Vite (`frontend_bundling: vite`, default) or loaded from CDN (`frontend_bundling: cdn`)
+- **`nextjs`**: Generates a `frontend/README.md` with `npx create-next-app` instructions — you scaffold Next.js yourself
 
 ### Observability Levels
 
-- **`minimal`**: Basic structured logging
-- **`standard`**: Logging + Sentry
-- **`full`**: OpenTelemetry + Prometheus + Grafana + Sentry
+- **`minimal`**: Basic structured logging + health endpoints
+- **`standard`**: minimal + production JSON logging config
+- **`full`**: standard + Prometheus metrics + OpenTelemetry tracing (adds a Jaeger service to docker-compose; with the `kubernetes` target you also get a Grafana dashboard JSON and Prometheus ServiceMonitor)
+
+Sentry is a separate toggle (`use_sentry`, enabled by default), independent of the observability level.
 
 ### Deployment Targets
 
-- **`kubernetes`**: Full K8s setup with Helm + Kustomize
+- **`kubernetes`**: K8s setup with Helm + Kustomize
+- **`render`**: Render.com blueprint + build script
+- **`flyio`**: Fly.io config, helper scripts, and deploy workflow
+- **`aws-ecs-fargate`**: ECS Fargate via Terraform + deploy workflow (OIDC)
 - **`aws-ec2-ansible`**: EC2 deployment via Ansible
-- **`aws-ecs-fargate`**: (planned) ECS/Fargate
-- **`flyio`**: (planned) Fly.io
-- **`render`**: (planned) Render.com
+- **`docker`**: Docker Compose only
 
-You can specify multiple targets separated by commas: `kubernetes,aws-ec2-ansible`
+This is a multiselect. On the CLI, pass multiple targets as a YAML list:
+
+```bash
+copier copy gh:CuriousLearner/django-keel my-project \
+  --data deployment_targets='["kubernetes","aws-ec2-ansible"]'
+```
 
 ## Development Workflow
 
@@ -141,6 +162,8 @@ Services include:
 - **PostgreSQL** (port 5432)
 - **Redis** (port 6379, if enabled)
 - **Mailpit** (SMTP: 1025, Web UI: 8025)
+
+Depending on your selections, compose also includes: Celery worker/beat, Vite dev server, Temporal dev server + UI, and Jaeger (`observability_level: full`).
 
 ### Celery Tasks
 
@@ -214,7 +237,7 @@ docker build -t your-registry/my-project:v1.0.0 .
 docker push your-registry/my-project:v1.0.0
 ```
 
-2. **Deploy with Helm**:
+2. **Deploy with Helm** (minimal chart with deployment, service, ingress, and optional Celery worker):
 
 ```bash
 cd deploy/k8s/helm/my_project
@@ -240,32 +263,22 @@ See `deploy/k8s/README.md` for detailed instructions.
 
 ### AWS EC2 (Ansible)
 
-1. **Configure inventory**:
+The generated `deploy/ansible/` directory contains a single `playbooks/deploy.yml` playbook (system packages, app user, Caddy reverse proxy, systemd service) plus the `templates/Caddyfile.j2` and `templates/<project_slug>.service.j2` templates it renders, and a README.
+
+1. **Create an inventory** listing your EC2 hosts under the `webservers` group:
+
+```ini
+# deploy/ansible/inventory
+[webservers]
+your-ec2-host.example.com
+```
+
+2. **Deploy**:
 
 ```bash
 cd deploy/ansible
-cp inventory/hosts.example inventory/hosts
-# Edit with your EC2 details
+ansible-playbook -i inventory playbooks/deploy.yml
 ```
-
-2. **Configure variables**:
-
-```bash
-cp group_vars/all.yml.example group_vars/all.yml
-# Update with your settings
-```
-
-3. **Deploy**:
-
-```bash
-# Initial setup
-ansible-playbook -i inventory/hosts playbooks/setup.yml
-
-# Deploy application
-ansible-playbook -i inventory/hosts playbooks/deploy.yml
-```
-
-See `deploy/ansible/README.md` for detailed instructions.
 
 ## Updating from Template
 
@@ -376,9 +389,6 @@ Always add new variables to:
 
 ```bash
 # Collect static
-just collectstatic
-
-# Or manually
 uv run python manage.py collectstatic --noinput
 ```
 
@@ -390,9 +400,6 @@ just docs-serve
 
 # Build
 just docs-build
-
-# Add ADR (Architecture Decision Record)
-# Create file in docs/adr/NNNN-my-decision.md
 ```
 
 ## Troubleshooting
@@ -427,7 +434,7 @@ docker compose exec redis redis-cli ping
 ```bash
 # Reinstall dependencies
 rm -rf .venv
-uv sync
+uv sync --all-extras
 ```
 
 ### Migration Conflicts
@@ -454,10 +461,11 @@ uv run python manage.py migrate --fake app_name migration_name
 ## Next Steps
 
 After generating your project, explore:
+- Docs home in `docs/index.md`, installation guide in `docs/getting-started/installation.md`
+- Testing guide in `docs/development/testing.md`
 - Architecture documentation in `docs/architecture/overview.md`
-- API documentation in `docs/api/overview.md` (if API is enabled)
 - CI/CD workflows in `.github/workflows/ci.yml`
-- Monitoring setup in `deploy/k8s/monitoring/` (if Kubernetes is enabled)
+- Monitoring setup in `deploy/k8s/monitoring/` (Kubernetes target with `observability_level: full`)
 
 ---
 

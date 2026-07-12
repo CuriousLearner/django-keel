@@ -223,14 +223,17 @@ def test_default_database_configured():
 # Cache Tests
 
 
-{% if cache_backend == 'redis' -%}
+{% if cache == 'redis' -%}
 @pytest.mark.django_db
 def test_redis_cache_configured():
-    """Test that Redis cache is configured."""
-    from django.conf import settings
+    """Test that Redis cache is configured in base settings.
 
-    assert "default" in settings.CACHES
-    assert "redis" in settings.CACHES["default"]["BACKEND"].lower()
+    Test settings override CACHES with a dummy backend, so check base.
+    """
+    from config.settings import base
+
+    assert "default" in base.CACHES
+    assert "redis" in base.CACHES["default"]["BACKEND"].lower()
 {% else -%}
 @pytest.mark.django_db
 def test_cache_configured():

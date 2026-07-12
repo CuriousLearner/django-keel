@@ -1,8 +1,5 @@
 """Advanced billing admin using dj-stripe."""
 from django.contrib import admin
-from django.utils.html import format_html
-from djstripe.admin import SubscriptionAdmin as DjStripeSubscriptionAdmin
-from djstripe.models import Customer, Subscription, Price, Product, Event
 
 from .models import (
     SubscriptionMetadata,
@@ -124,38 +121,3 @@ class PaymentIntentAdmin(admin.ModelAdmin):
             return obj.description[:50] + "..."
         return obj.description
     description_short.short_description = "Description"
-
-
-# Customize dj-stripe admin interfaces
-class CustomSubscriptionAdmin(DjStripeSubscriptionAdmin):
-    """Enhanced subscription admin."""
-
-    list_display = DjStripeSubscriptionAdmin.list_display + [
-        "has_metadata",
-        {% if use_teams -%}
-        "team_link",
-        {% endif -%}
-    ]
-
-    def has_metadata(self, obj):
-        """Check if subscription has extended metadata."""
-        return hasattr(obj, "metadata")
-    has_metadata.boolean = True
-    has_metadata.short_description = "Metadata"
-
-    {% if use_teams -%}
-    def team_link(self, obj):
-        """Link to associated team."""
-        if hasattr(obj, "metadata") and obj.metadata.team:
-            from django.urls import reverse
-            from django.utils.html import format_html
-            url = reverse("admin:teams_team_change", args=[obj.metadata.team.pk])
-            return format_html('<a href="{}">{}</a>', url, obj.metadata.team.name)
-        return "-"
-    team_link.short_description = "Team"
-    {% endif -%}
-
-
-# Re-register with custom admin
-admin.site.unregister(Subscription)
-admin.site.register(Subscription, CustomSubscriptionAdmin)

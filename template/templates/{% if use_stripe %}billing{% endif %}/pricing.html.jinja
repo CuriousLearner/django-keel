@@ -1,0 +1,29 @@
+{% raw %}{% extends "base.html" %}
+
+{% block title %}Pricing{% endblock %}
+
+{% block content %}
+<h1>Pricing</h1>
+{% if current_subscription %}
+<p>You already have a subscription. <a href="{% url 'billing:subscription' %}">Manage it here</a>.</p>
+{% endif %}
+<ul>
+    {% for plan in plans %}
+    <li>
+        <h2>{{ plan.name }}</h2>
+        {% if plan.description %}<p>{{ plan.description }}</p>{% endif %}
+        <form method="post" action="{% url 'billing:checkout' %}">
+            {% csrf_token %}{% endraw %}
+{% if stripe_mode == 'advanced' %}
+            {% raw %}<input type="hidden" name="price_id" value="{{ plan.stripe_price.id }}">{% endraw %}
+{% else %}
+            {% raw %}<input type="hidden" name="price_id" value="{{ plan.price_id }}">{% endraw %}
+{% endif %}
+            {% raw %}<button type="submit">Subscribe</button>
+        </form>
+    </li>
+    {% empty %}
+    <li>No plans available.</li>
+    {% endfor %}
+</ul>
+{% endblock %}{% endraw %}

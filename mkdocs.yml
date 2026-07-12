@@ -48,6 +48,8 @@ nav:
       - Background Tasks: features/background-tasks.md
       - Frontend Options: features/frontend-options.md
       - Observability: features/observability.md
+      - Deployment Options: features/deployment.md
+      - 12-Factor App: 12-factor.md
   - SaaS Features:
       - Overview: saas/overview.md
       - Teams & Organizations: saas/teams.md

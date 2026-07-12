@@ -1,7 +1,6 @@
 """Tests for user impersonation."""
 import pytest
 from django.contrib.auth import get_user_model
-from django.test import RequestFactory
 from django.urls import reverse
 
 from apps.users.impersonation import (
@@ -40,12 +39,6 @@ def regular_user(db):
     )
 
 
-@pytest.fixture
-def rf():
-    """Request factory."""
-    return RequestFactory()
-
-
 @pytest.mark.django_db
 class TestImpersonationMiddleware:
     """Test ImpersonationMiddleware."""
@@ -64,7 +57,7 @@ class TestImpersonationMiddleware:
         middleware(request)
 
         assert request.user == regular_user
-        assert not hasattr(request, "is_impersonating")
+        assert request.is_impersonating is False
 
     def test_middleware_with_impersonation(self, rf, staff_user, regular_user):
         """Test middleware swaps user when impersonating."""

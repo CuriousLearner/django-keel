@@ -2,7 +2,6 @@
 import pytest
 from django.contrib.auth import get_user_model
 from django.http import HttpResponse
-from django.test import RequestFactory
 from unittest.mock import Mock, patch
 
 from apps.billing.decorators import (
@@ -22,12 +21,6 @@ def user(db):
         email="user@example.com",
         password="testpass123"
     )
-
-
-@pytest.fixture
-def rf():
-    """Request factory."""
-    return RequestFactory()
 
 
 @pytest.mark.django_db

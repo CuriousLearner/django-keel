@@ -108,7 +108,7 @@ class ReadinessCheckView(View):
             checks['checks']['migrations'] = 'failed'
             ready = False
 
-        {% if use_celery -%}
+        {% if background_tasks in ['celery', 'both'] -%}
         # Check Celery workers (optional)
         try:
             from celery import current_app

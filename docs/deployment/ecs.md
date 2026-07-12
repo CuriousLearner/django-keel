@@ -18,14 +18,16 @@ AWS ECS Fargate provides serverless container deployment with:
 - AWS account with appropriate permissions
 - AWS CLI configured (`aws configure`)
 - Terraform installed (v1.5+)
-- `deployment_targets: [ecs]` selected during generation
+- `aws-ecs-fargate` selected in `deployment_targets` during generation
 
 ## Quick Start
+
+You can run everything with the generated `deploy/ecs/deploy.sh` script, which checks dependencies, builds and pushes the image, and runs Terraform for you. The steps below show the manual flow.
 
 ### 1. Configure Terraform Variables
 
 ```bash
-cd deploy/ecs
+cd deploy/ecs/terraform
 cp terraform.tfvars.example terraform.tfvars
 ```
 
@@ -37,20 +39,39 @@ project_name = "your-project"
 environment  = "production"
 aws_region   = "us-west-2"
 
-# Application Configuration
-app_port          = 8000
-container_cpu     = 512   # 0.5 vCPU
-container_memory  = 1024  # 1 GB
+# Container Configuration
+container_cpu    = 512   # 0.5 vCPU
+container_memory = 1024  # 1 GB
+
+# Django Configuration
+django_secret_key = "<generated-secret>"
+django_debug      = false
+allowed_hosts     = "yourdomain.com"
+
+# Auto-scaling Configuration
+desired_count = 2
+min_capacity  = 2
+max_capacity  = 10
 
 # Database Configuration
-db_instance_class = "db.t4g.micro"  # Free tier eligible
-db_name          = "your_project_db"
-db_username      = "admin"
+use_aurora_serverless      = false
+db_instance_class          = "db.t3.micro"
+db_allocated_storage       = 20
+db_backup_retention_period = 7
+db_deletion_protection     = true
+
+# Redis / Celery
+enable_redis        = true
+redis_node_type     = "cache.t3.micro"
+enable_celery       = true
+celery_worker_count = 2
 
 # Domain Configuration (optional)
-domain_name      = "yourdomain.com"
-certificate_arn  = "arn:aws:acm:us-west-2:123456789:certificate/abc123"
+domain_name     = ""     # Leave empty for ALB URL only
+create_dns_zone = false
 ```
+
+See `variables.tf` for the full list (S3 buckets, monitoring, Sentry, Stripe, spot capacity, tags).
 
 ### 2. Initialize Terraform
 
@@ -102,81 +123,66 @@ ECS Service (Fargate)
 
 ## Project Structure
 
-Generated with `deployment_targets: [ecs]`:
+Generated when `aws-ecs-fargate` is in `deployment_targets`:
 
 ```
 deploy/ecs/
-├── main.tf                 # Main configuration
-├── variables.tf            # Input variables
-├── outputs.tf              # Output values
-├── terraform.tfvars        # Your values (gitignored)
-├── modules/
-│   ├── vpc/               # VPC, subnets, NAT gateways
-│   ├── rds/               # PostgreSQL database
-│   ├── redis/             # ElastiCache Redis
-│   ├── ecs/               # ECS cluster & service
-│   ├── alb/               # Application Load Balancer
-│   └── ecr/               # Container registry
-└── README.md
+├── deploy.sh                    # One-command deployment script
+├── README.md
+└── terraform/
+    ├── main.tf                  # Main configuration & providers
+    ├── variables.tf             # Input variables
+    ├── outputs.tf               # Output values
+    ├── network.tf               # VPC, subnets, NAT gateways
+    ├── ecs.tf                   # ECS cluster, services, auto-scaling
+    ├── alb.tf                   # Application Load Balancer
+    ├── database.tf              # RDS PostgreSQL / Aurora Serverless
+    ├── storage.tf               # S3 buckets and ElastiCache Redis
+    ├── security.tf              # Security groups, secrets, Route53
+    ├── ecr.tf                   # Container registry
+    ├── monitoring.tf            # CloudWatch alarms and dashboard
+    └── terraform.tfvars.example # Example variables file
 ```
 
-## Terraform Modules
+## Terraform Configuration
 
-### VPC Module
+The configuration is a set of flat `.tf` files (no modules):
 
-Creates networking infrastructure:
+### network.tf
+
 - VPC with CIDR block
 - Public subnets (ALB)
 - Private subnets (ECS tasks, RDS)
 - Internet Gateway
-- NAT Gateways (high availability)
+- NAT Gateways
 - Route tables
 
-### RDS Module
+### database.tf
 
-PostgreSQL database:
-- Multi-AZ deployment
-- Automated backups (7 days retention)
+- RDS PostgreSQL or Aurora Serverless v2 (`use_aurora_serverless`)
+- Automated backups (`db_backup_retention_period`, default 7 days)
 - Encryption at rest
 - Security group (private subnets only)
 
-### ECS Module
+### ecs.tf
 
-Container orchestration:
 - ECS cluster
-- Task definition (Django app)
-- Service with desired count
-- Auto-scaling policies
+- Task definitions (web, and Celery when enabled)
+- Services with desired count
+- Auto-scaling policies (CPU, memory, request count)
 - CloudWatch logs
 
-### ALB Module
+### alb.tf
 
-Load balancing:
 - Application Load Balancer
 - Target group (ECS tasks)
 - Health checks (`/health/`)
-- HTTPS listener (optional)
+- HTTPS listener when a custom domain is configured
 - HTTP → HTTPS redirect
 
 ## Environment Variables
 
-Set via AWS Secrets Manager:
-
-```bash
-# Create secret
-aws secretsmanager create-secret \
-  --name /your-project/prod/django \
-  --secret-string '{
-    "DJANGO_SECRET_KEY": "your-secret-key",
-    "DEBUG": "False",
-    "ALLOWED_HOSTS": "yourdomain.com",
-    "AWS_STORAGE_BUCKET_NAME": "your-bucket",
-    "SENTRY_DSN": "your-sentry-dsn",
-    "STRIPE_SECRET_KEY": "your-stripe-key"
-  }'
-```
-
-Terraform automatically injects secrets into ECS tasks.
+Sensitive values (`django_secret_key`, `sentry_dsn`, `stripe_secret_key`) are set in `terraform.tfvars`; Terraform stores them in AWS Secrets Manager (`security.tf`) and injects them into the ECS tasks. Non-sensitive settings (`django_debug`, `allowed_hosts`) are passed as plain environment variables from tfvars.
 
 ## Deploying Updates
 
@@ -221,20 +227,12 @@ Configure in `terraform.tfvars`:
 
 ```hcl
 # Auto-scaling configuration
-autoscaling_min_capacity = 2
-autoscaling_max_capacity = 10
-
-# Scale on CPU
-cpu_target_value = 70  # Target 70% CPU
-
-# Scale on memory
-memory_target_value = 80  # Target 80% memory
-
-# Scale on ALB requests
-alb_request_count_target = 1000  # Requests per target
+desired_count = 2
+min_capacity  = 2
+max_capacity  = 10
 ```
 
-ECS auto-scales based on these metrics.
+`ecs.tf` sets up target-tracking policies on CPU utilization (70%), memory utilization (80%), and ALB request count per target. Adjust the target values in `ecs.tf` if needed.
 
 ## Database Migrations
 
@@ -270,36 +268,14 @@ aws ecs run-task \
 
 ## Background Workers (Celery)
 
-Add Celery service to Terraform:
+A Celery worker service is already defined in `ecs.tf`. Enable it via tfvars:
 
 ```hcl
-# modules/ecs/celery.tf
-resource "aws_ecs_task_definition" "celery_worker" {
-  family = "${var.project_name}-celery-worker"
-
-  container_definitions = jsonencode([{
-    name  = "celery-worker"
-    image = "${var.ecr_repository_url}:latest"
-    command = ["celery", "-A", "config", "worker", "-l", "info"]
-
-    environment = [
-      { name = "DJANGO_SETTINGS_MODULE", value = "config.settings.prod" }
-    ]
-
-    secrets = [
-      { name = "DATABASE_URL", valueFrom = aws_secretsmanager_secret.django.arn }
-    ]
-  }])
-}
-
-resource "aws_ecs_service" "celery_worker" {
-  name            = "${var.project_name}-celery-worker"
-  cluster         = aws_ecs_cluster.main.id
-  task_definition = aws_ecs_task_definition.celery_worker.arn
-  desired_count   = 2
-  launch_type     = "FARGATE"
-}
+enable_celery       = true
+celery_worker_count = 2
 ```
+
+This creates a separate Fargate service running `celery -A config worker` using the same container image and secrets as the web service.
 
 ## Monitoring
 
@@ -331,34 +307,19 @@ Terraform creates alarms for:
 
 ## Custom Domain
 
-### 1. Request SSL Certificate
-
-```bash
-aws acm request-certificate \
-  --domain-name yourdomain.com \
-  --validation-method DNS \
-  --region us-west-2
-```
-
-### 2. Validate Certificate
-
-Add DNS records shown in ACM console.
-
-### 3. Update Terraform
+HTTPS is only available with a custom domain. Set it in tfvars:
 
 ```hcl
 # terraform.tfvars
 domain_name     = "yourdomain.com"
-certificate_arn = "arn:aws:acm:us-west-2:123:certificate/abc"
+create_dns_zone = true   # Let Terraform manage a Route53 hosted zone
 ```
 
 ```bash
 terraform apply
 ```
 
-### 4. Update DNS
-
-Point your domain to the ALB:
+Terraform requests an ACM certificate and, when `create_dns_zone = true`, validates it automatically via Route53 and points DNS at the ALB. If your DNS lives elsewhere, set `create_dns_zone = false`, create the ACM validation records shown in the outputs at your DNS provider, and point your domain at the ALB:
 
 ```
 CNAME yourdomain.com your-alb-123.us-west-2.elb.amazonaws.com
