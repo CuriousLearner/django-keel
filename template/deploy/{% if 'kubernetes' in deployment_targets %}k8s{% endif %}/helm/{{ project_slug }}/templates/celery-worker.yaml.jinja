@@ -53,7 +53,7 @@ spec:
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
 {%- endraw %}
-          command: [{% if dependency_manager == 'uv' %}"uv", "run", {% endif %}"celery", "-A", "config", "beat", "-l", "info"]
+          command: [{% if dependency_manager == 'uv' %}"uv", "run", {% endif %}"celery", "-A", "config", "beat", "-l", "info", "--scheduler", "django_celery_beat.schedulers:DatabaseScheduler"]
 {% raw %}          resources:
             {{- toYaml .Values.celery.beat.resources | nindent 12 }}
 {{- end }}

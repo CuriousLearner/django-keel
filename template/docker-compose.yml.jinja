@@ -100,7 +100,7 @@ services:
   celery-beat:
     build: .
     user: "${UID:-1000}:${GID:-1000}"
-    command: {% if dependency_manager == 'uv' %}uv run {% endif %}celery -A config beat --loglevel=info
+    command: {% if dependency_manager == 'uv' %}uv run {% endif %}celery -A config beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
     volumes:
       - .:/app
     depends_on:

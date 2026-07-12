@@ -63,7 +63,7 @@ async def send_email_activity(payload: EmailPayload) -> dict[str, Any]:
         logger.info("Email sent successfully to=%s", payload.to)
         return {"status": "sent", "to": payload.to}
     except Exception as e:
-        logger.error("Failed to send email to=%s error=%s", payload.to, e)
+        logger.exception("Failed to send email to=%s", payload.to)
         raise
 
 
@@ -102,5 +102,5 @@ async def process_user_activity(payload: UserProcessingPayload) -> dict[str, Any
         logger.error("User not found user_id=%s", payload.user_id)
         raise
     except Exception as e:
-        logger.error("Failed to process user user_id=%s error=%s", payload.user_id, e)
+        logger.exception("Failed to process user user_id=%s", payload.user_id)
         raise
