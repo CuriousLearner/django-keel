@@ -53,11 +53,11 @@
     - name: Install uv
       shell: curl -LsSf https://astral.sh/uv/install.sh | sh
       args:
-        creates: ~/.cargo/bin/uv
+        creates: ~/.local/bin/uv
       become_user: "{{ app_user }}"
 
     - name: Install Python dependencies
-      shell: ~/.cargo/bin/uv sync
+      shell: ~/.local/bin/uv sync
       args:
         chdir: "{{ app_dir }}"
       become_user: "{{ app_user }}"
@@ -71,20 +71,20 @@
       become_user: "{{ app_user }}"
 
     - name: Install Python dependencies
-      shell: ~/.local/bin/poetry install --no-dev
+      shell: ~/.local/bin/poetry install --without dev --no-root
       args:
         chdir: "{{ app_dir }}"
       become_user: "{{ app_user }}"
 {% endraw %}
 {% endif %}
     - name: Run database migrations
-      shell: {% if dependency_manager == 'uv' %}~/.cargo/bin/uv run {% else %}~/.local/bin/poetry run {% endif %}python manage.py migrate --noinput
+      shell: {% if dependency_manager == 'uv' %}~/.local/bin/uv run {% else %}~/.local/bin/poetry run {% endif %}python manage.py migrate --noinput
       args:
         chdir: "{% raw %}{{ app_dir }}{% endraw %}"
       become_user: "{% raw %}{{ app_user }}{% endraw %}"
 
     - name: Collect static files
-      shell: {% if dependency_manager == 'uv' %}~/.cargo/bin/uv run {% else %}~/.local/bin/poetry run {% endif %}python manage.py collectstatic --noinput
+      shell: {% if dependency_manager == 'uv' %}~/.local/bin/uv run {% else %}~/.local/bin/poetry run {% endif %}python manage.py collectstatic --noinput
       args:
         chdir: "{% raw %}{{ app_dir }}{% endraw %}"
       become_user: "{% raw %}{{ app_user }}{% endraw %}"

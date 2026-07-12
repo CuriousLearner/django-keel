@@ -322,7 +322,7 @@ def test_both_auth_backends(generate):
     "license_choice,expected_phrase",
     [
         ("MIT", "MIT License"),
-        ("Apache-2.0", "Apache License"),
+        ("Apache-2.0", "TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION"),
         ("GPL-3.0", "GNU GENERAL PUBLIC LICENSE"),
         ("BSD-3-Clause", "Redistribution and use in source and binary forms"),
         ("Proprietary", "Proprietary"),
@@ -334,6 +334,7 @@ def test_license_content(generate, license_choice, expected_phrase):
 
     content = (project / "LICENSE").read_text()
     assert expected_phrase in content
+    assert "would go here" not in content  # no placeholder bodies
 
 
 # Ansible Deployment Tests
@@ -345,5 +346,8 @@ def test_ansible_playbook_preserves_runtime_variables(generate):
 
     playbook = project / "deploy/ansible/playbooks/deploy.yml"
     content = playbook.read_text()
+    assert yaml.safe_load(content)  # valid YAML after rendering
     assert '"{{ app_user }}"' in content
+    assert "{{ app_dir }}" in content
+    assert "{{ git_repo }}" in content
     assert "test_project" in content  # copier vars still rendered
