@@ -20,15 +20,28 @@ From the django-keel directory:
 
 ```bash
 # Generate a project with default options
-copier copy . ../test-project --force
+# (some questions have no default, so pass them via --data; this is the same
+# form the template's CI uses in .github/workflows/ci.yml)
+copier copy . ../test-project \
+  --data project_name="Test Project" \
+  --data project_description="A test project" \
+  --data author_name="Your Name" \
+  --data author_email="you@example.com" \
+  --defaults \
+  --trust
 
 # Or with specific options
 copier copy . ../my-api-project \
   --data project_name="My API Project" \
+  --data project_description="An API-only project" \
+  --data author_name="Your Name" \
+  --data author_email="you@example.com" \
   --data api_style=drf \
   --data frontend=none \
-  --data use_celery=false \
-  --data deployment_targets=kubernetes
+  --data background_tasks=none \
+  --data deployment_targets='["kubernetes"]' \
+  --defaults \
+  --trust
 ```
 
 ### 2. Quick Test (Minimal Config)
@@ -41,7 +54,7 @@ cd ../test-project
 curl -LsSf https://astral.sh/uv/install.sh | sh
 
 # Install dependencies
-uv sync
+uv sync --all-extras
 
 # Start services
 docker compose up -d
@@ -49,11 +62,13 @@ docker compose up -d
 # Wait for services to be ready (about 10 seconds)
 sleep 10
 
-# Run migrations
+# Create and run migrations
+uv run python manage.py makemigrations
 uv run python manage.py migrate
 
-# Create superuser (non-interactive for testing)
-uv run python manage.py createsuperuser \
+# Create superuser (non-interactive for testing; the password must be
+# provided via DJANGO_SUPERUSER_PASSWORD for a usable login)
+DJANGO_SUPERUSER_PASSWORD=admin123 uv run python manage.py createsuperuser \
   --email admin@example.com \
   --noinput || true
 
@@ -70,7 +85,7 @@ uv run python manage.py runserver
 
 Visit:
 - http://localhost:8000 - Application
-- http://localhost:8000/admin/ - Admin (login: admin@example.com)
+- http://localhost:8000/admin/ - Admin (login: admin@example.com / admin123)
 - http://localhost:8000/api/schema/swagger/ - API Docs
 - http://localhost:8025 - Mailpit (email testing)
 
@@ -100,7 +115,7 @@ docker build -t test-project:latest .
 docker run -p 8000:8000 \
   -e DATABASE_URL=sqlite:///db.sqlite3 \
   -e DJANGO_SECRET_KEY=test-secret-key-change-in-production \
-  -e DJANGO_DEBUG=False \
+  -e DEBUG=False \
   test-project:latest
 ```
 
@@ -125,10 +140,10 @@ copier update
 copier copy ../django-keel ../api-only \
   --data api_style=drf \
   --data frontend=none \
-  --data use_celery=false
+  --data background_tasks=none
 
 cd ../api-only
-uv sync
+uv sync --all-extras
 just test
 ```
 
@@ -138,12 +153,13 @@ just test
 copier copy ../django-keel ../fullstack-htmx \
   --data api_style=both \
   --data frontend=htmx-tailwind \
-  --data use_celery=true \
+  --data background_tasks=celery \
   --data observability_level=full
 
 cd ../fullstack-htmx
-uv sync
+uv sync --all-extras
 docker compose up -d
+just makemigrations
 just migrate
 just dev
 ```
@@ -154,16 +170,17 @@ just dev
 copier copy ../django-keel ../saas-project \
   --data api_style=both \
   --data frontend=nextjs \
-  --data use_celery=true \
+  --data background_tasks=celery \
   --data use_stripe=true \
   --data use_search=postgres-fts \
   --data observability_level=full \
   --data security_profile=strict \
-  --data deployment_targets=kubernetes,aws-ec2-ansible
+  --data deployment_targets='["kubernetes","aws-ec2-ansible"]'
 
 cd ../saas-project
-uv sync
+uv sync --all-extras
 docker compose up -d
+just makemigrations
 just migrate
 just test
 ```
@@ -222,17 +239,14 @@ act -j test
 
 ```bash
 # Kubernetes (if you have kubectl and kind)
-cd deploy/k8s
-
 # Validate manifests
-kubectl apply --dry-run=client -f kustomize/base/
+kubectl apply --dry-run=client -f deploy/k8s/kustomize/base/
 
-# Test Helm chart
-helm lint helm/test_project/
+# Lint the Helm chart
+helm lint deploy/k8s/helm/test_project/
 
 # Ansible (syntax check)
-cd ../ansible
-ansible-playbook playbooks/deploy.yml --syntax-check
+ansible-playbook deploy/ansible/playbooks/deploy.yml --syntax-check
 ```
 
 ## Common Issues
@@ -261,7 +275,7 @@ If you get import errors:
 ```bash
 # Reinstall
 rm -rf .venv
-uv sync
+uv sync --all-extras
 ```
 
 ### Port Already in Use
@@ -277,7 +291,13 @@ uv run python manage.py runserver 8001
 
 ```bash
 # Time template generation
-time copier copy . ../benchmark-test --force
+time copier copy . ../benchmark-test \
+  --data project_name="Benchmark Test" \
+  --data project_description="A benchmark project" \
+  --data author_name="Your Name" \
+  --data author_email="you@example.com" \
+  --defaults \
+  --trust
 
 # Typical times:
 # - Template generation: 2-5 seconds
