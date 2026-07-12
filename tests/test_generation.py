@@ -1,5 +1,6 @@
 """Functional tests for template project generation."""
 
+import json
 import py_compile
 
 import pytest
@@ -361,6 +362,92 @@ def test_both_auth_backends(generate):
     content = settings.read_text()
     assert "allauth" in content
     assert "simplejwt" in content or "SIMPLE_JWT" in content
+
+
+# Devcontainer Tests
+
+
+def test_devcontainer_files_exist(generate):
+    """Test that devcontainer files are always generated."""
+    project = generate()
+    assert (project / ".devcontainer/devcontainer.json").exists()
+    assert (project / ".devcontainer/docker-compose.devcontainer.yml").exists()
+
+
+def test_devcontainer_json_is_valid_minimal(generate):
+    """Test that devcontainer.json is valid JSON with minimal options."""
+    project = generate(
+        cache="none",
+        frontend="none",
+        background_tasks="none",
+        observability_level="minimal",
+    )
+    content = (project / ".devcontainer/devcontainer.json").read_text()
+    config = json.loads(content)
+    assert config["service"] == "web"
+    assert 8000 in config["forwardPorts"]
+    assert 6379 not in config["forwardPorts"]
+
+
+def test_devcontainer_json_is_valid_all_options(generate):
+    """Test that devcontainer.json is valid JSON with all conditional options enabled."""
+    project = generate(
+        cache="redis",
+        frontend="htmx-tailwind",
+        frontend_bundling="vite",
+        background_tasks="temporal",
+        observability_level="full",
+    )
+    content = (project / ".devcontainer/devcontainer.json").read_text()
+    config = json.loads(content)
+    assert 6379 in config["forwardPorts"]
+    assert 5173 in config["forwardPorts"]
+    assert 7233 in config["forwardPorts"]
+    assert 16686 in config["forwardPorts"]
+
+
+def test_devcontainer_compose_override_is_valid_yaml(generate):
+    """Test that the devcontainer compose override is valid YAML."""
+    project = generate()
+    content = (project / ".devcontainer/docker-compose.devcontainer.yml").read_text()
+    config = yaml.safe_load(content)
+    assert config["services"]["web"]["command"] == "sleep infinity"
+
+
+def test_compose_env_file_is_optional(generate):
+    """A fresh project ships only .env.example, so the compose services must
+    mark env_file: .env as required: false; otherwise the devcontainer (and a
+    plain `docker compose up`) fails before anything can create .env."""
+    project = generate(background_tasks="celery")
+    compose = yaml.safe_load((project / "docker-compose.yml").read_text())
+    web_env_file = compose["services"]["web"]["env_file"]
+    assert web_env_file == [{"path": ".env", "required": False}]
+
+
+def test_devcontainer_installs_dev_extras(generate):
+    """The uv post-create step must install the dev extra (ruff, pytest, mypy),
+    matching the repo's `uv sync --all-extras` convention; plain `uv sync` skips
+    optional-dependencies and leaves the devcontainer without dev tooling."""
+    project = generate(dependency_manager="uv")
+    config = json.loads((project / ".devcontainer/devcontainer.json").read_text())
+    assert "uv sync --all-extras" in config["postCreateCommand"]
+
+
+@pytest.mark.parametrize("dependency_manager", ["uv", "poetry"])
+def test_devcontainer_interpreter_path(generate, dependency_manager):
+    """Both dependency managers resolve to the in-project venv interpreter."""
+    project = generate(dependency_manager=dependency_manager)
+    config = json.loads((project / ".devcontainer/devcontainer.json").read_text())
+    interpreter = config["customizations"]["vscode"]["settings"]
+    assert interpreter["python.defaultInterpreterPath"] == "/app/.venv/bin/python"
+
+
+def test_devcontainer_project_name_with_special_chars(generate):
+    """Test that project_name with quotes/special chars produces valid JSON."""
+    project = generate(project_name='My "Awesome" Project')
+    content = (project / ".devcontainer/devcontainer.json").read_text()
+    config = json.loads(content)
+    assert config["name"] == 'My "Awesome" Project'
 
 
 # License Tests
