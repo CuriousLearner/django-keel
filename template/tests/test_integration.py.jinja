@@ -2,7 +2,7 @@
 import pytest
 from django.contrib.auth import get_user_model
 {% if use_teams -%}
-from apps.teams.models import Team, TeamMember, TeamInvitation
+from apps.teams.models import Team, TeamInvitation
 {% endif -%}
 {% if use_stripe -%}
 {% if stripe_mode == 'advanced' -%}
@@ -24,19 +24,11 @@ class TestTeamSubscriptionIntegration:
 
     def test_team_with_subscription(self, user):
         """Test creating team with subscription."""
-        # Create team
+        # Create team (owner membership is created by the post_save signal)
         team = Team.objects.create(
             name="Pro Team",
             slug="pro-team",
             owner=user
-        )
-
-        # Create owner membership
-        TeamMember.objects.create(
-            team=team,
-            user=user,
-            role="owner",
-            added_by=user
         )
 
         {% if stripe_mode == 'advanced' -%}
@@ -48,8 +40,8 @@ class TestTeamSubscriptionIntegration:
 
         subscription = Subscription.objects.create(
             customer=customer,
-            status="active",
-            livemode=False
+            livemode=False,
+            stripe_data={"status": "active"}
         )
 
         # Link subscription to team
@@ -62,7 +54,7 @@ class TestTeamSubscriptionIntegration:
 
         # Test relationship
         assert metadata.team == team
-        assert subscription.metadata.team == team
+        assert subscription.subscription_metadata.team == team
         {% else -%}
         # Create Stripe customer
         stripe_customer = StripeCustomer.objects.create(
@@ -108,8 +100,8 @@ class TestTeamSubscriptionIntegration:
 
         subscription = Subscription.objects.create(
             customer=customer,
-            status="active",
-            livemode=False
+            livemode=False,
+            stripe_data={"status": "active"}
         )
 
         metadata = SubscriptionMetadata.objects.create(
@@ -139,18 +131,11 @@ class TestTeamWorkflow:
 
     def test_complete_team_lifecycle(self, user):
         """Test full team lifecycle from creation to deletion."""
-        # 1. Create team
+        # 1. Create team (owner membership is created by the post_save signal)
         team = Team.objects.create(
             name="Startup Team",
             slug="startup-team",
             owner=user
-        )
-
-        TeamMember.objects.create(
-            team=team,
-            user=user,
-            role="owner",
-            added_by=user
         )
 
         assert team.is_active
@@ -223,9 +208,10 @@ class TestBillingWorkflow:
 
         price = Price.objects.create(
             product=product,
-            unit_amount=9900,  # $99.00
             currency="usd",
-            livemode=False
+            active=True,
+            livemode=False,
+            stripe_data={"unit_amount": 9900}  # $99.00
         )
 
         plan_config = PlanConfiguration.objects.create(
@@ -246,8 +232,8 @@ class TestBillingWorkflow:
 
         subscription = Subscription.objects.create(
             customer=customer,
-            status="active",
-            livemode=False
+            livemode=False,
+            stripe_data={"status": "active"}
         )
 
         # Create metadata with features
@@ -292,11 +278,9 @@ class TestFeatureFlagIntegration:
         from waffle.models import Flag
         from django.contrib.auth.models import Group
 
-        # Create a flag for beta users
-        flag = Flag.objects.create(
-            name="beta_features",
-            everyone=False
-        )
+        # Create a flag for beta users (everyone must stay None:
+        # everyone=False force-disables the flag for all users)
+        flag = Flag.objects.create(name="beta_features")
 
         # Create beta group
         beta_group = Group.objects.create(name="Beta Testers")

@@ -254,7 +254,7 @@ class SubscriptionMetadata(models.Model):
     subscription = models.OneToOneField(
         Subscription,
         on_delete=models.CASCADE,
-        related_name='metadata'
+        related_name='subscription_metadata'
     )
     features = models.JSONField(default=dict)
     usage_limits = models.JSONField(default=dict)
@@ -403,9 +403,9 @@ def handle_payment_succeeded(sender, event, **kwargs):
     subscription = Subscription.objects.get(
         id=invoice['subscription']
     )
-    if hasattr(subscription, 'metadata'):
-        subscription.metadata.current_usage = {}
-        subscription.metadata.save()
+    if hasattr(subscription, 'subscription_metadata'):
+        subscription.subscription_metadata.current_usage = {}
+        subscription.subscription_metadata.save()
 
 
 @receiver(webhooks.WEBHOOK_SIGNALS['customer.subscription.deleted'])

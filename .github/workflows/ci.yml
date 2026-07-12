@@ -196,6 +196,9 @@ jobs:
           # derives the commit range from the push payload itself.
           base: ${{ github.event.pull_request.base.sha }}
           head: ${{ github.event.pull_request.head.sha }}
+          # The template is full of intentional placeholder credentials;
+          # only verified (live) secrets should fail the build.
+          extra_args: --results=verified
 
   docs:
     name: Documentation

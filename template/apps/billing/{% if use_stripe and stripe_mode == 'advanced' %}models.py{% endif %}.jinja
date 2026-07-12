@@ -11,7 +11,7 @@ class SubscriptionMetadata(models.Model):
     subscription = models.OneToOneField(
         Subscription,
         on_delete=models.CASCADE,
-        related_name="metadata"
+        related_name="subscription_metadata"
     )
     {% if use_teams -%}
     # Link to team for per-seat billing

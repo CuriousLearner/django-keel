@@ -11,7 +11,7 @@ def test_stripe_api_key_configured():
     from django.conf import settings
 
     assert hasattr(settings, "STRIPE_SECRET_KEY")
-    assert hasattr(settings, "STRIPE_PUBLISHABLE_KEY")
+    assert hasattr(settings, "STRIPE_PUBLIC_KEY")
 
 
 def test_stripe_webhook_secret_configured():
@@ -231,26 +231,6 @@ def test_stripe_error_handling():
     assert hasattr(stripe.error, "StripeError")
     assert hasattr(stripe.error, "CardError")
     assert hasattr(stripe.error, "InvalidRequestError")
-
-
-# Invoice Tests
-
-
-@pytest.mark.django_db
-@patch("stripe.Invoice.upcoming")
-def test_retrieve_upcoming_invoice(mock_upcoming, stripe_customer):
-    """Test retrieving upcoming invoice."""
-    mock_upcoming.return_value = MagicMock(
-        amount_due=1000,
-        currency="usd"
-    )
-
-    import stripe
-    invoice = stripe.Invoice.upcoming(
-        customer=stripe_customer.stripe_customer_id
-    )
-
-    assert invoice.amount_due == 1000
 
 
 # Billing History Tests

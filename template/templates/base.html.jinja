@@ -38,7 +38,12 @@
 
     <!-- Main Content -->
     <main class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        {% raw %}{% block content %}{% endblock %}{% endraw %}
+        {% raw %}{% if messages %}
+        {% for message in messages %}
+        <div class="mb-4 rounded border px-4 py-3{% if message.tags %} {{ message.tags }}{% endif %}">{{ message }}</div>
+        {% endfor %}
+        {% endif %}
+        {% block content %}{% endblock %}{% endraw %}
     </main>
 
     <!-- Footer -->
