@@ -6,7 +6,6 @@
   ],
   "service": "web",
   "workspaceFolder": "/app",
-  "initializeCommand": "if [ ! -f .env ] && [ -f .env.example ]; then cp .env.example .env; fi",
   "forwardPorts": [
     8000,
     5432,
@@ -46,5 +45,5 @@
       }
     }
   },
-  "postCreateCommand": "{% if dependency_manager == 'uv' %}uv sync && uv run python manage.py migrate{% else %}poetry config virtualenvs.in-project true && poetry install && poetry run python manage.py migrate{% endif %}"
+  "postCreateCommand": "{% if dependency_manager == 'uv' %}uv sync --all-extras && uv run python manage.py migrate{% else %}poetry config virtualenvs.in-project true && poetry install && poetry run python manage.py migrate{% endif %}"
 }

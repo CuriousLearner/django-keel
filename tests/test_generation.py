@@ -414,14 +414,23 @@ def test_devcontainer_compose_override_is_valid_yaml(generate):
     assert config["services"]["web"]["command"] == "sleep infinity"
 
 
-def test_devcontainer_bootstraps_env_before_compose(generate):
-    """The .env copy must run on the host before compose up (initializeCommand),
-    not inside the container after it (onCreateCommand); the web service's
-    env_file: .env makes compose up fail otherwise on a fresh project."""
-    project = generate()
+def test_compose_env_file_is_optional(generate):
+    """A fresh project ships only .env.example, so the compose services must
+    mark env_file: .env as required: false; otherwise the devcontainer (and a
+    plain `docker compose up`) fails before anything can create .env."""
+    project = generate(background_tasks="celery")
+    compose = yaml.safe_load((project / "docker-compose.yml").read_text())
+    web_env_file = compose["services"]["web"]["env_file"]
+    assert web_env_file == [{"path": ".env", "required": False}]
+
+
+def test_devcontainer_installs_dev_extras(generate):
+    """The uv post-create step must install the dev extra (ruff, pytest, mypy),
+    matching the repo's `uv sync --all-extras` convention; plain `uv sync` skips
+    optional-dependencies and leaves the devcontainer without dev tooling."""
+    project = generate(dependency_manager="uv")
     config = json.loads((project / ".devcontainer/devcontainer.json").read_text())
-    assert "onCreateCommand" not in config
-    assert ".env.example .env" in config["initializeCommand"]
+    assert "uv sync --all-extras" in config["postCreateCommand"]
 
 
 def test_devcontainer_uv_interpreter_path(generate):
