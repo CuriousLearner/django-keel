@@ -3,8 +3,14 @@ from .base import *  # noqa: F403, F401
 
 DEBUG = True
 
-# Email - console backend for development
-EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+# Email - SMTP when EMAIL_HOST is set (docker compose points it at Mailpit),
+# console backend otherwise
+EMAIL_HOST = env("EMAIL_HOST", default="")  # noqa: F405
+if EMAIL_HOST:
+    EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+    EMAIL_PORT = env.int("EMAIL_PORT", default=1025)  # noqa: F405
+else:
+    EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 
 # Debug Toolbar
 if "django_debug_toolbar" in INSTALLED_APPS:  # noqa: F405

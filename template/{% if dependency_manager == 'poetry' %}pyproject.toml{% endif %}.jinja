@@ -46,7 +46,6 @@ flower = "^2.0.0"
 {% endif -%}
 {% if background_tasks in ['temporal', 'both'] -%}
 temporalio = "^1.6.0"
-django-temporalio = "^0.3.0"
 {% endif -%}
 {% if use_channels -%}
 channels = {extras = ["daphne"], version = "^4.1.0"}
@@ -67,7 +66,7 @@ sentry-sdk = {extras = ["django"], version = "^2.0.0"}
 opentelemetry-api = "^1.24.0"
 opentelemetry-sdk = "^1.24.0"
 opentelemetry-instrumentation-django = "^0.45b0"
-opentelemetry-instrumentation-psycopg2 = "^0.45b0"
+opentelemetry-instrumentation-psycopg = "^0.45b0"
 {% if background_tasks in ['celery', 'both'] -%}
 opentelemetry-instrumentation-celery = "^0.45b0"
 {% endif -%}
@@ -82,20 +81,20 @@ dj-stripe = "^2.8.0"
 {% endif -%}
 {% endif -%}
 django-waffle = "^4.1.0"
-{% if use_search == 'postgres-fts' -%}
-django-postgres-extra = "^2.0.0"
-{% elif use_search == 'opensearch' -%}
+{% if security_profile == 'strict' -%}
+django-csp = "^4.0"
+{% endif -%}
+{% if use_search == 'opensearch' -%}
 opensearch-py = "^2.5.0"
 django-opensearch-dsl = "^0.6.0"
 {% endif -%}
 {% if use_i18n -%}
 django-parler = "^2.3.0"
 {% endif -%}
-{% if frontend_bundling == 'vite' -%}
+{% if frontend == 'htmx-tailwind' and frontend_bundling == 'vite' -%}
 django-vite = "^3.0.0"
 {% endif -%}
 django-extensions = "^3.2.0"
-python-dotenv = "^1.0.0"
 django-alive = "^1.3.0"
 
 [tool.poetry.group.dev.dependencies]
@@ -188,7 +187,6 @@ module = [
 {% endif -%}
 {% if background_tasks in ['temporal', 'both'] -%}
     "temporalio.*",
-    "django_temporalio.*",
 {% endif -%}
 {% if use_channels -%}
     "channels.*",

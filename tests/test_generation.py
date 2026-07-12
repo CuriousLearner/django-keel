@@ -291,15 +291,17 @@ def test_htmx_frontend_cdn_mode(generate):
 
 
 def test_nextjs_frontend_generated(generate):
-    """Test that Next.js frontend is generated."""
+    """Test that Next.js frontend generates scaffolding instructions, not a stub app."""
     project = generate(frontend="nextjs")
 
     frontend_dir = project / "frontend"
     assert frontend_dir.exists()
-    assert (frontend_dir / "package.json").exists()
+    assert (frontend_dir / "README.md").exists()
+    # No half-stub package.json; users scaffold with create-next-app
+    assert not (frontend_dir / "package.json").exists()
 
-    package_json = (frontend_dir / "package.json").read_text()
-    assert "next" in package_json
+    readme = (frontend_dir / "README.md").read_text()
+    assert "create-next-app" in readme
 
 
 def test_no_frontend_has_minimal_templates(generate):

@@ -1,27 +1,27 @@
 # {{ project_name }} Frontend
 
-Next.js frontend for {{ project_name }}.
-
-## Development
+This directory is reserved for a Next.js frontend. Scaffold it with:
 
 ```bash
-npm install
-npm run dev
+cd frontend
+npx create-next-app@latest .
 ```
 
-Visit http://localhost:3000
+## Pointing at the Django API
 
-## Environment Variables
-
-Create `.env.local`:
+Create `.env.local` in this directory:
 
 ```env
 NEXT_PUBLIC_API_URL=http://localhost:8000/api
 ```
 
-## Build
-
-```bash
-npm run build
-npm start
-```
+Use `process.env.NEXT_PUBLIC_API_URL` as the base URL for API requests. In
+development the Django API runs at http://localhost:8000.
+{% if api_style in ['drf', 'both'] %}
+CORS is preconfigured: `CORS_ALLOWED_ORIGINS` already allows
+http://localhost:3000.
+{% else %}
+Note: this project was generated without a REST API (`api_style` is not
+`drf`/`both`), so `CORS_ALLOWED_ORIGINS` is not configured. Add
+`django-cors-headers` settings before calling Django from the browser.
+{% endif %}

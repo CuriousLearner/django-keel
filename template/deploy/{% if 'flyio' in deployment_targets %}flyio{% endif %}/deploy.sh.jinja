@@ -157,14 +157,15 @@ set_secrets() {
 
     {% if use_stripe -%}
     # Set Stripe keys if provided
-    if [ -n "${STRIPE_PUBLISHABLE_KEY:-}" ] && [ -n "${STRIPE_SECRET_KEY:-}" ]; then
+    if [ -n "${STRIPE_LIVE_PUBLIC_KEY:-}" ] && [ -n "${STRIPE_LIVE_SECRET_KEY:-}" ]; then
         fly secrets set \
-            STRIPE_PUBLISHABLE_KEY="$STRIPE_PUBLISHABLE_KEY" \
-            STRIPE_SECRET_KEY="$STRIPE_SECRET_KEY" \
+            STRIPE_LIVE_PUBLIC_KEY="$STRIPE_LIVE_PUBLIC_KEY" \
+            STRIPE_LIVE_SECRET_KEY="$STRIPE_LIVE_SECRET_KEY" \
+            STRIPE_LIVE_MODE="True" \
             --app "$APP_NAME"
 
         if [ -n "${STRIPE_WEBHOOK_SECRET:-}" ]; then
-            fly secrets set STRIPE_WEBHOOK_SECRET="$STRIPE_WEBHOOK_SECRET" --app "$APP_NAME"
+            fly secrets set {% if stripe_mode == 'advanced' %}DJSTRIPE_WEBHOOK_SECRET{% else %}STRIPE_WEBHOOK_SECRET{% endif %}="$STRIPE_WEBHOOK_SECRET" --app "$APP_NAME"
         fi
     fi
     {% endif %}

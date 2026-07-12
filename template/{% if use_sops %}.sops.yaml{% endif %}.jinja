@@ -1,0 +1,6 @@
+# SOPS configuration (https://github.com/getsops/sops)
+# Generate an age key pair with: age-keygen -o ~/.config/sops/age/keys.txt
+# Then replace the placeholder below with your age public key.
+creation_rules:
+  - path_regex: secrets/.*\.yaml$
+    age: age1replace-with-your-age-public-key

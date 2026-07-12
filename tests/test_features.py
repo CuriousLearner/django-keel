@@ -64,6 +64,14 @@ def test_channels_asgi_when_enabled(generate):
     # Channels replaces WSGI entirely
     assert "WSGI_APPLICATION" not in content
 
+    # Channel layers must be configured (Redis-backed with the default redis cache)
+    assert "CHANNEL_LAYERS" in content
+    assert "channels_redis.core.RedisChannelLayer" in content
+
+    # Tests must force the in-memory layer
+    test_settings = (project / "config/settings/test.py").read_text()
+    assert "InMemoryChannelLayer" in test_settings
+
 
 def test_wsgi_when_channels_disabled(generate):
     """Test that WSGI is used when Channels is disabled."""
@@ -109,6 +117,11 @@ def test_billing_app_generated_when_stripe_advanced(generate):
     assert "PlanConfiguration" in models
     assert "UsageRecord" in models
     assert "djstripe" in models
+
+    # .env.example keys must match what settings read
+    env_example = (project / ".env.example").read_text()
+    assert "STRIPE_TEST_SECRET_KEY" in env_example
+    assert "DJSTRIPE_WEBHOOK_SECRET" in env_example
 
 
 def test_billing_app_not_generated_when_stripe_disabled(generate):
@@ -232,6 +245,36 @@ def test_i18n_disabled_when_not_needed(generate):
 
     assert "USE_I18N = False" in content
     assert "parler" not in content
+
+
+# Security Profile Tests
+
+
+def test_strict_security_profile_enables_csp(generate):
+    """Test that the strict profile wires up django-csp."""
+    project = generate(security_profile="strict")
+
+    settings = (project / "config/settings/base.py").read_text()
+    assert "csp.middleware.CSPMiddleware" in settings
+
+    prod_settings = (project / "config/settings/prod.py").read_text()
+    assert "CONTENT_SECURITY_POLICY" in prod_settings
+
+    pyproject = (project / "pyproject.toml").read_text()
+    assert "django-csp" in pyproject
+
+
+# Search Backend Tests
+
+
+def test_opensearch_connection_configured(generate):
+    """Test that OpenSearch gets connection settings."""
+    project = generate(use_search="opensearch")
+
+    settings = (project / "config/settings/base.py").read_text()
+    assert "django_opensearch_dsl" in settings
+    assert "OPENSEARCH_DSL" in settings
+    assert "OPENSEARCH_HOST" in settings
 
 
 # Cache Option Tests

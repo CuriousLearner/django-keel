@@ -41,6 +41,9 @@ DJANGO_APPS = [
 {% if use_i18n or auth_backend in ['allauth', 'both'] -%}
     "django.contrib.sites",
 {% endif -%}
+{% if use_search == 'postgres-fts' -%}
+    "django.contrib.postgres",
+{% endif -%}
 ]
 
 THIRD_PARTY_APPS = [
@@ -60,6 +63,9 @@ THIRD_PARTY_APPS = [
     "allauth",
     "allauth.account",
     "allauth.socialaccount",
+{% endif -%}
+{% if auth_backend in ['jwt', 'both'] -%}
+    "rest_framework_simplejwt.token_blacklist",
 {% endif -%}
 {% if use_2fa -%}
     "django_otp",
@@ -113,6 +119,9 @@ MIDDLEWARE = [
     "django_prometheus.middleware.PrometheusBeforeMiddleware",
 {% endif -%}
     "django.middleware.security.SecurityMiddleware",
+{% if security_profile == 'strict' -%}
+    "csp.middleware.CSPMiddleware",
+{% endif -%}
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
 {% if api_style in ['drf', 'both'] -%}
@@ -164,6 +173,24 @@ TEMPLATES = [
 
 {% if use_channels -%}
 ASGI_APPLICATION = "config.asgi.application"
+
+# Channel layers
+{% if cache == 'redis' -%}
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [env("REDIS_URL", default="redis://127.0.0.1:6379/0")],
+        },
+    }
+}
+{% else -%}
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels.layers.InMemoryChannelLayer",
+    }
+}
+{% endif -%}
 {% else -%}
 WSGI_APPLICATION = "config.wsgi.application"
 {% endif %}
@@ -368,7 +395,12 @@ SIMPLE_JWT = {
 
 {% if background_tasks in ['celery', 'both'] -%}
 # Celery
+{% if cache == 'redis' -%}
 CELERY_BROKER_URL = env("CELERY_BROKER_URL", default="redis://localhost:6379/1")
+{% else -%}
+# No Redis in this project: the broker must be provided explicitly.
+CELERY_BROKER_URL = env("CELERY_BROKER_URL")
+{% endif -%}
 CELERY_RESULT_BACKEND = "django-db"
 CELERY_CACHE_BACKEND = "django-cache"
 CELERY_TASK_TRACK_STARTED = True
@@ -384,6 +416,21 @@ CELERY_TIMEZONE = TIME_ZONE
 TEMPORAL_ADDRESS = env("TEMPORAL_ADDRESS", default="localhost:7233")
 TEMPORAL_NAMESPACE = env("TEMPORAL_NAMESPACE", default="default")
 TEMPORAL_TASK_QUEUE = env("TEMPORAL_TASK_QUEUE", default="{{ project_slug }}-tasks")
+{% endif %}
+
+{% if use_search == 'opensearch' -%}
+# OpenSearch (django-opensearch-dsl)
+OPENSEARCH_DSL = {
+    "default": {
+        "hosts": [
+            {
+                "host": env("OPENSEARCH_HOST", default="localhost"),
+                "port": env.int("OPENSEARCH_PORT", default=9200),
+            }
+        ],
+        "use_ssl": env.bool("OPENSEARCH_USE_SSL", default=False),
+    },
+}
 {% endif %}
 
 # Email
