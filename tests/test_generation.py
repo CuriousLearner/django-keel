@@ -414,6 +414,16 @@ def test_devcontainer_compose_override_is_valid_yaml(generate):
     assert config["services"]["web"]["command"] == "sleep infinity"
 
 
+def test_devcontainer_bootstraps_env_before_compose(generate):
+    """The .env copy must run on the host before compose up (initializeCommand),
+    not inside the container after it (onCreateCommand); the web service's
+    env_file: .env makes compose up fail otherwise on a fresh project."""
+    project = generate()
+    config = json.loads((project / ".devcontainer/devcontainer.json").read_text())
+    assert "onCreateCommand" not in config
+    assert ".env.example .env" in config["initializeCommand"]
+
+
 def test_devcontainer_uv_interpreter_path(generate):
     """Test that uv projects use the venv interpreter path."""
     project = generate(dependency_manager="uv")

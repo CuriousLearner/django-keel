@@ -6,7 +6,7 @@
   ],
   "service": "web",
   "workspaceFolder": "/app",
-  "onCreateCommand": "if [ ! -f .env ] && [ -f .env.example ]; then cp .env.example .env; fi",
+  "initializeCommand": "if [ ! -f .env ] && [ -f .env.example ]; then cp .env.example .env; fi",
   "forwardPorts": [
     8000,
     5432,
