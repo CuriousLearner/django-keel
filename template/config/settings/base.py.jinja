@@ -64,7 +64,7 @@ THIRD_PARTY_APPS = [
     "allauth.account",
     "allauth.socialaccount",
 {% endif -%}
-{% if auth_backend in ['jwt', 'both'] -%}
+{% if auth_backend in ['jwt', 'both'] and api_style != 'none' -%}
     "rest_framework_simplejwt.token_blacklist",
 {% endif -%}
 {% if use_2fa -%}
@@ -379,7 +379,7 @@ CORS_ALLOWED_ORIGINS = env.list(
 CORS_ALLOW_CREDENTIALS = True
 {% endif %}
 
-{% if auth_backend in ['jwt', 'both'] -%}
+{% if auth_backend in ['jwt', 'both'] and api_style != 'none' -%}
 # Simple JWT
 from datetime import timedelta
 

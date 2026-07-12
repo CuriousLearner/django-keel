@@ -1,5 +1,10 @@
 # 🔒 Feature Gating
 
+!!! note
+    Feature gating requires `stripe_mode: advanced` — the decorators, mixins, and
+    usage utilities are built on the dj-stripe models (`PlanConfiguration`,
+    `UsageRecord`) that only generate in advanced mode.
+
 Control access to features based on subscription plans and usage limits.
 
 ## Overview

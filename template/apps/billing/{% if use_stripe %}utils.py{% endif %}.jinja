@@ -293,8 +293,8 @@ def check_feature_access(user, feature_key):
         return False
 
     # Check subscription metadata
-    if hasattr(subscription, "metadata"):
-        return subscription.metadata.has_feature(feature_key)
+    if hasattr(subscription, "subscription_metadata"):
+        return subscription.subscription_metadata.has_feature(feature_key)
 
     # Fallback to plan configuration
     features = get_subscription_features(subscription)
@@ -308,8 +308,8 @@ def check_usage_limit(user, metric):
     if not subscription:
         return True  # Over limit if no subscription
 
-    if hasattr(subscription, "metadata"):
-        return subscription.metadata.is_over_limit(metric)
+    if hasattr(subscription, "subscription_metadata"):
+        return subscription.subscription_metadata.is_over_limit(metric)
 
     return False
 {% endif -%}

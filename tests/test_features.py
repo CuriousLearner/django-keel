@@ -540,3 +540,73 @@ def test_all_features_enabled_generates_successfully(generate):
 
     for py_file in project.rglob("*.py"):
         py_compile.compile(str(py_file), doraise=True)
+
+
+# Audit leftover regression tests
+
+
+def test_billing_decorators_only_in_advanced_mode(generate):
+    """Feature-gating decorators depend on advanced-mode models."""
+    project = generate(use_stripe=True, stripe_mode="advanced")
+
+    assert (project / "apps/billing/decorators.py").exists()
+    assert (project / "tests/billing/test_decorators.py").exists()
+
+
+def test_billing_decorators_absent_in_basic_mode(generate):
+    """Basic mode lacks the models the decorators import."""
+    project = generate(use_stripe=True, stripe_mode="basic")
+
+    assert not (project / "apps/billing/decorators.py").exists()
+    assert not (project / "tests/billing/test_decorators.py").exists()
+
+
+def test_gitlab_ci_skips_github_deploy_workflows(generate):
+    """GitHub deploy workflows should not generate for GitLab-only CI."""
+    project = generate(ci_provider="gitlab-ci", deployment_targets=["flyio", "aws-ecs-fargate"])
+
+    assert (project / ".gitlab-ci.yml").exists()
+    assert not (project / ".github/workflows/deploy-flyio.yml").exists()
+    assert not (project / ".github/workflows/deploy-ecs.yml").exists()
+
+
+def test_jwt_without_api_skips_simplejwt(generate):
+    """JWT deps and settings are dead weight without an API."""
+    project = generate(auth_backend="jwt", api_style="none")
+
+    assert "simplejwt" not in (project / "pyproject.toml").read_text()
+    assert "SIMPLE_JWT" not in (project / "config/settings/base.py").read_text()
+
+
+def test_gcs_media_storage_configured(generate):
+    """GCS backend and settings are wired for gcp-gcs."""
+    project = generate(media_storage="gcp-gcs")
+
+    content = (project / "config/settings/base.py").read_text()
+    assert "storages.backends.gcloud.GoogleCloudStorage" in content
+    assert "GS_BUCKET_NAME" in content
+    assert "google" in (project / "pyproject.toml").read_text()
+
+
+def test_azure_media_storage_configured(generate):
+    """Azure backend and settings are wired for azure-storage."""
+    project = generate(media_storage="azure-storage")
+
+    content = (project / "config/settings/base.py").read_text()
+    assert "storages.backends.azure_storage.AzureStorage" in content
+    assert "AZURE_ACCOUNT_NAME" in content
+    assert "azure" in (project / "pyproject.toml").read_text()
+
+
+def test_generated_pytest_collects_test_classes(generate):
+    """python_classes must not be blanked out or class-based tests never run."""
+    project = generate(use_teams=True)
+
+    assert "python_classes" not in (project / "pytest.ini").read_text()
+
+
+def test_base_template_displays_messages(generate):
+    """Views set django.contrib.messages; base.html must render them."""
+    project = generate(frontend="none")
+
+    assert "{% for message in messages %}" in (project / "templates/base.html").read_text()

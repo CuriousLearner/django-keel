@@ -30,6 +30,11 @@ MIGRATION_MODULES = DisableMigrations()
 # Email backend for tests
 EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
 
+# Plain staticfiles storage for tests (manifest storage requires collectstatic)
+STORAGES["staticfiles"] = {  # noqa: F405
+    "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+}
+
 {% if use_channels -%}
 # In-memory channel layer for tests (no Redis required)
 CHANNEL_LAYERS = {

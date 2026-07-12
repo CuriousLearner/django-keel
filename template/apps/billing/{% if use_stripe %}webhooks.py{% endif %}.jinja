@@ -166,16 +166,16 @@ def handle_subscription_updated(sender, event, **kwargs):
         djstripe_subscription = Subscription.objects.get(id=subscription["id"])
 
         # Update metadata if features changed
-        if hasattr(djstripe_subscription, "metadata"):
-            metadata = djstripe_subscription.metadata
+        if hasattr(djstripe_subscription, "subscription_metadata"):
+            metadata = djstripe_subscription.subscription_metadata
             # Update features based on plan
             # This is where you'd sync plan features from PlanConfiguration
             metadata.save()
         {% if use_teams %}
 
         # Update team subscription status
-        if hasattr(djstripe_subscription, "metadata") and djstripe_subscription.metadata.team:
-            team = djstripe_subscription.metadata.team
+        if hasattr(djstripe_subscription, "subscription_metadata") and djstripe_subscription.subscription_metadata.team:
+            team = djstripe_subscription.subscription_metadata.team
             team.subscription_status = subscription["status"]
             team.save()
 {% endif %}
@@ -193,8 +193,8 @@ def handle_subscription_deleted(sender, event, **kwargs):
     # Deactivate team if subscription is deleted
     try:
         djstripe_subscription = Subscription.objects.get(id=subscription["id"])
-        if hasattr(djstripe_subscription, "metadata") and djstripe_subscription.metadata.team:
-            team = djstripe_subscription.metadata.team
+        if hasattr(djstripe_subscription, "subscription_metadata") and djstripe_subscription.subscription_metadata.team:
+            team = djstripe_subscription.subscription_metadata.team
             team.subscription_status = "canceled"
             team.is_active = False
             team.save()
