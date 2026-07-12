@@ -1,0 +1,15 @@
+{% raw %}{% extends "base.html" %}
+
+{% block title %}Teams{% endblock %}
+
+{% block content %}
+<h1>Teams</h1>
+<ul>
+    {% for team in teams %}
+    <li><a href="{% url 'teams:detail' team_slug=team.slug %}">{{ team.name }}</a></li>
+    {% empty %}
+    <li>You are not a member of any team yet.</li>
+    {% endfor %}
+</ul>
+<p><a href="{% url 'teams:create' %}">Create team</a></p>
+{% endblock %}{% endraw %}

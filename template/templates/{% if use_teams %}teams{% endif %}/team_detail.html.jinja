@@ -1,0 +1,48 @@
+{% raw %}{% extends "base.html" %}
+
+{% block title %}{{ team.name }}{% endblock %}
+
+{% block content %}
+<h1>{{ team.name }}</h1>
+{% if team.description %}<p>{{ team.description }}</p>{% endif %}
+
+<h2>Members</h2>
+<ul>
+    {% for member in members %}
+    <li>
+        {{ member.user.email }} ({{ member.get_role_display }})
+        {% if team_member.can_manage_members and not member.is_owner %}
+        <a href="{% url 'teams:member_update' team_slug=team.slug member_id=member.id %}">Edit</a>
+        <form method="post" action="{% url 'teams:member_remove' team_slug=team.slug member_id=member.id %}">
+            {% csrf_token %}
+            <button type="submit">Remove</button>
+        </form>
+        {% endif %}
+    </li>
+    {% endfor %}
+</ul>
+
+{% if team_member.is_admin %}
+<h2>Pending invitations</h2>
+<ul>
+    {% for invitation in pending_invitations %}
+    <li>{{ invitation.email }} ({{ invitation.get_role_display }})</li>
+    {% empty %}
+    <li>No pending invitations.</li>
+    {% endfor %}
+</ul>
+<p>
+    <a href="{% url 'teams:invite' team_slug=team.slug %}">Invite member</a>
+    <a href="{% url 'teams:update' team_slug=team.slug %}">Edit team</a>
+</p>
+{% endif %}
+
+{% if team_member.is_owner %}
+<p><a href="{% url 'teams:delete' team_slug=team.slug %}">Delete team</a></p>
+{% else %}
+<form method="post" action="{% url 'teams:leave' team_slug=team.slug %}">
+    {% csrf_token %}
+    <button type="submit">Leave team</button>
+</form>
+{% endif %}
+{% endblock %}{% endraw %}

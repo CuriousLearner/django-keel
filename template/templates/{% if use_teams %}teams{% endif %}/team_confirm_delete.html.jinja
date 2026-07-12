@@ -1,0 +1,13 @@
+{% raw %}{% extends "base.html" %}
+
+{% block title %}Delete {{ team.name }}{% endblock %}
+
+{% block content %}
+<h1>Delete {{ team.name }}</h1>
+<p>Are you sure you want to delete "{{ team.name }}"? This cannot be undone.</p>
+<form method="post">
+    {% csrf_token %}
+    <button type="submit">Delete</button>
+    <a href="{% url 'teams:detail' team_slug=team.slug %}">Cancel</a>
+</form>
+{% endblock %}{% endraw %}

@@ -122,6 +122,66 @@ def test_billing_app_not_generated_when_stripe_disabled(generate):
         assert not (billing_app / "models.py").exists()
 
 
+def test_billing_templates_generated_when_stripe_enabled(generate):
+    """Test that billing templates referenced by views are shipped."""
+    project = generate(use_stripe=True, stripe_mode="basic")
+
+    assert (project / "templates/billing/pricing.html").exists()
+    assert (project / "templates/billing/checkout_success.html").exists()
+    assert (project / "templates/billing/subscription.html").exists()
+
+
+def test_billing_templates_not_generated_when_stripe_disabled(generate):
+    """Test that billing templates are excluded without Stripe."""
+    project = generate(use_stripe=False)
+
+    assert not (project / "templates/billing").exists()
+
+
+# Teams Feature Tests
+
+
+def test_teams_templates_generated_when_enabled(generate):
+    """Test that all view-referenced teams templates are shipped."""
+    project = generate(use_teams=True)
+
+    for name in [
+        "team_list.html",
+        "team_form.html",
+        "team_detail.html",
+        "team_confirm_delete.html",
+        "invitation_form.html",
+        "member_form.html",
+        "emails/invitation.txt",
+        "emails/invitation.html",
+    ]:
+        assert (project / "templates/teams" / name).exists(), name
+
+
+def test_teams_templates_not_generated_when_disabled(generate):
+    """Test that teams templates are excluded without teams."""
+    project = generate(use_teams=False)
+
+    assert not (project / "templates/teams").exists()
+
+
+# Base Template Tests
+
+
+def test_base_template_generated_for_all_frontends(generate):
+    """Test that base.html exists even without an HTML frontend."""
+    project = generate(frontend="none")
+
+    base_html = project / "templates/base.html"
+    assert base_html.exists()
+
+    content = base_html.read_text()
+    assert "{% block content %}" in content
+    # Frontend-specific assets should not be included
+    assert "django_vite" not in content
+    assert "tailwindcss" not in content
+
+
 # 2FA Feature Tests
 
 

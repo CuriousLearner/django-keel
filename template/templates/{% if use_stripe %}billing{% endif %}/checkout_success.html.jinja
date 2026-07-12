@@ -1,0 +1,9 @@
+{% raw %}{% extends "base.html" %}
+
+{% block title %}Payment successful{% endblock %}
+
+{% block content %}
+<h1>Payment successful</h1>
+<p>Thank you! Your subscription is being activated.</p>
+<p><a href="{% url 'billing:subscription' %}">View your subscription</a></p>
+{% endblock %}{% endraw %}
