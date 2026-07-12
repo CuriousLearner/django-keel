@@ -1,12 +1,14 @@
 """GraphQL schema."""
+from typing import Optional
+
 import strawberry
-from strawberry.django import auto
-from typing import List
+import strawberry_django
+from strawberry import auto
 
 from apps.users.models import User
 
 
-@strawberry.django.type(User)
+@strawberry_django.type(User)
 class UserType:
     id: auto
     email: auto
@@ -17,13 +19,11 @@ class UserType:
 
 @strawberry.type
 class Query:
-    @strawberry.field
-    def users(self) -> List[UserType]:
-        return User.objects.all()
+    users: list[UserType] = strawberry_django.field()
 
-    @strawberry.field
-    def user(self, id: int) -> UserType:
-        return User.objects.get(pk=id)
+    @strawberry_django.field
+    def user(self, id: int) -> Optional[UserType]:
+        return User.objects.filter(pk=id).first()
 
 
 @strawberry.type
