@@ -62,15 +62,15 @@ logs:
 {% if background_tasks in ['celery', 'both'] -%}
 # Run Celery worker
 celery-worker:
-    {% if dependency_manager == 'uv' -%}uv run {% endif %}celery -A config worker -l info
+    {% if dependency_manager == 'uv' -%}uv run {% else %}poetry run {% endif %}celery -A config worker -l info
 
 # Run Celery beat
 celery-beat:
-    {% if dependency_manager == 'uv' -%}uv run {% endif %}celery -A config beat -l info
+    {% if dependency_manager == 'uv' -%}uv run {% else %}poetry run {% endif %}celery -A config beat -l info
 
 # Run Flower
 celery-flower:
-    {% if dependency_manager == 'uv' -%}uv run {% endif %}celery -A config flower
+    {% if dependency_manager == 'uv' -%}uv run {% else %}poetry run {% endif %}celery -A config flower
 {% endif %}
 
 # Serve documentation
