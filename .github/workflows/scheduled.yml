@@ -72,7 +72,16 @@ jobs:
       - name: Check for debug statements
         run: |
           echo "Checking for debug statements..."
-          grep -r "print(\|pdb\|breakpoint()" template/ --include="*.py" --include="*.py.jinja" && exit 1 || echo "No debug statements found"
+          status=0
+          grep -r "print(\|pdb\|breakpoint()" template/ --include="*.py" --include="*.py.jinja" || status=$?
+          if [ "$status" -eq 0 ]; then
+            echo "Debug statements found"
+            exit 1
+          elif [ "$status" -ne 1 ]; then
+            echo "grep failed (exit $status)"
+            exit "$status"
+          fi
+          echo "No debug statements found"
 
       - name: Verify all Jinja files are valid
         run: |
