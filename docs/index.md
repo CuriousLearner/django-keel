@@ -31,7 +31,7 @@ Django Keel asks you what type of project you're building and configures everyth
 - **Security hardening** built-in (HSTS, CSP, rate limiting, 2FA)
 - **6 deployment options** (Kubernetes, AWS ECS, Fly.io, Render, EC2, Docker)
 - **Comprehensive observability** (logging, Sentry, OpenTelemetry, Prometheus)
-- **127 template files** generating complete, working projects
+- **A comprehensive template** generating complete, working projects
 
 ### Modern Development Experience
 
@@ -40,7 +40,7 @@ Django Keel asks you what type of project you're building and configures everyth
 - **✨ ruff** - Lightning-fast linting and formatting
 - **🔍 mypy** - Type safety with django-stubs
 - **🪝 pre-commit** - Automated quality checks
-- **📦 Just** - 50+ task runner commands
+- **📦 Just** - Task runner recipes for everyday workflows
 - **🐳 Docker** - Complete local development environment
 
 ### Flexible & Adaptable
@@ -232,7 +232,7 @@ Visit:
 - **mypy + django-stubs** - Type checking
 - **pytest** - 80% coverage requirement
 - **pre-commit** - Automated quality checks
-- **Just** - 50+ task runner commands
+- **Just** - Task runner recipes for everyday workflows
 - **Docker Compose** - Complete dev environment
 - **MkDocs Material** - Beautiful documentation
 - **Infrastructure validation** - YAML, Docker, Helm, Ansible

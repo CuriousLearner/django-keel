@@ -18,45 +18,52 @@ Django Keel provides decorators, mixins, and utilities for subscription-based ac
 
 ### Enable Feature Gating
 
-When generating your project with `use_stripe: advanced`, feature gating is automatically included.
-
-Check `apps/billing/decorators.py` exists in your generated project.
+Generate your project with `use_stripe: true` and `stripe_mode: advanced`. Feature gating lives in `apps/billing/decorators.py` (decorators and mixins) and `apps/billing/utils.py` (helper functions).
 
 ### Basic Usage
 
 ```python
 from apps.billing.decorators import subscription_required, feature_required
 
-@subscription_required
+@subscription_required()
 @feature_required('advanced_analytics')
 def analytics_view(request):
     """Only accessible to users with active subscription and feature."""
     return render(request, 'analytics.html')
 ```
 
+All decorators are factories - always call them with parentheses, even without arguments.
+
 ## Decorators
 
-### @subscription_required
+### @subscription_required()
 
-Ensures user has an active subscription:
+Ensures the user has an active subscription:
 
 ```python
 from apps.billing.decorators import subscription_required
 
-@subscription_required
+@subscription_required()
 def premium_feature(request):
     """Requires any active subscription."""
     return render(request, 'premium.html')
+
+@subscription_required(redirect_url="/pricing/")
+def another_view(request):
+    ...
 ```
 
+**Parameters:** `redirect_url` (default `/billing/subscribe/`), `message`, `ajax_response` (return a JSON 403 instead of redirecting).
+
 **Behavior:**
-- ✅ User with active subscription → Access granted
-- ❌ No subscription → Redirect to pricing page
-- ❌ Expired subscription → Show renewal prompt
 
-### @feature_required
+- ✅ User with active (or trialing) subscription → Access granted
+- ❌ Not authenticated → Redirect to login (or JSON 401 with `ajax_response=True`)
+- ❌ No active subscription → Warning message and redirect (or JSON 403)
 
-Checks if subscription includes specific feature:
+### @feature_required(feature_key)
+
+Checks if the subscription's plan includes a specific feature:
 
 ```python
 from apps.billing.decorators import feature_required
@@ -65,16 +72,17 @@ from apps.billing.decorators import feature_required
 def api_dashboard(request):
     """Requires subscription with API access feature."""
     return render(request, 'api_dashboard.html')
+
+@feature_required('advanced_analytics', redirect_url='/pricing/')
+def analytics_view(request):
+    ...
 ```
 
-**Behavior:**
-- ✅ Feature included in plan → Access granted
-- ❌ Feature not included → Show upgrade prompt
-- ❌ No subscription → Redirect to pricing
+**Parameters:** `feature_key`, `redirect_url` (default `/billing/upgrade/`), `message`, `ajax_response`.
 
-### @plan_required
+### @plan_required(*plan_slugs)
 
-Requires specific subscription tier:
+Requires one of the given plan slugs. Pass slugs as positional arguments, not a list:
 
 ```python
 from apps.billing.decorators import plan_required
@@ -84,193 +92,119 @@ def pro_only_feature(request):
     """Only for Pro tier subscribers."""
     return render(request, 'pro_feature.html')
 
-@plan_required(['pro', 'enterprise'])
+@plan_required('pro', 'enterprise')
 def premium_feature(request):
     """For Pro or Enterprise subscribers."""
     return render(request, 'premium.html')
 ```
 
-### @usage_limit
+Plan slugs are matched against `PlanConfiguration` rows (see [Plan Configuration](#plan-configuration) below).
 
-Enforces usage limits:
+### @usage_limit_check(metric)
+
+Blocks the view when the user is already over the limit for a metric:
 
 ```python
-from apps.billing.decorators import usage_limit
+from apps.billing.decorators import usage_limit_check
 
-@usage_limit('api_calls', limit=1000, period='month')
+@usage_limit_check('api_calls')
 def api_endpoint(request):
-    """Limited to 1000 calls per month."""
-    # Usage is tracked automatically
+    """Blocked with a 429/redirect once the user is over their limit."""
     return JsonResponse({'data': 'response'})
 ```
 
-**Parameters:**
-- `limit`: Maximum allowed (integer)
-- `period`: `'day'`, `'month'`, `'year'`, or `'lifetime'`
-- `resource`: Name of the resource being limited
+**Parameters:** `metric`, `redirect_url` (default `/billing/upgrade/`), `message`, `ajax_response` (returns JSON with status 429 when over limit).
+
+Limits come from the subscription's `SubscriptionMetadata.usage_limits` JSON. The decorator only checks the limit - it does not record usage. Call `record_usage()` yourself (see [Usage Tracking](#usage-tracking)).
 
 ## Class-Based Views
+
+The mixins live in `apps/billing/decorators.py` alongside the decorators.
 
 ### SubscriptionRequiredMixin
 
 ```python
-from apps.billing.mixins import SubscriptionRequiredMixin
+from apps.billing.decorators import SubscriptionRequiredMixin
 from django.views.generic import TemplateView
 
 class PremiumDashboard(SubscriptionRequiredMixin, TemplateView):
     template_name = 'dashboard.html'
+    # Optional overrides:
+    # subscription_redirect_url = "/billing/subscribe/"
+    # subscription_message = "..."
 ```
 
 ### FeatureRequiredMixin
 
 ```python
-from apps.billing.mixins import FeatureRequiredMixin
+from apps.billing.decorators import FeatureRequiredMixin
 
 class AnalyticsView(FeatureRequiredMixin, TemplateView):
     template_name = 'analytics.html'
     required_feature = 'advanced_analytics'
+    # Optional: feature_redirect_url, feature_message
 ```
 
 ### PlanRequiredMixin
 
 ```python
-from apps.billing.mixins import PlanRequiredMixin
+from apps.billing.decorators import PlanRequiredMixin
 
 class EnterpriseView(PlanRequiredMixin, TemplateView):
     template_name = 'enterprise.html'
     required_plans = ['enterprise']
+    # Optional: plan_redirect_url, plan_message
 ```
 
-### UsageLimitMixin
-
-```python
-from apps.billing.mixins import UsageLimitMixin
-
-class APIView(UsageLimitMixin, View):
-    usage_resource = 'api_calls'
-    usage_limit = 1000
-    usage_period = 'month'
-
-    def get(self, request):
-        # Usage tracked automatically
-        return JsonResponse({'data': 'response'})
-```
-
-## Template Usage
-
-### Check Subscription Status
-
-```django
-{% load billing_tags %}
-
-{% if user.has_active_subscription %}
-  <a href="{% url 'premium_feature' %}">Access Premium Feature</a>
-{% else %}
-  <a href="{% url 'pricing' %}" class="btn-upgrade">Upgrade to Access</a>
-{% endif %}
-```
-
-### Check Feature Availability
-
-```django
-{% load billing_tags %}
-
-{% if user|has_feature:'advanced_analytics' %}
-  <a href="{% url 'analytics' %}">View Analytics</a>
-{% else %}
-  <div class="feature-locked">
-    <span class="lock-icon">🔒</span>
-    <p>Analytics requires Pro plan</p>
-    <a href="{% url 'upgrade' %}">Upgrade Now</a>
-  </div>
-{% endif %}
-```
-
-### Check Plan
-
-```django
-{% load billing_tags %}
-
-{% if user.subscription.plan == 'enterprise' %}
-  <div class="enterprise-badge">Enterprise Account</div>
-{% endif %}
-```
-
-### Show Usage Limits
-
-```django
-{% load billing_tags %}
-
-{% get_usage user 'api_calls' as api_usage %}
-<div class="usage-meter">
-  <p>API Calls: {{ api_usage.current }} / {{ api_usage.limit }}</p>
-  <div class="progress-bar">
-    <div style="width: {{ api_usage.percentage }}%"></div>
-  </div>
-  {% if api_usage.is_near_limit %}
-    <p class="warning">⚠️ Approaching limit. Consider upgrading.</p>
-  {% endif %}
-</div>
-```
+There is no usage-limit mixin; use the `usage_limit_check()` decorator (e.g. via `method_decorator`) for class-based views.
 
 ## Programmatic Checks
+
+All helpers are in `apps/billing/utils.py`.
 
 ### Check Subscription
 
 ```python
-from apps.billing.utils import has_active_subscription
+from apps.billing.utils import has_active_subscription, get_active_subscription
 
 if has_active_subscription(request.user):
     # User can access premium features
-    pass
+    ...
+
+subscription = get_active_subscription(request.user)  # dj-stripe Subscription or None
 ```
 
 ### Check Feature
 
 ```python
-from apps.billing.utils import user_has_feature
+from apps.billing.utils import check_feature_access
 
-if user_has_feature(request.user, 'api_access'):
+if check_feature_access(request.user, 'api_access'):
     # User has API access feature
     api_key = generate_api_key(request.user)
-```
-
-### Check Plan
-
-```python
-from apps.billing.utils import user_has_plan
-
-if user_has_plan(request.user, 'enterprise'):
-    # Enterprise-specific functionality
-    enable_white_label()
 ```
 
 ### Check Usage Limit
 
 ```python
-from apps.billing.utils import check_usage_limit, increment_usage
+from apps.billing.utils import check_usage_limit
 
-# Check if user can perform action
-can_use, remaining = check_usage_limit(
-    request.user,
-    resource='api_calls',
-    limit=1000
-)
+# Returns True when the user is OVER the limit (or has no subscription)
+if check_usage_limit(request.user, 'api_calls'):
+    return JsonResponse({'error': 'Usage limit exceeded'}, status=429)
 
-if can_use:
-    # Perform action
-    result = make_api_call()
+result = make_api_call()
+```
 
-    # Increment usage counter
-    increment_usage(request.user, resource='api_calls')
+Note the semantics: `check_usage_limit(user, metric)` returns `True` when the user is over the limit, and also when they have no active subscription.
 
-    return result
-else:
-    return JsonResponse({
-        'error': 'Usage limit exceeded',
-        'limit': 1000,
-        'remaining': 0
-    }, status=429)
+### Get Plan Features
+
+```python
+from apps.billing.utils import get_active_subscription, get_subscription_features
+
+subscription = get_active_subscription(request.user)
+features = get_subscription_features(subscription)  # dict from PlanConfiguration.features
 ```
 
 ## API (DRF) Integration
@@ -282,7 +216,7 @@ from rest_framework.decorators import api_view
 from apps.billing.decorators import subscription_required
 
 @api_view(['GET'])
-@subscription_required
+@subscription_required(ajax_response=True)
 def premium_api(request):
     """API endpoint requires active subscription."""
     return Response({'data': 'premium data'})
@@ -292,241 +226,79 @@ def premium_api(request):
 
 ```python
 from rest_framework.permissions import BasePermission
-from apps.billing.utils import user_has_feature
+from apps.billing.utils import check_feature_access
 
 class HasAPIAccess(BasePermission):
     """Custom permission for API access feature."""
 
     def has_permission(self, request, view):
-        return user_has_feature(request.user, 'api_access')
+        return check_feature_access(request.user, 'api_access')
 
-class APIView(APIView):
+class MyAPIView(APIView):
     permission_classes = [HasAPIAccess]
 
     def get(self, request):
         return Response({'data': 'api response'})
 ```
 
-### Rate Limiting by Plan
-
-```python
-from rest_framework.throttling import UserRateThrottle
-from apps.billing.utils import get_user_plan
-
-class PlanBasedRateThrottle(UserRateThrottle):
-    """Different rate limits per plan."""
-
-    def get_rate(self):
-        user = self.request.user
-        plan = get_user_plan(user)
-
-        rates = {
-            'free': '100/day',
-            'pro': '1000/day',
-            'enterprise': '10000/day',
-        }
-
-        return rates.get(plan, '100/day')
-
-class APIView(APIView):
-    throttle_classes = [PlanBasedRateThrottle]
-
-    def get(self, request):
-        return Response({'data': 'response'})
-```
-
 ## Plan Configuration
 
-Define plans in `config/settings/base.py`:
+Plans are database rows, not settings. The `PlanConfiguration` model (`apps/billing/models.py`) links a Stripe product to a plan slug, features, and limits:
 
 ```python
-SUBSCRIPTION_PLANS = {
-    'free': {
-        'name': 'Free',
-        'price': 0,
-        'features': {
-            'projects': 3,
-            'storage_gb': 1,
-            'team_members': 1,
-            'api_calls_per_month': 100,
-        },
-        'includes': ['basic_support'],
+from apps.billing.models import PlanConfiguration
+from djstripe.models import Product, Price
+
+product = Product.objects.get(name="Pro")
+PlanConfiguration.objects.create(
+    stripe_product=product,
+    stripe_price=Price.objects.get(product=product, active=True),
+    name="Pro Plan",
+    slug="pro",
+    features={
+        "advanced_analytics": True,
+        "custom_domains": True,
+        "priority_support": True,
     },
-    'pro': {
-        'name': 'Pro',
-        'price': 29,
-        'features': {
-            'projects': 50,
-            'storage_gb': 50,
-            'team_members': 10,
-            'api_calls_per_month': 10000,
-        },
-        'includes': [
-            'basic_support',
-            'advanced_analytics',
-            'custom_domains',
-            'priority_support',
-        ],
+    limits={
+        "api_calls": 10000,
+        "storage_gb": 50,
+        "team_members": 10,
     },
-    'enterprise': {
-        'name': 'Enterprise',
-        'price': 99,
-        'features': {
-            'projects': 'unlimited',
-            'storage_gb': 500,
-            'team_members': 'unlimited',
-            'api_calls_per_month': 100000,
-        },
-        'includes': [
-            'basic_support',
-            'advanced_analytics',
-            'custom_domains',
-            'priority_support',
-            'sso',
-            'white_label',
-            'dedicated_support',
-        ],
-    },
-}
+)
 ```
+
+Create one `PlanConfiguration` per Stripe product - via the Django admin, a data migration, or a setup script. `@plan_required()` matches against `slug`, and `check_feature_access()` / `get_subscription_features()` read `features`.
+
+Per-subscription overrides live in `SubscriptionMetadata` (`features`, `usage_limits`, `current_usage` JSON fields), which `check_feature_access()` and `check_usage_limit()` consult first when present.
 
 ## Usage Tracking
 
-### Automatic Tracking
+### Recording Usage
 
-Usage is tracked automatically when using decorators:
+Usage is not recorded automatically - record it where the work happens:
 
 ```python
-@usage_limit('api_calls', limit=1000)
-def api_endpoint(request):
-    # Usage incremented automatically on successful response
-    return JsonResponse({'data': 'response'})
+from apps.billing.utils import get_active_subscription, record_usage
+
+subscription = get_active_subscription(request.user)
+record_usage(subscription, metric='api_calls', quantity=1)
 ```
 
-### Manual Tracking
+`record_usage(subscription, metric, quantity)` creates a `UsageRecord` row.
 
-For custom scenarios:
+### Usage Model
 
-```python
-from apps.billing.utils import increment_usage, get_usage
-
-# Increment usage
-increment_usage(user, resource='api_calls', amount=1)
-
-# Batch increment
-increment_usage(user, resource='storage_gb', amount=5.2)
-
-# Get current usage
-usage = get_usage(user, resource='api_calls', period='month')
-print(f"Used: {usage.current} / {usage.limit}")
-```
-
-### Usage Models
+`UsageRecord` (`apps/billing/models.py`) has five fields: `subscription` (FK to dj-stripe `Subscription`), `metric`, `quantity`, an auto-set `timestamp`, and a `metadata` JSONField for arbitrary extra context.
 
 ```python
-from apps.billing.models import Usage
+from apps.billing.models import UsageRecord
 
-# Get all usage for user this month
-usage_records = Usage.objects.filter(
-    user=user,
-    period_start__month=current_month
+# All API call records for a subscription
+records = UsageRecord.objects.filter(
+    subscription=subscription,
+    metric='api_calls',
 )
-
-# Reset usage (e.g., at month start)
-Usage.objects.filter(
-    user=user,
-    resource='api_calls'
-).update(current=0)
-```
-
-## Upgrade Prompts
-
-### Custom Upgrade Messages
-
-```python
-from apps.billing.decorators import feature_required
-
-@feature_required(
-    'advanced_analytics',
-    upgrade_message="Unlock advanced analytics with Pro plan",
-    upgrade_url='/pricing/'
-)
-def analytics_view(request):
-    return render(request, 'analytics.html')
-```
-
-### Contextual Upgrade CTAs
-
-```python
-from apps.billing.utils import get_upgrade_message
-
-def feature_view(request):
-    if not user_has_feature(request.user, 'export_data'):
-        upgrade_msg = get_upgrade_message(
-            feature='export_data',
-            user=request.user
-        )
-        # upgrade_msg: "Upgrade to Pro to export data"
-
-    context = {'upgrade_message': upgrade_msg}
-    return render(request, 'feature.html', context)
-```
-
-## Testing
-
-### Mock Subscriptions
-
-```python
-from apps.billing.models import Subscription
-
-class FeatureGatingTestCase(TestCase):
-    def setUp(self):
-        self.user = User.objects.create_user('test@example.com')
-
-        # Create Pro subscription
-        self.subscription = Subscription.objects.create(
-            user=self.user,
-            plan='pro',
-            status='active'
-        )
-
-    def test_feature_access(self):
-        """Test Pro users can access pro features."""
-        self.client.login(email='test@example.com')
-        response = self.client.get('/analytics/')
-        self.assertEqual(response.status_code, 200)
-```
-
-### Test Usage Limits
-
-```python
-from apps.billing.utils import increment_usage, check_usage_limit
-
-class UsageLimitTestCase(TestCase):
-    def test_usage_enforcement(self):
-        """Test usage limits are enforced."""
-        user = User.objects.create_user('test@example.com')
-
-        # Use 999 times (just under limit)
-        for _ in range(999):
-            increment_usage(user, resource='api_calls')
-
-        # Should still have access
-        can_use, remaining = check_usage_limit(
-            user, resource='api_calls', limit=1000
-        )
-        self.assertTrue(can_use)
-        self.assertEqual(remaining, 1)
-
-        # Use once more (hit limit)
-        increment_usage(user, resource='api_calls')
-
-        # Should be blocked
-        can_use, remaining = check_usage_limit(
-            user, resource='api_calls', limit=1000
-        )
-        self.assertFalse(can_use)
-        self.assertEqual(remaining, 0)
 ```
 
 ## Best Practices
@@ -538,52 +310,26 @@ class UsageLimitTestCase(TestCase):
 5. **Track metrics** - Monitor which features drive upgrades
 6. **Testing** - Test all subscription tiers
 7. **Documentation** - Document all gated features clearly
-8. **Usage resets** - Reset monthly limits reliably
 
 ## Common Patterns
 
 ### Tiered Feature Access
 
 ```python
-def get_project_limit(user):
-    """Return project limit based on plan."""
-    plan_limits = {
-        'free': 3,
-        'pro': 50,
-        'enterprise': None,  # Unlimited
-    }
-
-    plan = get_user_plan(user)
-    return plan_limits.get(plan, 3)
+from apps.billing.utils import get_active_subscription, get_subscription_features
 
 def can_create_project(user):
     """Check if user can create more projects."""
-    current_count = user.projects.count()
-    limit = get_project_limit(user)
+    subscription = get_active_subscription(user)
+    if not subscription:
+        return user.projects.count() < 3  # free tier
 
+    features = get_subscription_features(subscription)
+    limit = features.get('projects')
     if limit is None:  # Unlimited
         return True
 
-    return current_count < limit
-```
-
-### Soft Limits vs Hard Limits
-
-```python
-# Soft limit: Allow with warning
-if usage > soft_limit:
-    messages.warning(
-        request,
-        f"You're approaching your limit. Consider upgrading."
-    )
-
-# Hard limit: Block action
-if usage >= hard_limit:
-    messages.error(
-        request,
-        f"Usage limit reached. Please upgrade to continue."
-    )
-    return redirect('upgrade')
+    return user.projects.count() < limit
 ```
 
 ### Feature Flags + Gating
@@ -592,7 +338,7 @@ Combine feature flags with gating:
 
 ```python
 from waffle import flag_is_active
-from apps.billing.utils import user_has_feature
+from apps.billing.utils import check_feature_access
 
 def advanced_feature_view(request):
     # Check feature flag (gradual rollout)
@@ -600,7 +346,7 @@ def advanced_feature_view(request):
         return redirect('dashboard')
 
     # Check subscription (monetization)
-    if not user_has_feature(request.user, 'advanced_analytics'):
+    if not check_feature_access(request.user, 'advanced_analytics'):
         return render(request, 'upgrade_required.html')
 
     # Both checks passed
@@ -613,36 +359,31 @@ def advanced_feature_view(request):
 
 **Check subscription status:**
 ```python
-from apps.billing.models import Subscription
+from apps.billing.utils import get_active_subscription
 
-subscription = Subscription.objects.get(user=user)
-print(f"Plan: {subscription.plan}")
-print(f"Status: {subscription.status}")
-print(f"Expired: {subscription.is_expired}")
+subscription = get_active_subscription(user)
+print(subscription)  # None means no active/trialing subscription
 ```
 
-**Check feature configuration:**
+**Check plan configuration:**
 ```python
-from django.conf import settings
+from apps.billing.models import PlanConfiguration
 
-plan_features = settings.SUBSCRIPTION_PLANS['pro']['includes']
-print(f"Pro features: {plan_features}")
+plan = PlanConfiguration.objects.get(slug='pro')
+print(plan.features)
+print(plan.limits)
 ```
 
 ### Usage Not Tracking
 
-**Check usage records:**
-```python
-from apps.billing.models import Usage
+Make sure your code calls `record_usage()` - nothing records usage automatically:
 
-usage = Usage.objects.filter(user=user, resource='api_calls')
-for u in usage:
-    print(f"Period: {u.period_start} - Current: {u.current}")
-```
-
-**Manual reset if needed:**
 ```python
-Usage.objects.filter(user=user, resource='api_calls').delete()
+from apps.billing.models import UsageRecord
+
+records = UsageRecord.objects.filter(subscription=subscription, metric='api_calls')
+for r in records:
+    print(f"{r.timestamp}: {r.quantity}")
 ```
 
 ## Further Reading

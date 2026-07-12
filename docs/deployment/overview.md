@@ -128,46 +128,51 @@ render.yaml               # Blueprint config (root)
 ```
 deploy/flyio/
 ├── README.md
-└── scripts/
+├── deploy.sh             # Deployment automation
+├── setup_env.sh          # Interactive secrets setup
+├── manage_db.sh          # Database utilities
+└── health_check.py       # Health check helper
 fly.toml                  # App config (root)
 ```
 
 ### Docker
+
+`Dockerfile` and `docker-compose.yml` are always generated at the project root, regardless of deployment targets. The Dockerfile is a single Python stage (plus a Node `frontend-builder` stage when using Vite). Selecting the `docker` target does not generate any additional files.
+
 ```
-Dockerfile                # Multi-stage build
-docker-compose.yml        # Local development
-docker-compose.prod.yml   # Production setup
-deploy/docker/
-└── README.md
+Dockerfile                # Container image
+docker-compose.yml        # Local development stack
 ```
 
 ### AWS EC2 (Ansible)
 ```
 deploy/ansible/
 ├── playbooks/
-│   ├── setup.yml         # Initial server setup
-│   └── deploy.yml        # App deployment
-├── roles/
-├── inventory/
-│   └── hosts.example
+│   └── deploy.yml        # Server setup + app deployment
+├── templates/
+│   ├── Caddyfile.j2      # Caddy reverse proxy config
+│   └── <project_slug>.service.j2  # systemd unit
 └── README.md
 ```
 
 ### AWS ECS (Terraform)
 ```
 deploy/ecs/
-├── main.tf               # Main config
-├── variables.tf          # Input variables
-├── outputs.tf            # Outputs
-├── terraform.tfvars.example
-├── modules/
-│   ├── vpc/
-│   ├── rds/
-│   ├── redis/
-│   ├── ecs/
-│   ├── alb/
-│   └── ecr/
-└── README.md
+├── deploy.sh             # Deployment script
+├── README.md
+└── terraform/
+    ├── main.tf
+    ├── variables.tf
+    ├── outputs.tf
+    ├── network.tf
+    ├── ecs.tf
+    ├── alb.tf
+    ├── database.tf
+    ├── storage.tf
+    ├── security.tf
+    ├── ecr.tf
+    ├── monitoring.tf
+    └── terraform.tfvars.example
 ```
 
 ### Kubernetes
@@ -182,8 +187,9 @@ deploy/k8s/
 │   ├── base/
 │   └── overlays/
 │       ├── dev/
-│       ├── staging/
 │       └── prod/
+├── operators/
+│   └── postgresql-cluster.yaml
 └── README.md
 ```
 
@@ -198,12 +204,11 @@ copier copy gh:CuriousLearner/django-keel my-project
 ```
 
 ```
-🎤 Deployment targets (comma-separated)?
-   [render, flyio, docker, aws-ec2-ansible, aws-ecs-fargate, kubernetes]
-   Choose: render,docker
+🎤 Deployment targets
+   [kubernetes, render, flyio, aws-ecs-fargate, aws-ec2-ansible, docker]
 ```
 
-You can select multiple targets separated by commas.
+The question is a multi-select - pick as many targets as you want (or none).
 
 ### 2. After Generation
 
@@ -252,8 +257,8 @@ fly apps create myapp-production
 
 **Kubernetes:**
 ```bash
-# Kustomize overlays
-kubectl apply -k deploy/k8s/kustomize/overlays/staging
+# Kustomize overlays (dev and prod are generated)
+kubectl apply -k deploy/k8s/kustomize/overlays/dev
 kubectl apply -k deploy/k8s/kustomize/overlays/prod
 ```
 
@@ -374,10 +379,9 @@ Before deploying to production, ensure:
 **Symptoms:** Docker build fails, image too large
 
 **Solutions:**
-1. Use multi-stage builds (already in Django Keel)
-2. Check `.dockerignore` includes `node_modules`, `.git`, `*.pyc`
-3. Verify base image is available
-4. Check Python version matches
+1. Check `.dockerignore` includes `node_modules`, `.git`, `*.pyc`
+2. Verify base image is available
+3. Check Python version matches
 
 ### Database Connection Issues
 

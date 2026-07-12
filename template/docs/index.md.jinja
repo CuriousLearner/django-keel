@@ -150,7 +150,7 @@ After starting the development server:
 {% if api_style != 'none' -%}
 - **API Documentation**: http://localhost:8000/api/schema/swagger/
 {% if api_style in ['graphql-strawberry', 'both'] -%}
-- **GraphQL Playground**: http://localhost:8000/graphql/
+- **GraphQL (GraphiQL)**: http://localhost:8000/api/graphql/
 {% endif -%}
 {% endif -%}
 - **Email Testing (Mailpit)**: http://localhost:8025
@@ -163,26 +163,16 @@ After starting the development server:
 - [Installation Guide](getting-started/installation.md) - Detailed setup instructions
 - [Architecture Overview](architecture/overview.md) - System design and structure
 - [Development Guide](development/testing.md) - Testing and development workflow
-{% if use_teams -%}
-- [Teams Setup](saas/teams.md) - Multi-tenancy configuration
-{% endif -%}
-{% if use_stripe -%}
-- [Stripe Integration](saas/stripe.md) - Payment and subscription setup
-{% endif -%}
-- [Deployment](deployment/) - Production deployment guides
+
+For deployment, see the platform guides in the `deploy/` directory of this repository.
 
 ## Documentation
 
 Browse the full documentation:
 
-- **Getting Started**: Installation, configuration, first steps
+- **Getting Started**: Installation and first steps
 - **Architecture**: System design, project structure, key decisions
 - **Development**: Testing, debugging, workflow
-{% if use_teams or use_stripe -%}
-- **SaaS Features**: Teams, billing, feature flags, impersonation
-{% endif -%}
-- **Deployment**: Platform-specific deployment guides
-- **ADRs**: Architecture Decision Records
 
 ---
 

@@ -27,9 +27,9 @@ class Team(models.Model):
 
 **Methods:**
 - `get_member_count()` - Active members count
+- `get_active_members()` - Queryset of active memberships
 - `has_member(user)` - Check membership
 - `add_user(user, role, added_by)` - Add team member
-- `remove_user(user)` - Remove team member
 
 ### TeamMember
 
@@ -61,15 +61,18 @@ class TeamInvitation(models.Model):
     email = models.EmailField()
     role = models.CharField(max_length=20, choices=ROLE_CHOICES)
     invited_by = models.ForeignKey(User, on_delete=models.CASCADE)
-    token = models.UUIDField(default=uuid.uuid4, unique=True)
+    token = models.CharField(max_length=64, unique=True, editable=False)
     status = models.CharField(max_length=20, default='pending')
     expires_at = models.DateTimeField()
     created_at = models.DateTimeField(auto_now_add=True)
 ```
 
+The token is generated on save with `secrets.token_urlsafe(32)`, and `expires_at` defaults to 7 days from creation.
+
 **Methods:**
-- `is_valid()` - Check if not expired or accepted
-- `accept(user)` - Accept invitation
+- `is_valid()` - Check if still pending and not expired
+- `accept(user)` - Accept invitation and create membership
+- `decline()` - Decline invitation
 - `send_invitation_email()` - Send invite email
 
 ## Usage
@@ -108,7 +111,7 @@ invitation = TeamInvitation.objects.create(
     email="colleague@example.com",
     role="member",
     invited_by=request.user,
-    expires_at=timezone.now() + timedelta(days=7)
+    # token and expires_at (7 days) are set automatically on save
 )
 
 # Send invitation email
@@ -149,18 +152,19 @@ if membership and membership.is_admin():
 
 ### Require Team Membership
 
+The mixins resolve the team from the `team_slug` URL kwarg and set `self.team` and `self.team_member` on the view:
+
 ```python
 from django.views.generic import ListView
 from apps.teams.permissions import TeamMemberRequiredMixin
 
+# URL pattern must include <slug:team_slug>
 class ProjectListView(TeamMemberRequiredMixin, ListView):
     model = Project
-    
+
     def get_queryset(self):
-        # Filtered to current team
-        return super().get_queryset().filter(
-            team=self.request.team
-        )
+        # Filtered to the team from the URL
+        return super().get_queryset().filter(team=self.team)
 ```
 
 ### Require Admin Role
@@ -200,22 +204,21 @@ Django Keel includes automatic signal handlers:
 
 ```python
 # Teams
-/teams/                          # List teams
-/teams/create/                   # Create team
-/teams/<slug>/                   # Team detail
-/teams/<slug>/edit/              # Edit team
-/teams/<slug>/delete/            # Delete team
+/teams/                                # List teams
+/teams/create/                         # Create team
+/teams/<team_slug>/                    # Team detail (includes member list)
+/teams/<team_slug>/edit/               # Edit team
+/teams/<team_slug>/delete/             # Delete team
 
 # Members
-/teams/<slug>/members/           # List members
-/teams/<slug>/members/add/       # Add member
-/teams/<slug>/members/<id>/edit/ # Edit member role
-/teams/<slug>/members/<id>/remove/ # Remove member
+/teams/<team_slug>/members/<member_id>/edit/    # Edit member role
+/teams/<team_slug>/members/<member_id>/remove/  # Remove member
+/teams/<team_slug>/leave/                       # Leave team
 
 # Invitations
-/teams/<slug>/invite/            # Invite member
-/invitations/<token>/accept/     # Accept invitation
-/invitations/<token>/decline/    # Decline invitation
+/teams/<team_slug>/invite/             # Invite member
+/teams/invitations/<token>/accept/     # Accept invitation
+/teams/invitations/<token>/decline/    # Decline invitation
 ```
 
 ## Templates
@@ -225,12 +228,14 @@ Django Keel provides base templates you can customize:
 ```
 templates/teams/
 ├── team_list.html
-├── team_detail.html
 ├── team_form.html
-├── member_list.html
-├── member_form.html
+├── team_detail.html
+├── team_confirm_delete.html
 ├── invitation_form.html
-└── invitation_accept.html
+├── member_form.html
+└── emails/
+    ├── invitation.txt
+    └── invitation.html
 ```
 
 ## Testing

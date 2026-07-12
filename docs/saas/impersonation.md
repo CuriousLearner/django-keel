@@ -92,12 +92,18 @@ urlpatterns = [
 
 #### Via Admin Action
 
-Django admin includes an action to impersonate from user list:
+An `impersonate_user_admin_action` helper is defined in `apps/users/impersonation.py`, but it is not registered on the user admin by default. To enable it, add it to `UserAdmin` in `apps/users/admin.py`:
 
-1. Go to Django admin → Users
-2. Select user to impersonate (only one)
-3. Choose "Impersonate selected user" action
-4. You'll be redirected to the app as that user
+```python
+from apps.users.impersonation import impersonate_user_admin_action
+
+@admin.register(User)
+class UserAdmin(BaseUserAdmin):
+    actions = [impersonate_user_admin_action]
+    ...
+```
+
+Then select exactly one user in the admin list and run "Impersonate selected user".
 
 #### Programmatically
 
@@ -645,7 +651,8 @@ class CustomImpersonationMiddleware(ImpersonationMiddleware):
 ### Admin Action
 
 **`impersonate_user_admin_action`**
-- Admin action to impersonate from user list
+- Admin action helper to impersonate from the user list
+- Not registered by default - add it to `UserAdmin.actions` yourself
 - Select exactly one user
 
 ## Further Reading

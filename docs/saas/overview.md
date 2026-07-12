@@ -10,7 +10,6 @@ Full multi-tenancy with role-based access control (RBAC).
 - **Roles**: Owner, Admin, Member
 - **Team Invitations**: Email-based with secure tokens
 - **Per-Seat Billing**: Automatic Stripe quantity updates
-- **Audit Logging**: Track all team actions
 
 [Learn more →](teams.md)
 
@@ -34,9 +33,9 @@ Production-ready subscription billing with two modes.
 ### 🔒 Feature Gating
 Control access to features based on subscription plans.
 
-- `@subscription_required` - Require active subscription
-- `@feature_required` - Check for specific features
-- `@plan_required` - Enforce plan tiers
+- `@subscription_required()` - Require active subscription
+- `@feature_required("advanced_reports")` - Check for specific features
+- `@plan_required("pro", "enterprise")` - Enforce plan tiers
 - Usage limit checking
 - Class-based view mixins
 
@@ -107,9 +106,12 @@ Add to `.env`:
 
 ```bash
 # Stripe Keys (get from https://dashboard.stripe.com/test/apikeys)
-STRIPE_PUBLIC_KEY=pk_test_...
-STRIPE_SECRET_KEY=sk_test_...
-STRIPE_WEBHOOK_SECRET=whsec_...
+STRIPE_TEST_PUBLIC_KEY=pk_test_...
+STRIPE_TEST_SECRET_KEY=sk_test_...
+
+# Webhook secret: STRIPE_WEBHOOK_SECRET (basic mode)
+# or DJSTRIPE_WEBHOOK_SECRET (advanced mode)
+DJSTRIPE_WEBHOOK_SECRET=whsec_...
 
 # Stripe Configuration
 STRIPE_LIVE_MODE=False
@@ -126,7 +128,7 @@ just dev
 Use Stripe CLI to forward webhooks:
 
 ```bash
-stripe listen --forward-to localhost:8000/billing/webhooks/stripe/
+stripe listen --forward-to localhost:8000/billing/webhook/stripe/
 ```
 
 ### 6. Create Products & Prices
@@ -147,7 +149,8 @@ erDiagram
     User ||--o{ TeamMember : "belongs to"
     Team ||--o{ TeamMember : "has"
     Team ||--o{ TeamInvitation : "sends"
-    Team ||--o| SubscriptionMetadata : "has"
+    Subscription ||--o| SubscriptionMetadata : "has"
+    Team ||--o{ SubscriptionMetadata : "billed for"
 
     User {
         int id
@@ -182,7 +185,8 @@ erDiagram
 
     SubscriptionMetadata {
         int id
-        int team_id
+        int subscription_id "OneToOne to dj-stripe Subscription"
+        int team_id "nullable, set when Teams enabled"
         json features
         json usage_limits
         json current_usage
@@ -254,7 +258,7 @@ INSTALLED_APPS = [
 **Middleware**:
 ```python
 MIDDLEWARE = [
-    'apps.users.middleware.ImpersonationMiddleware',
+    'apps.users.impersonation.ImpersonationMiddleware',
     'waffle.middleware.WaffleMiddleware',
 ]
 ```
@@ -306,7 +310,7 @@ deployment_targets: kubernetes
 from apps.billing.decorators import subscription_required, feature_required
 from apps.teams.permissions import TeamMemberRequiredMixin
 
-@subscription_required
+@subscription_required()
 @feature_required('advanced_analytics')
 def advanced_report(request):
     # Only users with active subscription
@@ -320,15 +324,14 @@ def advanced_report(request):
 from django.views.generic import ListView
 from apps.teams.permissions import TeamMemberRequiredMixin
 
+# URL pattern must include <slug:team_slug>
 class ProjectListView(TeamMemberRequiredMixin, ListView):
     # Only team members can access
     model = Project
 
     def get_queryset(self):
-        # Automatically filtered to user's team
-        return super().get_queryset().filter(
-            team=self.request.user.current_team
-        )
+        # self.team is set by the mixin from the URL's team_slug
+        return super().get_queryset().filter(team=self.team)
 ```
 
 **Feature flags:**
@@ -347,8 +350,11 @@ else:
 Django Keel includes comprehensive SaaS tests:
 
 ```bash
-# Run all SaaS tests
-just test apps/teams apps/billing
+# Run the full test suite
+just test
+
+# SaaS tests only
+pytest tests/teams tests/billing
 
 # Test coverage
 pytest --cov=apps.teams --cov=apps.billing

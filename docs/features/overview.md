@@ -29,33 +29,45 @@ copier copy gh:CuriousLearner/django-keel my-awesome-project
 You'll be asked a series of questions. Here's an example session:
 
 ```
-🎤 What is your project name? My Awesome Project
+🎤 Project name? My Awesome Project
 🎤 Python package name (slug)? my_awesome_project
-🎤 Brief project description? An awesome Django application
-🎤 Your name? John Doe
-🎤 Your email? john@example.com
+🎤 Project description? An awesome Django application
+🎤 Author name? John Doe
+🎤 Author email? john@example.com
+🎤 Git repository URL (leave empty if not created yet)?
+🎤 Project type? custom
 🎤 Python version? 3.14
+🎤 Django version? 6.0
 🎤 Package manager? uv
 🎤 Database? postgresql
 🎤 Cache backend? redis
 🎤 API framework? drf
 🎤 Frontend approach? htmx-tailwind
-🎤 Include Celery for background tasks? Yes
+🎤 Frontend asset bundling? vite
+🎤 Background task processing? celery
 🎤 Include Django Channels for WebSockets? No
-🎤 Authentication? allauth
+🎤 Authentication backend? allauth
 🎤 Include 2FA (TOTP)? No
-🎤 Observability features? standard
+🎤 Observability level? standard
 🎤 Include Sentry error tracking? Yes
 🎤 Deployment targets? kubernetes
 🎤 Media file storage? aws-s3
 🎤 Security level? standard
 🎤 Use SOPS for encrypted secrets? No
+🎤 Include Teams/Organizations (multi-tenancy)? No
 🎤 Include Stripe payment integration? No
 🎤 Search backend? none
 🎤 Enable internationalization? No
 🎤 CI/CD provider? github-actions
 🎤 Project license? MIT
 ```
+
+Notes:
+
+- `Frontend asset bundling` only appears when the frontend is `htmx-tailwind` (choices: `vite`, `cdn`).
+- `Background task processing` choices: `celery`, `temporal`, `both`, `none`.
+- `Stripe integration mode` (`basic` / `advanced`) is asked when Stripe is enabled.
+- `Deployment targets` is a multi-select; leave it empty for no deployment configs.
 
 ### 3. Start Development
 
@@ -108,7 +120,7 @@ just dev
 - **`aws-ec2-ansible`**: EC2 deployment via Ansible
 - **`kubernetes`**: Full K8s setup with Helm + Kustomize
 
-You can specify multiple targets separated by commas: `render,flyio,docker`
+The question is a multi-select - pick as many targets as you need, or none.
 
 See [Deployment Overview](../deployment/overview.md) for detailed comparison and guides.
 
@@ -243,32 +255,22 @@ See `deploy/k8s/README.md` for detailed instructions.
 
 ### AWS EC2 (Ansible)
 
-1. **Configure inventory**:
+1. **Create an inventory** pointing at your EC2 instance (the playbook targets the `webservers` group):
 
-```bash
-cd deploy/ansible
-cp inventory/hosts.example inventory/hosts
-# Edit with your EC2 details
+```ini
+# inventory/hosts
+[webservers]
+your-ec2-host.example.com ansible_user=ubuntu
 ```
 
-2. **Configure variables**:
+2. **Deploy** (setup and deployment are one playbook):
 
 ```bash
-cp group_vars/all.yml.example group_vars/all.yml
-# Update with your settings
+ansible-playbook -i inventory/hosts playbooks/deploy.yml \
+  --extra-vars "git_repo=git@github.com:you/your-project.git"
 ```
 
-3. **Deploy**:
-
-```bash
-# Initial setup
-ansible-playbook -i inventory/hosts playbooks/setup.yml
-
-# Deploy application
-ansible-playbook -i inventory/hosts playbooks/deploy.yml
-```
-
-See `deploy/ansible/README.md` for detailed instructions.
+See the [AWS EC2 guide](../deployment/aws-ec2.md) for details.
 
 ## Updating from Template
 
@@ -379,9 +381,6 @@ Always add new variables to:
 
 ```bash
 # Collect static
-just collectstatic
-
-# Or manually
 uv run python manage.py collectstatic --noinput
 ```
 
@@ -393,9 +392,6 @@ just docs-serve
 
 # Build
 just docs-build
-
-# Add ADR (Architecture Decision Record)
-# Create file in docs/adr/NNNN-my-decision.md
 ```
 
 ## Troubleshooting
@@ -450,9 +446,8 @@ uv run python manage.py migrate --fake app_name migration_name
 3. **Keep `.env.example` updated** when adding new variables
 4. **Write tests** for new features
 5. **Document in `docs/`** for complex features
-6. **Use ADRs** for architectural decisions
-7. **Tag releases** when deploying
-8. **Monitor** your application in production
+6. **Tag releases** when deploying
+7. **Monitor** your application in production
 
 ## Next Steps
 

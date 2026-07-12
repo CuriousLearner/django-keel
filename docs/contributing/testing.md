@@ -4,7 +4,7 @@ This guide covers testing the Django Keel template itself.
 
 ## Running Template Tests
 
-Django Keel has a comprehensive test suite with 49 tests.
+Django Keel has a comprehensive test suite.
 
 ### Run All Tests
 
@@ -26,7 +26,7 @@ pytest tests/test_generation.py::test_basic_project_generates
 
 ## Test Categories
 
-### Django Integration Tests (16 tests)
+### Django Integration Tests (`test_django_integration.py`)
 
 Tests that verify Django configuration in generated projects:
 
@@ -36,7 +36,7 @@ Tests that verify Django configuration in generated projects:
 - URL routing
 - Templates configuration
 
-### Feature Tests (17 tests)
+### Feature Tests (`test_features.py`)
 
 Tests for optional features:
 
@@ -48,7 +48,7 @@ Tests for optional features:
 - Caching options
 - Deployment targets (Kubernetes, ECS, Fly.io, Render, EC2)
 
-### Generation Tests (16 tests)
+### Generation Tests (`test_generation.py`)
 
 Tests for project generation:
 

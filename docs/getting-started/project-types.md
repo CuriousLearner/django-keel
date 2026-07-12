@@ -1,6 +1,6 @@
 # 🎯 Project Types
 
-Django Keel adapts to your needs with **smart defaults** based on your project type. Choose what you're building and get a fully configured project without answering dozens of questions.
+Django Keel adapts to your needs with **smart defaults** based on your project type. You still see every question, but choosing what you're building pre-fills sensible answers - just press Enter to accept them.
 
 ## Overview
 
@@ -50,7 +50,7 @@ deployment_targets: kubernetes    # Enterprise-scale deployment
 
 - ✅ **Teams/Organizations** - Owner/Admin/Member roles
 - ✅ **Stripe Billing** - Subscriptions, webhooks, customer portal
-- ✅ **Feature Gating** - `@subscription_required`, `@feature_required`
+- ✅ **Feature Gating** - `@subscription_required()`, `@feature_required("advanced_reports")`
 - ✅ **User Impersonation** - Admin can debug user issues
 - ✅ **Feature Flags** - A/B testing with django-waffle
 - ✅ **Professional Emails** - Transactional email templates
@@ -163,7 +163,7 @@ deployment_targets: flyio      # Global edge deployment
 - ✅ **Tailwind CSS** - Utility-first styling
 - ✅ **Alpine.js** - Minimal JavaScript for interactions
 - ✅ **django-allauth** - Social auth, email verification
-- ✅ **Form Handling** - Crispy forms, CSRF protection
+- ✅ **Form Handling** - Django forms with CSRF protection
 - ✅ **Template System** - Django templates with partials
 - ✅ **Celery** - Send emails in background
 
@@ -224,8 +224,6 @@ deployment_targets: aws-ec2-ansible # On-premise friendly
 - ✅ **User Impersonation** - IT can help users debug
 - ✅ **Django Admin** - Powerful admin interface
 - ✅ **Celery** - Generate reports, export data
-- ✅ **Audit Logging** - Track all actions
-- ✅ **LDAP/SSO** - Optional enterprise auth
 
 ### Use Cases
 
@@ -267,10 +265,10 @@ deployment_targets: kubernetes
 ```yaml
 project_type: custom
 
-# No defaults applied - you choose everything!
+# Generic defaults - nothing pre-decided for you
 ```
 
-When you select "custom", Django Keel will ask you about every option:
+Every project type asks the same full set of questions; `project_type` only changes the pre-filled defaults. With "custom" you get generic defaults instead of opinionated ones:
 
 1. **API Framework** - DRF, GraphQL, both, or none
 2. **Frontend** - Next.js, HTMX+Tailwind, or none
@@ -281,7 +279,7 @@ When you select "custom", Django Keel will ask you about every option:
 7. **Stripe** - Payment integration? (basic or advanced)
 8. **Search** - PostgreSQL FTS, OpenSearch, or none
 9. **Observability** - Minimal, standard, or full
-10. **Deployment** - Kubernetes, ECS, Fly.io, Render, EC2, Docker
+10. **Deployment** - Kubernetes, Render, Fly.io, AWS ECS Fargate, AWS EC2, Docker
 11. **And more...**
 
 ### Use Cases

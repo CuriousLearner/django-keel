@@ -46,10 +46,13 @@ When you select `both` during template generation, django-keel sets up both syst
 
 ### Celery Setup
 
-- **Docker Compose**: Redis automatically configured
+When you select Celery, the template generates the Celery app config, example tasks in `apps/core/tasks.py`, and:
+
+- **Docker Compose**: Redis plus Celery worker and beat services
+- **Justfile recipes**: `just celery-worker`, `just celery-beat`, `just celery-flower`
 - **Worker**: `celery -A config worker -l info`
 - **Beat**: `celery -A config beat -l info`
-- **Flower**: Available at `http://localhost:5555`
+- **Flower**: runs as a process alongside the app (docker compose / Procfile), available at `http://localhost:5555`
 
 Environment variables:
 ```bash
