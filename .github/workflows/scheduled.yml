@@ -50,29 +50,6 @@ jobs:
           test -f pyproject.toml
           echo "✅ Project generated successfully"
 
-  dependency-check:
-    name: Check Dependency Updates
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-
-      - name: Set up Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: "3.14"
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e ".[dev]"
-
-      - name: Check for outdated packages
-        run: pip list --outdated
-
-      - name: Run pip-audit
-        run: pip-audit --desc
-        continue-on-error: true
-
   link-checker:
     name: Check Documentation Links
     runs-on: ubuntu-latest
@@ -92,15 +69,19 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: Check for TODO/FIXME comments
-        run: |
-          echo "Checking for TODO/FIXME comments..."
-          grep -r "TODO\|FIXME" template/ --include="*.py" --include="*.jinja" || echo "No TODOs found"
-
       - name: Check for debug statements
         run: |
           echo "Checking for debug statements..."
-          grep -r "print(\|pdb\|breakpoint()" template/ --include="*.py" && exit 1 || echo "No debug statements found"
+          status=0
+          grep -r "print(\|pdb\|breakpoint()" template/ --include="*.py" --include="*.py.jinja" || status=$?
+          if [ "$status" -eq 0 ]; then
+            echo "Debug statements found"
+            exit 1
+          elif [ "$status" -ne 1 ]; then
+            echo "grep failed (exit $status)"
+            exit "$status"
+          fi
+          echo "No debug statements found"
 
       - name: Verify all Jinja files are valid
         run: |
@@ -150,7 +131,7 @@ jobs:
 
   notify:
     name: Notify on Failure
-    needs: [full-matrix-test, dependency-check, link-checker, template-consistency, performance-test]
+    needs: [full-matrix-test, link-checker, template-consistency, performance-test]
     runs-on: ubuntu-latest
     if: failure()
     permissions:

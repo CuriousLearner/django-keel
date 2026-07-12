@@ -61,8 +61,8 @@ def test_channels_asgi_when_enabled(generate):
 
     assert "channels" in content
     assert "ASGI_APPLICATION" in content
-    # Should not have WSGI when channels enabled
-    assert "WSGI_APPLICATION" not in content or content.count("ASGI_APPLICATION") > 0
+    # Channels replaces WSGI entirely
+    assert "WSGI_APPLICATION" not in content
 
 
 def test_wsgi_when_channels_disabled(generate):

@@ -65,11 +65,11 @@ pytest -n auto
 ### Run Specific Tests
 
 ```bash
-# Run a specific test class
-pytest tests/test_features.py::TestCeleryFeature
+# Run a specific test function
+pytest tests/test_features.py::test_celery_files_generated_when_enabled
 
-# Run a specific test method
-pytest tests/test_features.py::TestCeleryFeature::test_celery_files_generated_when_enabled
+# Skip slow tests (e.g. the boot test that installs dependencies)
+pytest -m "not slow"
 ```
 
 ## Test Categories
@@ -111,7 +111,7 @@ Tests that verify feature-specific behavior and conditional logic - all function
 ```python
 def test_celery_files_generated_when_enabled(generate):
     """Test that Celery configuration is generated when enabled."""
-    project = generate(use_celery=True)
+    project = generate(background_tasks="celery")
     assert (project / "config/celery.py").exists()
 ```
 
@@ -129,10 +129,14 @@ Tests that verify Django-specific functionality - all function-based:
 
 **Example:**
 ```python
-def test_django_check_passes(generate, copier_answers):
-    """Test that Django system check passes on generated project."""
+import pytest
+
+
+@pytest.mark.slow
+def test_django_check_passes(generate):
+    """Boot test: install deps with uv, then run manage.py check."""
     project = generate()
-    # ... run manage.py check
+    # ... uv sync, then uv run --no-sync python manage.py check
     assert result.returncode == 0
 ```
 
@@ -154,7 +158,7 @@ def test_custom_configuration(generate):
     project = generate(
         api_style="drf",
         frontend="htmx-tailwind",
-        use_celery=True
+        background_tasks="celery"
     )
 
     # Verify generated files
@@ -199,40 +203,40 @@ Focus on **what** the feature does, not **how** it's implemented:
 
 ```python
 # Good: Behavioral
-def test_celery_tasks_can_be_defined(self, generate):
+def test_celery_tasks_can_be_defined(generate):
     """Test that projects can define Celery tasks."""
 
 # Avoid: Implementation-focused
-def test_celery_imports_specific_module(self, generate):
+def test_celery_imports_specific_module(generate):
     """Test that celery.py imports X from Y."""
 ```
 
 ### 2. Test Each Feature Independently
 
 ```python
-def test_stripe_without_celery(self, generate):
+def test_stripe_without_celery(generate):
     """Test Stripe works independently."""
-    project = generate(use_stripe=True, use_celery=False)
+    project = generate(use_stripe=True, background_tasks="none")
     # ...
 ```
 
 ### 3. Test Feature Combinations
 
 ```python
-def test_stripe_with_celery(self, generate):
+def test_stripe_with_celery(generate):
     """Test Stripe and Celery work together."""
-    project = generate(use_stripe=True, use_celery=True)
+    project = generate(use_stripe=True, background_tasks="celery")
     # ...
 ```
 
 ### 4. Verify Both Positive and Negative Cases
 
 ```python
-def test_feature_enabled(self, generate):
+def test_feature_enabled(generate):
     """Test feature when enabled."""
     # ...
 
-def test_feature_disabled(self, generate):
+def test_feature_disabled(generate):
     """Test feature when disabled."""
     # ...
 ```
