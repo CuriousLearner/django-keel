@@ -289,7 +289,7 @@ record_usage(subscription, metric='api_calls', quantity=1)
 
 ### Usage Model
 
-`UsageRecord` (`apps/billing/models.py`) has four fields: `subscription` (FK to dj-stripe `Subscription`), `metric`, `quantity`, and an auto-set `timestamp`.
+`UsageRecord` (`apps/billing/models.py`) has five fields: `subscription` (FK to dj-stripe `Subscription`), `metric`, `quantity`, an auto-set `timestamp`, and a `metadata` JSONField for arbitrary extra context.
 
 ```python
 from apps.billing.models import UsageRecord
