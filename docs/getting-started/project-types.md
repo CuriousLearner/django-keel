@@ -50,7 +50,7 @@ deployment_targets: kubernetes    # Enterprise-scale deployment
 
 - ✅ **Teams/Organizations** - Owner/Admin/Member roles
 - ✅ **Stripe Billing** - Subscriptions, webhooks, customer portal
-- ✅ **Feature Gating** - `@subscription_required()`, `@feature_required()`
+- ✅ **Feature Gating** - `@subscription_required()`, `@feature_required("advanced_reports")`
 - ✅ **User Impersonation** - Admin can debug user issues
 - ✅ **Feature Flags** - A/B testing with django-waffle
 - ✅ **Professional Emails** - Transactional email templates

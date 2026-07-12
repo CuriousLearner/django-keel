@@ -34,8 +34,8 @@ Production-ready subscription billing with two modes.
 Control access to features based on subscription plans.
 
 - `@subscription_required()` - Require active subscription
-- `@feature_required()` - Check for specific features
-- `@plan_required()` - Enforce plan tiers
+- `@feature_required("advanced_reports")` - Check for specific features
+- `@plan_required("pro", "enterprise")` - Enforce plan tiers
 - Usage limit checking
 - Class-based view mixins
 
@@ -150,6 +150,7 @@ erDiagram
     Team ||--o{ TeamMember : "has"
     Team ||--o{ TeamInvitation : "sends"
     Subscription ||--o| SubscriptionMetadata : "has"
+    Team ||--o{ SubscriptionMetadata : "billed for"
 
     User {
         int id
@@ -184,7 +185,8 @@ erDiagram
 
     SubscriptionMetadata {
         int id
-        string subscription_id
+        int subscription_id "OneToOne to dj-stripe Subscription"
+        int team_id "nullable, set when Teams enabled"
         json features
         json usage_limits
         json current_usage

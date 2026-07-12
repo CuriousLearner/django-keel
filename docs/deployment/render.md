@@ -49,7 +49,7 @@ services:
         value: config.settings.prod
       - key: PYTHON_VERSION
         value: "3.14"
-      - key: SECRET_KEY
+      - key: DJANGO_SECRET_KEY
         generateValue: true
       - key: DEBUG
         value: False
