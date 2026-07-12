@@ -17,7 +17,16 @@ Fly.io runs your application close to users worldwide with:
 
 - Fly.io account (free tier available)
 - Fly CLI installed
-- `deployment_targets: [flyio]` selected during generation
+- `flyio` selected in `deployment_targets` during generation
+
+## What's Generated
+
+A ready-to-use `fly.toml` at the project root, plus helper scripts in `deploy/flyio/`:
+
+- `deploy.sh` - deployment automation
+- `setup_env.sh` - interactive secrets setup (walks you through `fly secrets set`)
+- `manage_db.sh` - database management utilities
+- `health_check.py` - health check helper for monitoring
 
 ## Installation
 
@@ -50,56 +59,68 @@ From your project directory:
 fly launch
 ```
 
-Fly.io will:
-1. Detect your Django app
-2. Generate `fly.toml` configuration
-3. Prompt for app name and region
-4. Create PostgreSQL database (optional)
-5. Create Redis instance (optional)
+Django Keel already generated a `fly.toml`, so let `fly launch` reuse the existing configuration when prompted. Fly.io will:
+
+1. Prompt for app name and region
+2. Create PostgreSQL database (optional)
+3. Create Redis instance (optional)
 
 ### 2. Configure fly.toml
 
-Generated `fly.toml`:
+The generated `fly.toml` looks like this (Django Keel builds from the project's `Dockerfile`):
 
 ```toml
-app = "your-app-name"
-primary_region = "sjc"  # San Jose
+app = "your_project"
+primary_region = "iad"  # Washington D.C. - change as needed
 
 [build]
-  builder = "paketobuildpacks/builder:base"
+
+[deploy]
+  release_command = "python manage.py migrate --noinput"
 
 [env]
-  PORT = "8000"
   DJANGO_SETTINGS_MODULE = "config.settings.prod"
+  PORT = "8000"
 
-[[services]]
+[http_service]
   internal_port = 8000
-  protocol = "tcp"
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 1
+  processes = ["app"]
 
-  [[services.ports]]
-    port = 80
-    handlers = ["http"]
+  [http_service.concurrency]
+    type = "connections"
+    hard_limit = 25
+    soft_limit = 20
 
-  [[services.ports]]
-    port = 443
-    handlers = ["tls", "http"]
+[[http_service.checks]]
+  grace_period = "10s"
+  interval = "30s"
+  method = "GET"
+  timeout = "5s"
+  path = "/health/"
 
-  [[services.http_checks]]
-    interval = "10s"
-    timeout = "2s"
-    grace_period = "5s"
-    method = "GET"
-    path = "/health/"
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "256mb"
+
+[[statics]]
+  guest_path = "/app/staticfiles"
+  url_prefix = "/static/"
 ```
 
 ### 3. Set Secrets
+
+The interactive `deploy/flyio/setup_env.sh` script can walk you through this. Manually:
 
 ```bash
 # Required
 fly secrets set DJANGO_SECRET_KEY=$(python -c 'from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())')
 
 fly secrets set DEBUG=False
-fly secrets set ALLOWED_HOSTS=your-app.fly.dev
+fly secrets set DJANGO_ALLOWED_HOSTS=your-app.fly.dev
 
 # If using AWS S3
 fly secrets set AWS_ACCESS_KEY_ID=your-key
@@ -110,8 +131,9 @@ fly secrets set AWS_STORAGE_BUCKET_NAME=your-bucket
 fly secrets set SENTRY_DSN=your-sentry-dsn
 
 # If using Stripe
-fly secrets set STRIPE_PUBLIC_KEY=your-public-key
-fly secrets set STRIPE_SECRET_KEY=your-secret-key
+fly secrets set STRIPE_LIVE_PUBLIC_KEY=pk_live_...
+fly secrets set STRIPE_LIVE_SECRET_KEY=sk_live_...
+fly secrets set STRIPE_LIVE_MODE=True
 ```
 
 ### 4. Deploy
@@ -179,42 +201,22 @@ Fly.io automatically routes users to the nearest region.
 
 ## Adding Background Workers
 
-### Celery Worker
+### Celery Worker and Beat
 
-Create `fly.worker.toml`:
+Add process groups to `fly.toml` so worker and beat machines run from the same image:
 
 ```toml
-app = "your-app-worker"
-
-[build]
-  builder = "paketobuildpacks/builder:base"
-
-[deploy]
-  release_command = "python manage.py migrate"
-
-[[services]]
-  internal_port = 8080
-  protocol = "tcp"
+[processes]
+  app = "gunicorn config.wsgi:application --bind 0.0.0.0:8000"
+  worker = "celery -A config worker -l info"
+  beat = "celery -A config beat -l info"
 ```
 
-Add Procfile for worker:
-
-```
-worker: celery -A config worker -l info
-```
-
-Deploy worker:
+Make sure `[http_service]` keeps `processes = ["app"]` so only web machines receive traffic, then:
 
 ```bash
-fly deploy -c fly.worker.toml
-```
-
-### Celery Beat
-
-Similar setup for scheduled tasks:
-
-```
-beat: celery -A config beat -l info
+fly deploy
+fly scale count app=2 worker=1 beat=1
 ```
 
 ## Volumes for Persistent Storage
@@ -319,28 +321,29 @@ fly scale count 2 --region sjc
 fly scale count 2 --region ams
 ```
 
-### Auto-scaling
+### Auto Start/Stop
+
+The generated `fly.toml` uses Fly's machine auto start/stop:
 
 ```toml
-# fly.toml
-[[services]]
-  internal_port = 8000
-
-  [[services.autoscaling]]
-    min_instances = 2
-    max_instances = 10
+[http_service]
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 1
 ```
+
+Machines stop when idle and start on incoming traffic. Raise `min_machines_running` to keep more machines warm.
 
 ## Health Checks
 
-Fly.io uses your `/health/` endpoint:
+Fly.io uses your `/health/` endpoint (already configured in the generated `fly.toml`):
 
 ```toml
-[[services.http_checks]]
-  interval = "10s"
-  timeout = "2s"
-  grace_period = "5s"
+[[http_service.checks]]
+  grace_period = "10s"
+  interval = "30s"
   method = "GET"
+  timeout = "5s"
   path = "/health/"
 ```
 

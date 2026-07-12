@@ -100,7 +100,7 @@ docker build -t test-project:latest .
 docker run -p 8000:8000 \
   -e DATABASE_URL=sqlite:///db.sqlite3 \
   -e DJANGO_SECRET_KEY=test-secret-key-change-in-production \
-  -e DJANGO_DEBUG=False \
+  -e DEBUG=False \
   test-project:latest
 ```
 

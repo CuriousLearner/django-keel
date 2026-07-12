@@ -24,33 +24,39 @@ copier copy gh:CuriousLearner/django-keel my-awesome-project
 Copier will ask you a series of questions. Here's a recommended configuration for your first project:
 
 ```
-🎤 What is your project name? My Awesome Project
+🎤 Project name? My Awesome Project
 🎤 Python package name (slug)? my_awesome_project
-🎤 Brief project description? My first Django Keel project
-🎤 Your name? Your Name
-🎤 Your email? your.email@example.com
+🎤 Project description? My first Django Keel project
+🎤 Author name? Your Name
+🎤 Author email? your.email@example.com
+🎤 Git repository URL (leave empty if not created yet)?
+🎤 Project type? custom
 🎤 Python version? 3.12
+🎤 Django version? 6.0
 🎤 Package manager? uv
 🎤 Database? postgresql
 🎤 Cache backend? redis
 🎤 API framework? drf
 🎤 Frontend approach? none
-🎤 Include Celery for background tasks? No
+🎤 Background task processing? none
 🎤 Include Django Channels for WebSockets? No
-🎤 Authentication? allauth
+🎤 Authentication backend? allauth
 🎤 Include 2FA (TOTP)? No
-🎤 Observability features? minimal
+🎤 Observability level? minimal
 🎤 Include Sentry error tracking? No
-🎤 Deployment targets? none
+🎤 Deployment targets? (leave the multi-select empty)
 🎤 Media file storage? local-whitenoise
 🎤 Security level? standard
 🎤 Use SOPS for encrypted secrets? No
+🎤 Include Teams/Organizations (multi-tenancy)? No
 🎤 Include Stripe payment integration? No
 🎤 Search backend? none
 🎤 Enable internationalization? No
 🎤 CI/CD provider? github-actions
 🎤 Project license? MIT
 ```
+
+A few prompts are conditional: `Frontend asset bundling` (vite/cdn) only appears for the HTMX + Tailwind frontend, and `Stripe integration mode` (basic/advanced) only appears when Stripe is enabled.
 
 ### 3. Navigate to Your Project
 

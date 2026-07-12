@@ -29,24 +29,10 @@ nav:
   - Home: index.md
   - Getting Started:
       - Installation: getting-started/installation.md
-      - Configuration: getting-started/configuration.md
-      - Deployment: getting-started/deployment.md
   - Development:
       - Testing: development/testing.md
   - Architecture:
       - Overview: architecture/overview.md
-      - Decisions: adr/
-  - API:
-      - Overview: api/overview.md
-{% if 'kubernetes' in deployment_targets %}
-  - Kubernetes:
-      - Setup: kubernetes/setup.md
-      - Monitoring: kubernetes/monitoring.md
-{% endif -%}
-{% if 'aws-ec2-ansible' in deployment_targets %}
-  - AWS EC2:
-      - Deployment: aws/ec2-deployment.md
-{% endif -%}
 
 markdown_extensions:
   - admonition

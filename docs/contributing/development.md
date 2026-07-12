@@ -54,7 +54,7 @@ pytest --cov
 pytest tests/test_generation.py::test_basic_project_generates
 ```
 
-All tests must pass before merging. We currently have 49 tests with 100% pass rate.
+All tests must pass before merging.
 
 ## Making Changes
 
@@ -115,11 +115,11 @@ git commit -m "docs: update installation guide"
 
 ```
 django-keel/
-├── tests/              # Test suite (49 tests)
+├── tests/              # Test suite
 │   ├── test_django_integration.py
 │   ├── test_features.py
 │   └── test_generation.py
-├── template/           # Copier template files (80+ files)
+├── template/           # Copier template files
 ├── CHANGELOG.md        # Version history
 ├── pyproject.toml      # Dependencies, tool config (ruff, pytest)
 └── copier.yml         # Template configuration

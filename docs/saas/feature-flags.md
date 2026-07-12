@@ -122,7 +122,13 @@ flag.users.add(user)
 
 ### Via Management Command
 
-Django Keel provides helper commands:
+Django Keel ships an `init_feature_flags` command that creates a default set of flags (e.g. `beta_features`, `api_v2`), switches (e.g. `maintenance_mode`, `read_only_mode`), and samples (e.g. `new_ui_rollout`):
+
+```bash
+python manage.py init_feature_flags
+```
+
+django-waffle's own commands also work:
 
 ```bash
 # Create a flag
@@ -482,28 +488,78 @@ def get_flag_status(request, flag_name):
 
 ## API Reference
 
-### Helper Functions
+Django Keel provides helpers in `apps/core/feature_flags.py`.
 
-Django Keel provides helper functions in `apps/core/feature_flags.py`:
+### Helper Functions
 
 ```python
 from apps.core.feature_flags import (
     is_feature_enabled,
-    get_active_features,
-    enable_feature_for_user,
+    is_switch_enabled,
+    is_in_sample,
 )
 
-# Check if feature is enabled
-if is_feature_enabled('new_dashboard', user=request.user):
+# Check a flag - pass the request, or a user when no request is available
+if is_feature_enabled('new_dashboard', request=request):
     show_new_dashboard()
 
-# Get all active features for user
-features = get_active_features(request.user)
-# Returns: {'new_dashboard': True, 'dark_mode': False, ...}
+if is_feature_enabled('new_dashboard', user=some_user):
+    ...
 
-# Enable feature for specific user
-enable_feature_for_user('beta_access', user)
+# Check a switch (global on/off)
+if is_switch_enabled('maintenance_mode'):
+    ...
+
+# Check a sample (percentage rollout)
+if is_in_sample('new_ui_rollout', request):
+    ...
 ```
+
+### Decorators
+
+```python
+from apps.core.feature_flags import feature_flag, feature_switch, feature_sample
+
+@feature_flag('new_dashboard', redirect_to='/pricing/')
+def new_dashboard_view(request):
+    ...
+
+@feature_switch('maintenance_mode', redirect_to='/maintenance/')
+def gated_view(request):
+    ...
+
+@feature_sample('new_ui_rollout')
+def new_ui_view(request):
+    ...
+```
+
+Each accepts `redirect_to`, `message`, and (for `feature_flag`/`feature_switch`) `ajax_response` to return JSON instead of redirecting.
+
+### Mixins
+
+```python
+from apps.core.feature_flags import (
+    FeatureFlagMixin,
+    FeatureSwitchMixin,
+    FeatureSampleMixin,
+)
+
+class MyView(FeatureFlagMixin, TemplateView):
+    feature_flag_name = 'new_feature'
+    feature_redirect_url = '/pricing/'
+
+class ApiView(FeatureSwitchMixin, View):
+    feature_switch_name = 'api_enabled'
+
+class NewCheckoutView(FeatureSampleMixin, View):
+    feature_sample_name = 'new_checkout'
+    feature_redirect_url = '/checkout/'
+```
+
+### Other Helpers
+
+- `get_feature_flags_for_template(request)` - returns `{"feature_flags": {...}}` for template context
+- `create_default_flags()` / `create_default_switches()` / `create_default_samples()` - used by the `init_feature_flags` management command
 
 ## Further Reading
 
