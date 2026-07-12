@@ -398,9 +398,7 @@ def test_helm_chart_structure(generate):
 
 def test_render_yaml_is_valid_yaml_with_redis(generate):
     """Test that render.yaml parses as YAML with redis and celery enabled."""
-    project = generate(
-        cache="redis", background_tasks="celery", deployment_targets=["render"]
-    )
+    project = generate(cache="redis", background_tasks="celery", deployment_targets=["render"])
 
     blueprint = yaml.safe_load((project / "render.yaml").read_text())
     service_types = [s["type"] for s in blueprint["services"]]
