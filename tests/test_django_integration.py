@@ -28,7 +28,7 @@ def test_django_check_passes(generate):
         capture_output=True,
         text=True,
     )
-    assert sync.returncode == 0, f"uv sync failed:\n{sync.stderr}"
+    assert sync.returncode == 0, f"uv sync failed:\n{sync.stdout}\n{sync.stderr}"
 
     result = subprocess.run(
         ["uv", "run", "--no-sync", "python", "manage.py", "check"],

@@ -133,7 +133,7 @@ Tests that verify Django-specific functionality - all function-based:
 def test_django_check_passes(generate):
     """Boot test: install deps with uv, then run manage.py check."""
     project = generate()
-    # ... uv sync, then .venv/bin/python manage.py check
+    # ... uv sync, then uv run --no-sync python manage.py check
     assert result.returncode == 0
 ```
 
