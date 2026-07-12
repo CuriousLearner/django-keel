@@ -10,8 +10,10 @@ resources:
 replicas:
   - name: {{ project_slug | replace("_", "-") }}-web
     count: 1
+{% if background_tasks in ['celery', 'both'] %}
   - name: {{ project_slug | replace("_", "-") }}-celery-worker
     count: 1
+{% endif %}
 
 # Development-specific patches
 patches:

@@ -2,7 +2,7 @@ services:
   web:
     build: .
     user: "${UID:-1000}:${GID:-1000}"
-    command: {% if dependency_manager == 'uv' %}uv run {% endif %}gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 2 --reload
+    command: {% if dependency_manager == 'uv' %}uv run {% endif %}{% if use_channels %}daphne -b 0.0.0.0 -p 8000 config.asgi:application{% else %}gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 2 --reload{% endif %}
     volumes:
       - .:/app
     ports:
@@ -10,7 +10,7 @@ services:
     depends_on:
       db:
         condition: service_healthy
-{% if cache == 'redis' %}
+{% if cache == 'redis' or background_tasks in ['celery', 'both'] %}
       redis:
         condition: service_healthy
 {% endif %}
@@ -22,6 +22,9 @@ services:
 {% endif %}
 {% if cache == 'redis' %}
       - REDIS_URL=redis://redis:6379/0
+{% endif %}
+{% if background_tasks in ['celery', 'both'] %}
+      - CELERY_BROKER_URL=redis://redis:6379/1
 {% endif %}
       - EMAIL_HOST=mailpit
       - EMAIL_PORT=1025
@@ -49,7 +52,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-{% if cache == 'redis' %}
+{% if cache == 'redis' or background_tasks in ['celery', 'both'] %}
 
   redis:
     image: redis:7-alpine
@@ -62,6 +65,66 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+{% endif %}
+{% if background_tasks in ['celery', 'both'] %}
+
+  celery-worker:
+    build: .
+    user: "${UID:-1000}:${GID:-1000}"
+    command: {% if dependency_manager == 'uv' %}uv run {% endif %}celery -A config worker --loglevel=info
+    volumes:
+      - .:/app
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      - DEBUG=True
+      - DJANGO_SECRET_KEY=django-insecure-docker-dev-key
+{% if database == 'postgresql' %}
+      - DATABASE_URL=postgresql://{{ project_slug }}_user:{{ project_slug }}_password@db:5432/{{ project_slug }}_db
+{% endif %}
+{% if cache == 'redis' %}
+      - REDIS_URL=redis://redis:6379/0
+{% endif %}
+      - CELERY_BROKER_URL=redis://redis:6379/1
+      - EMAIL_HOST=mailpit
+      - EMAIL_PORT=1025
+{% if dependency_manager == 'uv' %}
+      - UV_NO_CACHE=1
+{% endif %}
+    env_file:
+      - .env
+
+  celery-beat:
+    build: .
+    user: "${UID:-1000}:${GID:-1000}"
+    command: {% if dependency_manager == 'uv' %}uv run {% endif %}celery -A config beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    volumes:
+      - .:/app
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      - DEBUG=True
+      - DJANGO_SECRET_KEY=django-insecure-docker-dev-key
+{% if database == 'postgresql' %}
+      - DATABASE_URL=postgresql://{{ project_slug }}_user:{{ project_slug }}_password@db:5432/{{ project_slug }}_db
+{% endif %}
+{% if cache == 'redis' %}
+      - REDIS_URL=redis://redis:6379/0
+{% endif %}
+      - CELERY_BROKER_URL=redis://redis:6379/1
+      - EMAIL_HOST=mailpit
+      - EMAIL_PORT=1025
+{% if dependency_manager == 'uv' %}
+      - UV_NO_CACHE=1
+{% endif %}
+    env_file:
+      - .env
 {% endif %}
 
   mailpit:
@@ -77,6 +140,7 @@ services:
     volumes:
       - ./frontend:/app/frontend
       - ./static:/app/static
+      - ./templates:/app/templates
     ports:
       - "5173:5173"
     command: sh -c "npm ci && npm run dev"
@@ -88,16 +152,13 @@ services:
     depends_on:
       - db
     environment:
-      - DB=postgresql
+      - DB=postgres12
       - DB_PORT=5432
       - POSTGRES_USER={{ project_slug }}_user
       - POSTGRES_PWD={{ project_slug }}_password
       - POSTGRES_SEEDS=db
-      - DYNAMIC_CONFIG_FILE_PATH=config/dynamicconfig/development-sql.yaml
     ports:
       - "7233:7233"
-    volumes:
-      - ./temporal/dynamicconfig:/etc/temporal/config/dynamicconfig
     healthcheck:
       test: ["CMD", "temporal", "workflow", "list", "--address", "temporal:7233"]
       interval: 10s
@@ -117,7 +178,7 @@ services:
   temporal-worker:
     build: .
     user: "${UID:-1000}:${GID:-1000}"
-    command: python manage.py run_temporal_worker
+    command: {% if dependency_manager == 'uv' %}uv run {% endif %}python manage.py run_temporal_worker
     depends_on:
       - temporal
       - db
@@ -146,6 +207,6 @@ services:
 
 volumes:
   postgres_data:
-{% if cache == 'redis' %}
+{% if cache == 'redis' or background_tasks in ['celery', 'both'] %}
   redis_data:
 {% endif %}

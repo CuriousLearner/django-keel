@@ -7,6 +7,7 @@ Usage:
 
 import asyncio
 
+from django.conf import settings
 from django.core.management.base import BaseCommand
 from temporalio.client import Client
 from temporalio.worker import Worker
@@ -25,14 +26,14 @@ class Command(BaseCommand):
         parser.add_argument(
             "--task-queue",
             type=str,
-            default="{{ project_slug }}-tasks",
-            help="Temporal task queue name (default: {{ project_slug }}-tasks)",
+            default=settings.TEMPORAL_TASK_QUEUE,
+            help="Temporal task queue name (default: settings.TEMPORAL_TASK_QUEUE)",
         )
         parser.add_argument(
             "--temporal-address",
             type=str,
-            default="localhost:7233",
-            help="Temporal server address (default: localhost:7233)",
+            default=settings.TEMPORAL_ADDRESS,
+            help="Temporal server address (default: settings.TEMPORAL_ADDRESS)",
         )
 
     def handle(self, *args, **options):

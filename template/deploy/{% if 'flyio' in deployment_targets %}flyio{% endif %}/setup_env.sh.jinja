@@ -64,7 +64,7 @@ export FLY_REGION="iad"
 # Django Settings
 export DJANGO_SECRET_KEY=""
 export DEBUG="False"
-export ALLOWED_HOSTS=""
+export DJANGO_ALLOWED_HOSTS=""
 
 {% if use_sentry -%}
 # Sentry Configuration
@@ -130,9 +130,9 @@ interactive_setup() {
     read -r CUSTOM_DOMAIN
 
     if [ -n "$CUSTOM_DOMAIN" ]; then
-        ALLOWED_HOSTS="$APP_NAME.fly.dev,$CUSTOM_DOMAIN,www.$CUSTOM_DOMAIN"
+        DJANGO_ALLOWED_HOSTS="$APP_NAME.fly.dev,$CUSTOM_DOMAIN,www.$CUSTOM_DOMAIN"
     else
-        ALLOWED_HOSTS="$APP_NAME.fly.dev"
+        DJANGO_ALLOWED_HOSTS="$APP_NAME.fly.dev"
     fi
 
     {% if use_sentry -%}
@@ -203,7 +203,7 @@ export FLY_REGION="$FLY_REGION"
 # Django Settings
 export DJANGO_SECRET_KEY="$DJANGO_SECRET_KEY"
 export DEBUG="False"
-export ALLOWED_HOSTS="$ALLOWED_HOSTS"
+export DJANGO_ALLOWED_HOSTS="$DJANGO_ALLOWED_HOSTS"
 
 {% if use_sentry -%}
 # Sentry Configuration
@@ -259,7 +259,7 @@ apply_to_fly() {
     secrets_cmd="$secrets_cmd DJANGO_SECRET_KEY='$DJANGO_SECRET_KEY'"
     secrets_cmd="$secrets_cmd DJANGO_SETTINGS_MODULE='config.settings.prod'"
     secrets_cmd="$secrets_cmd DEBUG='False'"
-    secrets_cmd="$secrets_cmd ALLOWED_HOSTS='$ALLOWED_HOSTS'"
+    secrets_cmd="$secrets_cmd DJANGO_ALLOWED_HOSTS='$DJANGO_ALLOWED_HOSTS'"
 
     {% if use_sentry -%}
     if [ -n "${SENTRY_DSN:-}" ]; then
