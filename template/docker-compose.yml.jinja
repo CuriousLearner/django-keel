@@ -148,6 +148,19 @@ services:
       - "5173:5173"
     command: sh -c "npm ci && npm run dev"
 {% endif %}
+{% if frontend == 'nextjs' %}
+
+  nextjs:
+    image: node:26-slim
+    working_dir: /app/frontend
+    volumes:
+      - ./frontend:/app/frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000/api
+    command: sh -c "npm install && npm run dev -- -H 0.0.0.0"
+{% endif %}
 {% if background_tasks in ['temporal', 'both'] %}
 
   temporal:
