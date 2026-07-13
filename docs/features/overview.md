@@ -124,6 +124,16 @@ The question is a multi-select - pick as many targets as you need, or none.
 
 See [Deployment Overview](../deployment/overview.md) for detailed comparison and guides.
 
+### CI/CD Provider
+
+The `ci_provider` option selects which pipeline files are generated:
+
+- **`github-actions`**: `.github/workflows/` (CI, PR validation, scheduled checks, and deploy workflows for selected targets)
+- **`gitlab-ci`**: `.gitlab-ci.yml` (lint, type-check, test, and build stages)
+- **`both`**: generates both, if you mirror between GitHub and GitLab
+
+Each runs the same lint (`ruff`), type-check (`mypy`), and `pytest` steps against your generated project.
+
 ## Development Workflow
 
 ### Using Just (Task Runner)

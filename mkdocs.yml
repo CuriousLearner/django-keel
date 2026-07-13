@@ -37,7 +37,6 @@ theme:
 nav:
   - Home: index.md
   - Getting Started:
-      - Quick Start: getting-started/quickstart.md
       - Installation: getting-started/installation.md
       - First Project: getting-started/first-project.md
       - Project Types: getting-started/project-types.md

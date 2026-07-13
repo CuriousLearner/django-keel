@@ -486,3 +486,78 @@ def test_ansible_playbook_preserves_runtime_variables(generate):
     assert "{{ app_dir }}" in content
     assert "{{ git_repo }}" in content
     assert "test_project" in content  # copier vars still rendered
+
+
+# Option-coverage tests (previously untested option values)
+
+
+def test_ci_provider_both_generates_both_pipelines(generate):
+    """ci_provider=both must generate GitHub Actions and GitLab CI files."""
+    project = generate(ci_provider="both")
+
+    assert (project / ".github/workflows/ci.yml").exists()
+    assert (project / ".gitlab-ci.yml").exists()
+
+
+def test_background_tasks_both_generates_celery_and_temporal(generate):
+    """background_tasks=both must wire both Celery and Temporal."""
+    project = generate(background_tasks="both")
+
+    assert (project / "config/celery.py").exists()
+    assert (project / "temporal_app").exists()
+
+
+def test_use_sops_generates_config_scaffold(generate):
+    """use_sops=true must generate the .sops.yaml config scaffold."""
+    project = generate(use_sops=True)
+
+    assert (project / ".sops.yaml").exists()
+
+
+def test_git_repository_url_is_rendered(generate):
+    """A non-empty git_repository_url must reach the generated README."""
+    url = "https://github.com/acme/widget"
+    project = generate(git_repository_url=url)
+
+    assert url in (project / "README.md").read_text()
+
+
+@pytest.mark.parametrize(
+    ("project_type", "api_app_installed", "frontend_marker"),
+    [
+        ("api", True, None),
+        ("web-app", False, "templates/core/index.html"),
+        ("saas", True, "frontend/README.md"),
+    ],
+)
+def test_project_type_drives_smart_defaults(
+    template_dir, temp_dir, project_type, api_app_installed, frontend_marker
+):
+    """project_type must drive the api_style/frontend smart defaults.
+
+    Driven with defaults=True (not the pinned test answers) so the copier.yml
+    default expressions actually run.
+    """
+    from copier import run_copy
+
+    dest = temp_dir / project_type
+    run_copy(
+        str(template_dir),
+        str(dest),
+        data={
+            "project_name": "T",
+            "project_slug": "t_app",
+            "project_description": "t",
+            "author_name": "A",
+            "author_email": "a@b.com",
+            "project_type": project_type,
+        },
+        defaults=True,
+        unsafe=True,
+        vcs_ref="HEAD",
+    )
+
+    base_settings = (dest / "config/settings/base.py").read_text()
+    assert ('"apps.api"' in base_settings) is api_app_installed
+    if frontend_marker:
+        assert (dest / frontend_marker).exists()

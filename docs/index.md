@@ -106,7 +106,7 @@ Visit:
 - **API Docs**: http://localhost:8000/api/schema/swagger/
 - **Mailpit**: http://localhost:8025
 
-[Detailed Quick Start Guide →](getting-started/quickstart.md)
+[Detailed Quick Start Guide →](getting-started/first-project.md)
 
 ## ✨ Features at a Glance
 
@@ -248,7 +248,7 @@ Visit:
 ## 📚 Documentation
 
 ### Getting Started
-- [Quick Start](getting-started/quickstart.md) - Get started in 5 minutes
+- [First Project](getting-started/first-project.md) - Get started in 5 minutes
 - [Installation](getting-started/installation.md) - Detailed setup instructions
 - [First Project](getting-started/first-project.md) - Build your first Django Keel project
 - [Project Types](getting-started/project-types.md) - Choose the right project type
