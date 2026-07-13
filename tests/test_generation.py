@@ -310,6 +310,25 @@ def test_nextjs_frontend_generated(generate):
     assert (frontend_dir / "app/page.js").exists()
 
 
+def test_nextjs_wired_into_compose(generate):
+    """The nextjs frontend must run as a compose service; htmx must not add it."""
+    nextjs = yaml.safe_load(
+        (
+            generate(project_slug="nx_next", frontend="nextjs") / "docker-compose.yml"
+        ).read_text()
+    )
+    assert "nextjs" in nextjs["services"]
+    assert "3000:3000" in nextjs["services"]["nextjs"]["ports"]
+
+    htmx = yaml.safe_load(
+        (
+            generate(project_slug="nx_htmx", frontend="htmx-tailwind")
+            / "docker-compose.yml"
+        ).read_text()
+    )
+    assert "nextjs" not in htmx["services"]
+
+
 def test_no_frontend_has_minimal_templates(generate):
     """Test that no frontend option has minimal templates."""
     project = generate(frontend="none")
