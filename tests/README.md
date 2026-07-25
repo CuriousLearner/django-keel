@@ -155,11 +155,7 @@ def test_django_check_passes(generate):
 ```python
 def test_custom_configuration(generate):
     # Generate project with custom options
-    project = generate(
-        api_style="drf",
-        frontend="htmx-tailwind",
-        background_tasks="celery"
-    )
+    project = generate(api_style="drf", frontend="htmx-tailwind", background_tasks="celery")
 
     # Verify generated files
     assert (project / "config/celery.py").exists()
@@ -206,6 +202,7 @@ Focus on **what** the feature does, not **how** it's implemented:
 def test_celery_tasks_can_be_defined(generate):
     """Test that projects can define Celery tasks."""
 
+
 # Avoid: Implementation-focused
 def test_celery_imports_specific_module(generate):
     """Test that celery.py imports X from Y."""
@@ -235,6 +232,7 @@ def test_stripe_with_celery(generate):
 def test_feature_enabled(generate):
     """Test feature when enabled."""
     # ...
+
 
 def test_feature_disabled(generate):
     """Test feature when disabled."""

@@ -62,7 +62,7 @@ class TeamInvitation(models.Model):
     role = models.CharField(max_length=20, choices=ROLE_CHOICES)
     invited_by = models.ForeignKey(User, on_delete=models.CASCADE)
     token = models.CharField(max_length=64, unique=True, editable=False)
-    status = models.CharField(max_length=20, default='pending')
+    status = models.CharField(max_length=20, default="pending")
     expires_at = models.DateTimeField()
     created_at = models.DateTimeField(auto_now_add=True)
 ```
@@ -83,20 +83,11 @@ The token is generated on save with `secrets.token_urlsafe(32)`, and `expires_at
 from apps.teams.models import Team, TeamMember
 
 # Create team
-team = Team.objects.create(
-    name="Acme Corp",
-    slug="acme-corp",
-    owner=request.user
-)
+team = Team.objects.create(name="Acme Corp", slug="acme-corp", owner=request.user)
 
 # Owner membership is auto-created via signal
 # But you can also create manually:
-TeamMember.objects.create(
-    team=team,
-    user=request.user,
-    role="owner",
-    added_by=request.user
-)
+TeamMember.objects.create(team=team, user=request.user, role="owner", added_by=request.user)
 ```
 
 ### Invite Member
@@ -137,11 +128,7 @@ if team.has_member(request.user):
     pass
 
 # Or get membership
-membership = TeamMember.objects.filter(
-    team=team,
-    user=request.user,
-    is_active=True
-).first()
+membership = TeamMember.objects.filter(team=team, user=request.user, is_active=True).first()
 
 if membership and membership.is_admin():
     # User is admin or owner
@@ -158,6 +145,7 @@ The mixins resolve the team from the `team_slug` URL kwarg and set `self.team` a
 from django.views.generic import ListView
 from apps.teams.permissions import TeamMemberRequiredMixin
 
+
 # URL pattern must include <slug:team_slug>
 class ProjectListView(TeamMemberRequiredMixin, ListView):
     model = Project
@@ -172,6 +160,7 @@ class ProjectListView(TeamMemberRequiredMixin, ListView):
 ```python
 from apps.teams.permissions import TeamAdminRequiredMixin
 
+
 class MemberManageView(TeamAdminRequiredMixin, UpdateView):
     model = TeamMember
     # Only admins and owners can access
@@ -181,6 +170,7 @@ class MemberManageView(TeamAdminRequiredMixin, UpdateView):
 
 ```python
 from apps.teams.permissions import TeamOwnerRequiredMixin
+
 
 class TeamDeleteView(TeamOwnerRequiredMixin, DeleteView):
     model = Team
@@ -243,18 +233,12 @@ templates/teams/
 ```python
 # tests/teams/test_models.py
 def test_team_creation(user):
-    team = Team.objects.create(
-        name="Test Team",
-        slug="test-team",
-        owner=user
-    )
+    team = Team.objects.create(name="Test Team", slug="test-team", owner=user)
     assert team.get_member_count() == 1  # Owner auto-added
 
+
 def test_add_member(user, team):
-    new_user = User.objects.create_user(
-        email="new@example.com",
-        password="testpass123"
-    )
+    new_user = User.objects.create_user(email="new@example.com", password="testpass123")
     team.add_user(new_user, role="member", added_by=user)
     assert team.has_member(new_user)
 ```

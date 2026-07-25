@@ -203,6 +203,7 @@ def graceful_shutdown(signum, frame):
         conn.close()
     sys.exit(0)
 
+
 signal.signal(signal.SIGTERM, graceful_shutdown)
 ```
 
@@ -315,6 +316,7 @@ docker-compose run web python manage.py createsuperuser
 ```python
 # apps/core/management/commands/import_data.py
 from django.core.management.base import BaseCommand
+
 
 class Command(BaseCommand):
     def handle(self, *args, **options):

@@ -31,16 +31,17 @@ from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
+
 class ProductViewSet(viewsets.ModelViewSet):
     queryset = Product.objects.all()
     serializer_class = ProductSerializer
 
-    @action(detail=True, methods=['post'])
+    @action(detail=True, methods=["post"])
     def publish(self, request, pk=None):
         product = self.get_object()
         product.published = True
         product.save()
-        return Response({'status': 'published'})
+        return Response({"status": "published"})
 ```
 
 Visit `/api/schema/swagger/` for interactive documentation.
@@ -72,17 +73,20 @@ Modern, type-safe GraphQL framework with Python 3.12+ support.
 import strawberry
 from typing import List
 
+
 @strawberry.type
 class Product:
     id: int
     name: str
     price: float
 
+
 @strawberry.type
 class Query:
     @strawberry.field
     def products(self) -> List[Product]:
         return Product.objects.all()
+
 
 schema = strawberry.Schema(query=Query)
 ```
@@ -172,9 +176,9 @@ DRF projects are ready for versioning:
 ```python
 # config/settings/base.py
 REST_FRAMEWORK = {
-    'DEFAULT_VERSIONING_CLASS': 'rest_framework.versioning.URLPathVersioning',
-    'DEFAULT_VERSION': 'v1',
-    'ALLOWED_VERSIONS': ['v1', 'v2'],
+    "DEFAULT_VERSIONING_CLASS": "rest_framework.versioning.URLPathVersioning",
+    "DEFAULT_VERSION": "v1",
+    "ALLOWED_VERSIONS": ["v1", "v2"],
 }
 ```
 
@@ -183,8 +187,8 @@ Use in URLs:
 ```python
 # apps/api/urls.py
 urlpatterns = [
-    path('v1/', include('apps.api.v1.urls')),
-    path('v2/', include('apps.api.v2.urls')),
+    path("v1/", include("apps.api.v1.urls")),
+    path("v2/", include("apps.api.v2.urls")),
 ]
 ```
 
@@ -194,7 +198,7 @@ urlpatterns = [
 
 ```python
 def test_product_list(authenticated_api_client):
-    response = authenticated_api_client.get('/api/products/')
+    response = authenticated_api_client.get("/api/products/")
     assert response.status_code == 200
     assert len(response.data) > 0
 ```
@@ -203,7 +207,7 @@ def test_product_list(authenticated_api_client):
 
 ```python
 def test_products_query(client):
-    query = '''
+    query = """
     query {
         products {
             id
@@ -211,10 +215,10 @@ def test_products_query(client):
             price
         }
     }
-    '''
-    response = client.post('/api/graphql/', {'query': query})
+    """
+    response = client.post("/api/graphql/", {"query": query})
     assert response.status_code == 200
-    assert 'data' in response.json()
+    assert "data" in response.json()
 ```
 
 ## Performance
@@ -225,6 +229,7 @@ def test_products_query(client):
 from rest_framework.decorators import action
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_page
+
 
 class ProductViewSet(viewsets.ModelViewSet):
     @method_decorator(cache_page(60 * 15))  # 15 minutes
@@ -239,7 +244,7 @@ class ProductViewSet(viewsets.ModelViewSet):
 
 ```python
 class ProductViewSet(viewsets.ModelViewSet):
-    queryset = Product.objects.select_related('category').prefetch_related('tags')
+    queryset = Product.objects.select_related("category").prefetch_related("tags")
 ```
 
 ## Next Steps

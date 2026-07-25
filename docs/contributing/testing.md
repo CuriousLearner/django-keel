@@ -80,10 +80,7 @@ def test_feature_enabled(generate):
 ```python
 def test_with_config(project_with_config):
     """Test using project_with_config fixture."""
-    project, config = project_with_config(
-        api_style="drf",
-        background_tasks="celery"
-    )
+    project, config = project_with_config(api_style="drf", background_tasks="celery")
 
     assert (project / "config/celery.py").exists()
 ```

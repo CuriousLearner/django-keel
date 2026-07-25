@@ -23,12 +23,12 @@ Enable features for specific users:
 ```python
 from waffle import flag_is_active
 
-if flag_is_active(request, 'new_dashboard'):
+if flag_is_active(request, "new_dashboard"):
     # Show new dashboard
-    return render(request, 'dashboard_v2.html')
+    return render(request, "dashboard_v2.html")
 else:
     # Show old dashboard
-    return render(request, 'dashboard_v1.html')
+    return render(request, "dashboard_v1.html")
 ```
 
 ### 2. Switches (Global)
@@ -38,8 +38,8 @@ Enable features globally for everyone:
 ```python
 from waffle import switch_is_active
 
-if switch_is_active('maintenance_mode'):
-    return render(request, 'maintenance.html')
+if switch_is_active("maintenance_mode"):
+    return render(request, "maintenance.html")
 ```
 
 ### 3. Samples (Percentage-based)
@@ -49,7 +49,7 @@ Enable features for a percentage of users:
 ```python
 from waffle import sample_is_active
 
-if sample_is_active('beta_features'):
+if sample_is_active("beta_features"):
     # 10% of users see beta features
     show_beta_features()
 ```
@@ -65,13 +65,13 @@ Check `config/settings/base.py`:
 ```python
 INSTALLED_APPS = [
     # ...
-    'waffle',
+    "waffle",
     # ...
 ]
 
 MIDDLEWARE = [
     # ...
-    'waffle.middleware.WaffleMiddleware',
+    "waffle.middleware.WaffleMiddleware",
     # ...
 ]
 ```
@@ -107,16 +107,17 @@ from waffle.models import Flag
 
 # Create a flag
 flag = Flag.objects.create(
-    name='new_dashboard',
+    name="new_dashboard",
     everyone=False,
     percent=10.0,  # 10% of users
-    superusers=True
+    superusers=True,
 )
 
 # Enable for specific users
 from django.contrib.auth import get_user_model
+
 User = get_user_model()
-user = User.objects.get(email='beta@example.com')
+user = User.objects.get(email="beta@example.com")
 flag.users.add(user)
 ```
 
@@ -151,10 +152,11 @@ python manage.py waffle_flag new_dashboard --deactivate
 ```python
 from waffle.decorators import waffle_flag
 
-@waffle_flag('new_dashboard')
+
+@waffle_flag("new_dashboard")
 def dashboard_view(request):
     """Only accessible when flag is active."""
-    return render(request, 'dashboard_v2.html')
+    return render(request, "dashboard_v2.html")
 ```
 
 ### Class-Based Views
@@ -162,9 +164,10 @@ def dashboard_view(request):
 ```python
 from waffle.mixins import WaffleFlagMixin
 
+
 class DashboardView(WaffleFlagMixin, TemplateView):
-    waffle_flag = 'new_dashboard'
-    template_name = 'dashboard_v2.html'
+    waffle_flag = "new_dashboard"
+    template_name = "dashboard_v2.html"
 ```
 
 ### Conditional Logic
@@ -172,13 +175,14 @@ class DashboardView(WaffleFlagMixin, TemplateView):
 ```python
 from waffle import flag_is_active
 
+
 def dashboard_view(request):
-    if flag_is_active(request, 'new_dashboard'):
+    if flag_is_active(request, "new_dashboard"):
         context = get_new_dashboard_context()
-        template = 'dashboard_v2.html'
+        template = "dashboard_v2.html"
     else:
         context = get_old_dashboard_context()
-        template = 'dashboard_v1.html'
+        template = "dashboard_v1.html"
 
     return render(request, template, context)
 ```
@@ -221,9 +225,10 @@ def dashboard_view(request):
 from rest_framework.decorators import api_view
 from waffle import flag_is_active
 
-@api_view(['GET'])
+
+@api_view(["GET"])
 def api_dashboard(request):
-    if flag_is_active(request, 'new_dashboard_api'):
+    if flag_is_active(request, "new_dashboard_api"):
         serializer = DashboardV2Serializer
     else:
         serializer = DashboardV1Serializer
@@ -237,15 +242,18 @@ def api_dashboard(request):
 ```python
 from waffle import flag_is_active
 
+
 class FeatureListView(APIView):
     def get(self, request):
-        return Response({
-            'features': {
-                'new_dashboard': flag_is_active(request, 'new_dashboard'),
-                'dark_mode': flag_is_active(request, 'dark_mode'),
-                'ai_assistant': flag_is_active(request, 'ai_assistant'),
+        return Response(
+            {
+                "features": {
+                    "new_dashboard": flag_is_active(request, "new_dashboard"),
+                    "dark_mode": flag_is_active(request, "dark_mode"),
+                    "ai_assistant": flag_is_active(request, "ai_assistant"),
+                }
             }
-        })
+        )
 ```
 
 ## Common Patterns
@@ -282,7 +290,7 @@ flag.superusers = True
 flag.everyone = False
 
 # Then enable for beta testers group
-beta_group = Group.objects.get(name='Beta Testers')
+beta_group = Group.objects.get(name="Beta Testers")
 flag.groups.add(beta_group)
 
 # Finally, gradual rollout to all users
@@ -296,18 +304,18 @@ Split users into control and treatment groups:
 
 ```python
 # Create two flags for A/B test
-flag_a = Flag.objects.create(name='checkout_v1', percent=50.0)
-flag_b = Flag.objects.create(name='checkout_v2', percent=50.0)
+flag_a = Flag.objects.create(name="checkout_v1", percent=50.0)
+flag_b = Flag.objects.create(name="checkout_v2", percent=50.0)
 
 # In view
-if flag_is_active(request, 'checkout_v2'):
+if flag_is_active(request, "checkout_v2"):
     return checkout_v2(request)
 else:
     return checkout_v1(request)
 
 # Track conversions
-if flag_is_active(request, 'checkout_v2'):
-    analytics.track('purchase', {'variant': 'v2'})
+if flag_is_active(request, "checkout_v2"):
+    analytics.track("purchase", {"variant": "v2"})
 ```
 
 ### Emergency Kill Switch
@@ -318,18 +326,18 @@ Quickly disable problematic features:
 from waffle.models import Switch
 
 # Create kill switch
-Switch.objects.create(name='new_payment_processor', active=True)
+Switch.objects.create(name="new_payment_processor", active=True)
 
 # In code
 from waffle import switch_is_active
 
-if switch_is_active('new_payment_processor'):
+if switch_is_active("new_payment_processor"):
     process_payment_v2()
 else:
     process_payment_v1()  # Fallback to old processor
 
 # Emergency disable (via admin or shell)
-switch = Switch.objects.get(name='new_payment_processor')
+switch = Switch.objects.get(name="new_payment_processor")
 switch.active = False
 switch.save()
 ```
@@ -341,16 +349,17 @@ switch.save()
 ```python
 from waffle.testutils import override_flag
 
-class DashboardTestCase(TestCase):
-    @override_flag('new_dashboard', active=True)
-    def test_new_dashboard(self):
-        response = self.client.get('/dashboard/')
-        self.assertContains(response, 'New Dashboard')
 
-    @override_flag('new_dashboard', active=False)
+class DashboardTestCase(TestCase):
+    @override_flag("new_dashboard", active=True)
+    def test_new_dashboard(self):
+        response = self.client.get("/dashboard/")
+        self.assertContains(response, "New Dashboard")
+
+    @override_flag("new_dashboard", active=False)
     def test_old_dashboard(self):
-        response = self.client.get('/dashboard/')
-        self.assertContains(response, 'Old Dashboard')
+        response = self.client.get("/dashboard/")
+        self.assertContains(response, "Old Dashboard")
 ```
 
 ### Test Both Variants
@@ -358,16 +367,17 @@ class DashboardTestCase(TestCase):
 ```python
 from waffle.testutils import override_flag
 
+
 class CheckoutTestCase(TestCase):
     def test_checkout_variants(self):
         # Test new checkout
-        with override_flag('checkout_v2', active=True):
-            response = self.client.post('/checkout/', data)
+        with override_flag("checkout_v2", active=True):
+            response = self.client.post("/checkout/", data)
             self.assertEqual(response.status_code, 200)
 
         # Test old checkout
-        with override_flag('checkout_v2', active=False):
-            response = self.client.post('/checkout/', data)
+        with override_flag("checkout_v2", active=False):
+            response = self.client.post("/checkout/", data)
             self.assertEqual(response.status_code, 200)
 ```
 
@@ -381,17 +391,18 @@ from waffle import flag_is_active
 
 logger = logging.getLogger(__name__)
 
+
 def my_view(request):
-    flag_active = flag_is_active(request, 'new_feature')
+    flag_active = flag_is_active(request, "new_feature")
 
     # Log flag usage
     logger.info(
-        'feature_flag_check',
+        "feature_flag_check",
         extra={
-            'flag_name': 'new_feature',
-            'user_id': request.user.id,
-            'is_active': flag_active,
-        }
+            "flag_name": "new_feature",
+            "user_id": request.user.id,
+            "is_active": flag_active,
+        },
     )
 
     if flag_active:
@@ -404,15 +415,20 @@ def my_view(request):
 ```python
 from waffle import flag_is_active
 
+
 def checkout_view(request):
-    variant = 'v2' if flag_is_active(request, 'checkout_v2') else 'v1'
+    variant = "v2" if flag_is_active(request, "checkout_v2") else "v1"
 
     # Track with your analytics service
-    analytics.track(request.user.id, 'checkout_started', {
-        'variant': variant,
-    })
+    analytics.track(
+        request.user.id,
+        "checkout_started",
+        {
+            "variant": variant,
+        },
+    )
 
-    return render(request, f'checkout_{variant}.html')
+    return render(request, f"checkout_{variant}.html")
 ```
 
 ## Best Practices
@@ -435,7 +451,7 @@ def checkout_view(request):
 # config/settings/base.py
 MIDDLEWARE = [
     # ...
-    'waffle.middleware.WaffleMiddleware',  # Must be here
+    "waffle.middleware.WaffleMiddleware",  # Must be here
     # ...
 ]
 ```
@@ -443,7 +459,8 @@ MIDDLEWARE = [
 **Check flag configuration:**
 ```python
 from waffle.models import Flag
-flag = Flag.objects.get(name='my_flag')
+
+flag = Flag.objects.get(name="my_flag")
 print(f"Everyone: {flag.everyone}")
 print(f"Percent: {flag.percent}")
 print(f"Active: {flag.is_active_for_user(user)}")
@@ -464,7 +481,7 @@ if not request.user.is_authenticated:
 from waffle import switch_is_active
 
 # Works for all users (anonymous or authenticated)
-if switch_is_active('new_feature'):
+if switch_is_active("new_feature"):
     show_feature()
 ```
 
@@ -475,8 +492,9 @@ if switch_is_active('new_feature'):
 from django.core.cache import cache
 from waffle import flag_is_active
 
+
 def get_flag_status(request, flag_name):
-    cache_key = f'flag_{flag_name}_{request.user.id}'
+    cache_key = f"flag_{flag_name}_{request.user.id}"
     status = cache.get(cache_key)
 
     if status is None:
@@ -500,18 +518,18 @@ from apps.core.feature_flags import (
 )
 
 # Check a flag - pass the request, or a user when no request is available
-if is_feature_enabled('new_dashboard', request=request):
+if is_feature_enabled("new_dashboard", request=request):
     show_new_dashboard()
 
-if is_feature_enabled('new_dashboard', user=some_user):
+if is_feature_enabled("new_dashboard", user=some_user):
     ...
 
 # Check a switch (global on/off)
-if is_switch_enabled('maintenance_mode'):
+if is_switch_enabled("maintenance_mode"):
     ...
 
 # Check a sample (percentage rollout)
-if is_in_sample('new_ui_rollout', request):
+if is_in_sample("new_ui_rollout", request):
     ...
 ```
 
@@ -520,17 +538,17 @@ if is_in_sample('new_ui_rollout', request):
 ```python
 from apps.core.feature_flags import feature_flag, feature_switch, feature_sample
 
-@feature_flag('new_dashboard', redirect_to='/pricing/')
-def new_dashboard_view(request):
-    ...
 
-@feature_switch('maintenance_mode', redirect_to='/maintenance/')
-def gated_view(request):
-    ...
+@feature_flag("new_dashboard", redirect_to="/pricing/")
+def new_dashboard_view(request): ...
 
-@feature_sample('new_ui_rollout')
-def new_ui_view(request):
-    ...
+
+@feature_switch("maintenance_mode", redirect_to="/maintenance/")
+def gated_view(request): ...
+
+
+@feature_sample("new_ui_rollout")
+def new_ui_view(request): ...
 ```
 
 Each accepts `redirect_to`, `message`, and (for `feature_flag`/`feature_switch`) `ajax_response` to return JSON instead of redirecting.
@@ -544,16 +562,19 @@ from apps.core.feature_flags import (
     FeatureSampleMixin,
 )
 
+
 class MyView(FeatureFlagMixin, TemplateView):
-    feature_flag_name = 'new_feature'
-    feature_redirect_url = '/pricing/'
+    feature_flag_name = "new_feature"
+    feature_redirect_url = "/pricing/"
+
 
 class ApiView(FeatureSwitchMixin, View):
-    feature_switch_name = 'api_enabled'
+    feature_switch_name = "api_enabled"
+
 
 class NewCheckoutView(FeatureSampleMixin, View):
-    feature_sample_name = 'new_checkout'
-    feature_redirect_url = '/checkout/'
+    feature_sample_name = "new_checkout"
+    feature_redirect_url = "/checkout/"
 ```
 
 ### Other Helpers

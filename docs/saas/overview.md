@@ -248,26 +248,26 @@ Django Keel automatically configures:
 **Installed Apps**:
 ```python
 INSTALLED_APPS = [
-    'apps.teams',
-    'apps.billing',
-    'djstripe',  # if advanced mode
-    'waffle',
+    "apps.teams",
+    "apps.billing",
+    "djstripe",  # if advanced mode
+    "waffle",
 ]
 ```
 
 **Middleware**:
 ```python
 MIDDLEWARE = [
-    'apps.users.impersonation.ImpersonationMiddleware',
-    'waffle.middleware.WaffleMiddleware',
+    "apps.users.impersonation.ImpersonationMiddleware",
+    "waffle.middleware.WaffleMiddleware",
 ]
 ```
 
 **URLs**:
 ```python
 urlpatterns = [
-    path('teams/', include('apps.teams.urls')),
-    path('billing/', include('apps.billing.urls')),
+    path("teams/", include("apps.teams.urls")),
+    path("billing/", include("apps.billing.urls")),
 ]
 ```
 
@@ -310,12 +310,13 @@ deployment_targets: kubernetes
 from apps.billing.decorators import subscription_required, feature_required
 from apps.teams.permissions import TeamMemberRequiredMixin
 
+
 @subscription_required()
-@feature_required('advanced_analytics')
+@feature_required("advanced_analytics")
 def advanced_report(request):
     # Only users with active subscription
     # AND 'advanced_analytics' feature can access
-    return render(request, 'reports/advanced.html')
+    return render(request, "reports/advanced.html")
 ```
 
 **Check team membership:**
@@ -323,6 +324,7 @@ def advanced_report(request):
 ```python
 from django.views.generic import ListView
 from apps.teams.permissions import TeamMemberRequiredMixin
+
 
 # URL pattern must include <slug:team_slug>
 class ProjectListView(TeamMemberRequiredMixin, ListView):
@@ -339,10 +341,10 @@ class ProjectListView(TeamMemberRequiredMixin, ListView):
 ```python
 from apps.core.feature_flags import is_feature_enabled
 
-if is_feature_enabled('new_dashboard', user=request.user):
-    return render(request, 'dashboard_v2.html')
+if is_feature_enabled("new_dashboard", user=request.user):
+    return render(request, "dashboard_v2.html")
 else:
-    return render(request, 'dashboard.html')
+    return render(request, "dashboard.html")
 ```
 
 ## Testing

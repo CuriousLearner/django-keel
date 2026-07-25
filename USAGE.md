@@ -368,13 +368,16 @@ just migrate
 # apps/my_app/tasks.py
 from celery import shared_task
 
+
 @shared_task
 def my_background_task(arg1, arg2):
     # Do work
     return result
 
+
 # Call it
 from apps.my_app.tasks import my_background_task
+
 my_background_task.delay(arg1, arg2)
 ```
 
