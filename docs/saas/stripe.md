@@ -74,6 +74,7 @@ Generated models in `apps/billing/models.py`:
 ```python
 class StripeCustomer(models.Model):
     """Links Django user to Stripe customer."""
+
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     stripe_customer_id = models.CharField(max_length=255, unique=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -81,6 +82,7 @@ class StripeCustomer(models.Model):
 
 class Subscription(models.Model):
     """Tracks user subscriptions."""
+
     customer = models.ForeignKey(StripeCustomer, on_delete=models.CASCADE)
     stripe_subscription_id = models.CharField(max_length=255, unique=True)
     status = models.CharField(max_length=20)  # active, canceled, past_due, trialing
@@ -94,15 +96,16 @@ class Subscription(models.Model):
 ```python
 from apps.billing.utils import create_checkout_session
 
+
 def checkout_view(request):
     # Your Stripe Price ID
-    price_id = 'price_1234567890'
+    price_id = "price_1234567890"
 
     session = create_checkout_session(
         user=request.user,
         price_id=price_id,
-        success_url=request.build_absolute_uri('/billing/success/'),
-        cancel_url=request.build_absolute_uri('/pricing/'),
+        success_url=request.build_absolute_uri("/billing/success/"),
+        cancel_url=request.build_absolute_uri("/pricing/"),
     )
 
     # Redirect to Stripe Checkout
@@ -141,14 +144,12 @@ Redirect users to Stripe Customer Portal to manage subscriptions:
 ```python
 from apps.billing.utils import get_customer_portal_url
 
+
 def portal_view(request):
     stripe_customer = request.user.stripe_customer
-    return_url = request.build_absolute_uri('/billing/subscription/')
+    return_url = request.build_absolute_uri("/billing/subscription/")
 
-    portal_url = get_customer_portal_url(
-        stripe_customer.stripe_customer_id,
-        return_url
-    )
+    portal_url = get_customer_portal_url(stripe_customer.stripe_customer_id, return_url)
 
     return redirect(portal_url)
 ```
@@ -160,22 +161,22 @@ def portal_view(request):
    # views.py
    def pricing(request):
        plans = [
-           {'name': 'Pro', 'price': 29, 'price_id': 'price_...'},
-           {'name': 'Enterprise', 'price': 99, 'price_id': 'price_...'},
+           {"name": "Pro", "price": 29, "price_id": "price_..."},
+           {"name": "Enterprise", "price": 99, "price_id": "price_..."},
        ]
-       return render(request, 'billing/pricing.html', {'plans': plans})
+       return render(request, "billing/pricing.html", {"plans": plans})
    ```
 
 2. **User clicks "Subscribe":**
    ```python
    def checkout(request):
-       price_id = request.POST.get('price_id')
+       price_id = request.POST.get("price_id")
 
        session = create_checkout_session(
            user=request.user,
            price_id=price_id,
-           success_url=request.build_absolute_uri('/billing/success/'),
-           cancel_url=request.build_absolute_uri('/pricing/'),
+           success_url=request.build_absolute_uri("/billing/success/"),
+           cancel_url=request.build_absolute_uri("/pricing/"),
        )
 
        return redirect(session.url)
@@ -192,7 +193,7 @@ def portal_view(request):
 5. **User redirected to success page:**
    ```python
    def success(request):
-       return render(request, 'billing/success.html')
+       return render(request, "billing/success.html")
    ```
 
 ## Advanced Mode (dj-stripe)
@@ -248,13 +249,13 @@ dj-stripe provides models that mirror all Stripe objects:
 ```python
 from djstripe.models import Customer, Subscription, Price, Product, Invoice
 
+
 # Your custom models
 class SubscriptionMetadata(models.Model):
     """Extended subscription data."""
+
     subscription = models.OneToOneField(
-        Subscription,
-        on_delete=models.CASCADE,
-        related_name='subscription_metadata'
+        Subscription, on_delete=models.CASCADE, related_name="subscription_metadata"
     )
     features = models.JSONField(default=dict)
     usage_limits = models.JSONField(default=dict)
@@ -263,6 +264,7 @@ class SubscriptionMetadata(models.Model):
 
 class PlanConfiguration(models.Model):
     """Configure subscription plans."""
+
     stripe_product = models.OneToOneField(Product, on_delete=models.CASCADE)
     stripe_price = models.ForeignKey(Price, on_delete=models.CASCADE)
     name = models.CharField(max_length=100)
@@ -274,6 +276,7 @@ class PlanConfiguration(models.Model):
 
 class UsageRecord(models.Model):
     """Track metered usage."""
+
     subscription = models.ForeignKey(Subscription, on_delete=models.CASCADE)
     metric = models.CharField(max_length=100)  # e.g., 'api_calls'
     quantity = models.PositiveIntegerField()
@@ -289,19 +292,19 @@ Create plan configurations in Django admin:
 ```python
 # In Django admin
 plan = PlanConfiguration.objects.create(
-    stripe_product=Product.objects.get(id='prod_...'),
-    stripe_price=Price.objects.get(id='price_...'),
-    name='Pro Plan',
-    slug='pro',
+    stripe_product=Product.objects.get(id="prod_..."),
+    stripe_price=Price.objects.get(id="price_..."),
+    name="Pro Plan",
+    slug="pro",
     features={
-        'api_access': True,
-        'advanced_analytics': True,
-        'priority_support': True,
+        "api_access": True,
+        "advanced_analytics": True,
+        "priority_support": True,
     },
     limits={
-        'api_calls': 10000,
-        'team_members': 10,
-        'storage_gb': 100,
+        "api_calls": 10000,
+        "team_members": 10,
+        "storage_gb": 100,
     },
     is_popular=True,
 )
@@ -312,15 +315,18 @@ plan = PlanConfiguration.objects.create(
 ```python
 from apps.billing.utils import create_checkout_session
 
+
 def checkout_view(request):
-    price_id = request.POST.get('price_id')
+    price_id = request.POST.get("price_id")
 
     session = create_checkout_session(
         user=request.user,
         price_id=price_id,
-        success_url=request.build_absolute_uri('/billing/success/?session_id={CHECKOUT_SESSION_ID}'),
-        cancel_url=request.build_absolute_uri('/pricing/'),
-        metadata={'plan_slug': 'pro'},  # Custom metadata
+        success_url=request.build_absolute_uri(
+            "/billing/success/?session_id={CHECKOUT_SESSION_ID}"
+        ),
+        cancel_url=request.build_absolute_uri("/pricing/"),
+        metadata={"plan_slug": "pro"},  # Custom metadata
     )
 
     return redirect(session.url)
@@ -331,26 +337,25 @@ def checkout_view(request):
 ```python
 from apps.billing.utils import get_active_subscription
 
+
 def dashboard_view(request):
     subscription = get_active_subscription(request.user)
 
     if subscription:
         # User has active subscription
-        plan_config = PlanConfiguration.objects.get(
-            stripe_product=subscription.plan.product
-        )
+        plan_config = PlanConfiguration.objects.get(stripe_product=subscription.plan.product)
 
         context = {
-            'subscription': subscription,
-            'plan': plan_config,
-            'features': plan_config.features,
-            'limits': plan_config.limits,
+            "subscription": subscription,
+            "plan": plan_config,
+            "features": plan_config.features,
+            "limits": plan_config.limits,
         }
     else:
         # No subscription
-        context = {'subscription': None}
+        context = {"subscription": None}
 
-    return render(request, 'dashboard.html', context)
+    return render(request, "dashboard.html", context)
 ```
 
 #### Track Usage
@@ -358,17 +363,18 @@ def dashboard_view(request):
 ```python
 from apps.billing.utils import record_usage, check_usage_limit, get_active_subscription
 
+
 def api_endpoint(request):
     # check_usage_limit(user, metric) returns True when the user is OVER the limit
-    if check_usage_limit(request.user, 'api_calls'):
-        return JsonResponse({'error': 'API limit exceeded'}, status=429)
+    if check_usage_limit(request.user, "api_calls"):
+        return JsonResponse({"error": "API limit exceeded"}, status=429)
 
     # Process API request
     result = process_request(request)
 
     # Record usage
     subscription = get_active_subscription(request.user)
-    record_usage(subscription, metric='api_calls', quantity=1)
+    record_usage(subscription, metric="api_calls", quantity=1)
 
     return JsonResponse(result)
 ```
@@ -382,36 +388,34 @@ dj-stripe automatically handles webhooks and syncs data:
 from django.dispatch import receiver
 from djstripe import webhooks
 
-@receiver(webhooks.WEBHOOK_SIGNALS['customer.subscription.created'])
+
+@receiver(webhooks.WEBHOOK_SIGNALS["customer.subscription.created"])
 def handle_subscription_created(sender, event, **kwargs):
     """Handle new subscription."""
-    subscription = event.data['object']
+    subscription = event.data["object"]
 
     # Create metadata
     from .models import SubscriptionMetadata
-    SubscriptionMetadata.objects.create(
-        subscription_id=subscription['id']
-    )
+
+    SubscriptionMetadata.objects.create(subscription_id=subscription["id"])
 
 
-@receiver(webhooks.WEBHOOK_SIGNALS['invoice.payment_succeeded'])
+@receiver(webhooks.WEBHOOK_SIGNALS["invoice.payment_succeeded"])
 def handle_payment_succeeded(sender, event, **kwargs):
     """Handle successful payment."""
-    invoice = event.data['object']
+    invoice = event.data["object"]
 
     # Reset usage counters for the billing period
-    subscription = Subscription.objects.get(
-        id=invoice['subscription']
-    )
-    if hasattr(subscription, 'subscription_metadata'):
+    subscription = Subscription.objects.get(id=invoice["subscription"])
+    if hasattr(subscription, "subscription_metadata"):
         subscription.subscription_metadata.current_usage = {}
         subscription.subscription_metadata.save()
 
 
-@receiver(webhooks.WEBHOOK_SIGNALS['customer.subscription.deleted'])
+@receiver(webhooks.WEBHOOK_SIGNALS["customer.subscription.deleted"])
 def handle_subscription_deleted(sender, event, **kwargs):
     """Handle canceled subscription."""
-    subscription = event.data['object']
+    subscription = event.data["object"]
 
     # Revoke access, send email, etc.
     logger.info(f"Subscription canceled: {subscription['id']}")
@@ -427,8 +431,9 @@ https://yourdomain.com/billing/webhook/stripe/
 ```python
 from apps.billing.utils import get_customer_portal_url
 
+
 def customer_portal(request):
-    return_url = request.build_absolute_uri('/billing/subscription/')
+    return_url = request.build_absolute_uri("/billing/subscription/")
     portal_url = get_customer_portal_url(request.user, return_url)
 
     return redirect(portal_url)
@@ -441,10 +446,11 @@ def customer_portal(request):
 ```python
 from apps.billing.decorators import subscription_required
 
+
 @subscription_required()
 def premium_feature(request):
     """Requires active subscription."""
-    return render(request, 'premium.html')
+    return render(request, "premium.html")
 ```
 
 ### Check Specific Plan
@@ -452,15 +458,17 @@ def premium_feature(request):
 ```python
 from apps.billing.decorators import plan_required
 
-@plan_required('pro')
+
+@plan_required("pro")
 def pro_only_feature(request):
     """Only for Pro subscribers."""
-    return render(request, 'pro_feature.html')
+    return render(request, "pro_feature.html")
 
-@plan_required('pro', 'enterprise')
+
+@plan_required("pro", "enterprise")
 def premium_feature(request):
     """For Pro or Enterprise subscribers."""
-    return render(request, 'premium.html')
+    return render(request, "premium.html")
 ```
 
 ### Check Feature Access
@@ -468,10 +476,11 @@ def premium_feature(request):
 ```python
 from apps.billing.decorators import feature_required
 
-@feature_required('advanced_analytics')
+
+@feature_required("advanced_analytics")
 def analytics_view(request):
     """Requires subscription with analytics feature."""
-    return render(request, 'analytics.html')
+    return render(request, "analytics.html")
 ```
 
 ### Usage Limits
@@ -479,11 +488,12 @@ def analytics_view(request):
 ```python
 from apps.billing.decorators import usage_limit_check
 
-@usage_limit_check('api_calls')
+
+@usage_limit_check("api_calls")
 def api_endpoint(request):
     """Blocked once the user is over their limit for this metric."""
     # Record usage yourself with record_usage()
-    return JsonResponse({'data': 'response'})
+    return JsonResponse({"data": "response"})
 ```
 
 See [Feature Gating](feature-gating.md) for details on limits and usage recording.
@@ -576,21 +586,20 @@ from apps.billing.utils import create_checkout_session
 @pytest.mark.django_db
 def test_create_checkout_session(user):
     """Test creating a checkout session."""
-    with patch('stripe.checkout.Session.create') as mock_create:
+    with patch("stripe.checkout.Session.create") as mock_create:
         mock_create.return_value = MagicMock(
-            id='cs_test_123',
-            url='https://checkout.stripe.com/c/pay/cs_test_123'
+            id="cs_test_123", url="https://checkout.stripe.com/c/pay/cs_test_123"
         )
 
         session = create_checkout_session(
             user=user,
-            price_id='price_123',
-            success_url='https://example.com/success/',
-            cancel_url='https://example.com/cancel/',
+            price_id="price_123",
+            success_url="https://example.com/success/",
+            cancel_url="https://example.com/cancel/",
         )
 
-        assert session.id == 'cs_test_123'
-        assert 'checkout.stripe.com' in session.url
+        assert session.id == "cs_test_123"
+        assert "checkout.stripe.com" in session.url
 ```
 
 ### Webhook Tests (Advanced Mode)
@@ -608,31 +617,31 @@ def test_subscription_created_webhook():
     client = Client()
 
     payload = {
-        'type': 'customer.subscription.created',
-        'data': {
-            'object': {
-                'id': 'sub_123',
-                'customer': 'cus_123',
-                'status': 'active',
+        "type": "customer.subscription.created",
+        "data": {
+            "object": {
+                "id": "sub_123",
+                "customer": "cus_123",
+                "status": "active",
             }
-        }
+        },
     }
 
     # Mock Stripe signature verification
-    with patch('stripe.Webhook.construct_event') as mock_verify:
+    with patch("stripe.Webhook.construct_event") as mock_verify:
         mock_verify.return_value = payload
 
         response = client.post(
-            '/billing/webhook/stripe/',
+            "/billing/webhook/stripe/",
             data=json.dumps(payload),
-            content_type='application/json',
-            HTTP_STRIPE_SIGNATURE='test_signature'
+            content_type="application/json",
+            HTTP_STRIPE_SIGNATURE="test_signature",
         )
 
         assert response.status_code == 200
 
         # Verify event was created
-        assert Event.objects.filter(type='customer.subscription.created').exists()
+        assert Event.objects.filter(type="customer.subscription.created").exists()
 ```
 
 ### Integration Tests
@@ -645,13 +654,11 @@ class TestStripeIntegration:
         client.force_login(user)
 
         # 1. Visit pricing page
-        response = client.get('/billing/pricing/')
+        response = client.get("/billing/pricing/")
         assert response.status_code == 200
 
         # 2. Create checkout session
-        response = client.post('/billing/checkout/', {
-            'price_id': 'price_test_123'
-        })
+        response = client.post("/billing/checkout/", {"price_id": "price_test_123"})
         assert response.status_code == 302  # Redirect to Stripe
 
         # 3. Simulate webhook (subscription created)
@@ -659,9 +666,10 @@ class TestStripeIntegration:
 
         # 4. Check subscription is active
         from apps.billing.utils import get_active_subscription
+
         subscription = get_active_subscription(user)
         assert subscription is not None
-        assert subscription.status == 'active'
+        assert subscription.status == "active"
 ```
 
 ## Deployment
@@ -765,15 +773,15 @@ if session.created < timezone.now() - timedelta(hours=23):
 Send email notification to customer:
 
 ```python
-@receiver(webhooks.WEBHOOK_SIGNALS['invoice.payment_failed'])
+@receiver(webhooks.WEBHOOK_SIGNALS["invoice.payment_failed"])
 def handle_payment_failed(sender, event, **kwargs):
-    invoice = event.data['object']
-    customer_email = invoice['customer_email']
+    invoice = event.data["object"]
+    customer_email = invoice["customer_email"]
 
     send_mail(
-        subject='Payment Failed',
-        message='Your recent payment failed. Please update your payment method.',
-        from_email='billing@yourdomain.com',
+        subject="Payment Failed",
+        message="Your recent payment failed. Please update your payment method.",
+        from_email="billing@yourdomain.com",
         recipient_list=[customer_email],
     )
 ```
@@ -799,14 +807,16 @@ def handle_payment_failed(sender, event, **kwargs):
 # Create subscription with trial
 session = stripe.checkout.Session.create(
     customer_email=user.email,
-    payment_method_types=['card'],
-    line_items=[{
-        'price': price_id,
-        'quantity': 1,
-    }],
-    mode='subscription',
+    payment_method_types=["card"],
+    line_items=[
+        {
+            "price": price_id,
+            "quantity": 1,
+        }
+    ],
+    mode="subscription",
     subscription_data={
-        'trial_period_days': 14,  # 14-day free trial
+        "trial_period_days": 14,  # 14-day free trial
     },
     success_url=success_url,
     cancel_url=cancel_url,
@@ -819,13 +829,14 @@ session = stripe.checkout.Session.create(
 # Metered billing
 from apps.billing.utils import record_usage
 
+
 def api_call(request):
     # Process request
     result = process_request(request)
 
     # Record usage (will be billed at end of period)
     subscription = get_active_subscription(request.user)
-    record_usage(subscription, metric='api_calls', quantity=1)
+    record_usage(subscription, metric="api_calls", quantity=1)
 
     return JsonResponse(result)
 ```
@@ -836,6 +847,7 @@ def api_call(request):
 # Update subscription quantity when team size changes
 import stripe
 
+
 def add_team_member(request):
     team = request.user.team
     team.members.add(new_member)
@@ -844,10 +856,12 @@ def add_team_member(request):
     subscription = team.stripe_subscription
     stripe.Subscription.modify(
         subscription.id,
-        items=[{
-            'id': subscription['items']['data'][0].id,
-            'quantity': team.members.count(),
-        }]
+        items=[
+            {
+                "id": subscription["items"]["data"][0].id,
+                "quantity": team.members.count(),
+            }
+        ],
     )
 ```
 
@@ -857,11 +871,13 @@ def add_team_member(request):
 # Upgrade/downgrade with proration
 stripe.Subscription.modify(
     subscription.id,
-    items=[{
-        'id': subscription['items']['data'][0].id,
-        'price': new_price_id,
-    }],
-    proration_behavior='create_prorations',  # or 'always_invoice', 'none'
+    items=[
+        {
+            "id": subscription["items"]["data"][0].id,
+            "price": new_price_id,
+        }
+    ],
+    proration_behavior="create_prorations",  # or 'always_invoice', 'none'
 )
 ```
 

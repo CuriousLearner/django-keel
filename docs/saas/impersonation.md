@@ -33,9 +33,9 @@ Ensure `ImpersonationMiddleware` is in your settings:
 # config/settings/base.py
 MIDDLEWARE = [
     # ...
-    'django.contrib.sessions.middleware.SessionMiddleware',
-    'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'apps.users.impersonation.ImpersonationMiddleware',  # Add after auth
+    "django.contrib.sessions.middleware.SessionMiddleware",
+    "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "apps.users.impersonation.ImpersonationMiddleware",  # Add after auth
     # ...
 ]
 ```
@@ -50,10 +50,10 @@ Enable template context for impersonation status:
 # config/settings/base.py
 TEMPLATES = [
     {
-        'OPTIONS': {
-            'context_processors': [
+        "OPTIONS": {
+            "context_processors": [
                 # ...
-                'apps.users.impersonation.impersonation_context',
+                "apps.users.impersonation.impersonation_context",
             ],
         },
     },
@@ -71,8 +71,8 @@ from .impersonation import ImpersonateView, StopImpersonateView
 
 urlpatterns = [
     # ...
-    path('impersonate/<int:user_id>/', ImpersonateView.as_view(), name='impersonate'),
-    path('stop-impersonate/', StopImpersonateView.as_view(), name='stop_impersonate'),
+    path("impersonate/<int:user_id>/", ImpersonateView.as_view(), name="impersonate"),
+    path("stop-impersonate/", StopImpersonateView.as_view(), name="stop_impersonate"),
 ]
 ```
 
@@ -97,6 +97,7 @@ An `impersonate_user_admin_action` helper is defined in `apps/users/impersonatio
 ```python
 from apps.users.impersonation import impersonate_user_admin_action
 
+
 @admin.register(User)
 class UserAdmin(BaseUserAdmin):
     actions = [impersonate_user_admin_action]
@@ -110,10 +111,11 @@ Then select exactly one user in the admin list and run "Impersonate selected use
 ```python
 from django.shortcuts import redirect
 
+
 def some_view(request):
     # Start impersonating user ID 42
-    request.session['impersonate_id'] = 42
-    return redirect('dashboard')
+    request.session["impersonate_id"] = 42
+    return redirect("dashboard")
 ```
 
 ### Stop Impersonation
@@ -132,9 +134,9 @@ def some_view(request):
 
 ```python
 def stop_impersonating(request):
-    if 'impersonate_id' in request.session:
-        del request.session['impersonate_id']
-    return redirect('admin:index')
+    if "impersonate_id" in request.session:
+        del request.session["impersonate_id"]
+    return redirect("admin:index")
 ```
 
 ## Permission Checks
@@ -155,15 +157,15 @@ The `ImpersonateView` enforces:
 ```python
 # Only staff can impersonate
 if not request.user.is_staff:
-    return redirect('/')  # Permission denied
+    return redirect("/")  # Permission denied
 
 # Staff cannot impersonate superusers
 if user.is_superuser and not request.user.is_superuser:
-    return redirect('admin:index')  # Cannot impersonate superusers
+    return redirect("admin:index")  # Cannot impersonate superusers
 
 # Cannot impersonate yourself
 if user.pk == request.user.pk:
-    return redirect('admin:index')  # Cannot impersonate yourself
+    return redirect("admin:index")  # Cannot impersonate yourself
 ```
 
 ## Template Integration
@@ -220,11 +222,12 @@ Prevent sensitive actions while impersonating:
 ```python
 from apps.users.impersonation import prevent_while_impersonating
 
+
 @prevent_while_impersonating
 def delete_account(request):
     """This cannot be done while impersonating."""
     request.user.delete()
-    return redirect('goodbye')
+    return redirect("goodbye")
 ```
 
 **Behavior:** Returns error message and redirects to `/` if impersonating.
@@ -234,12 +237,13 @@ def delete_account(request):
 ```python
 from apps.users.impersonation import PreventWhileImpersonatingMixin
 
+
 class DeleteAccountView(PreventWhileImpersonatingMixin, View):
     """Cannot delete account while impersonating."""
 
     def post(self, request):
         request.user.delete()
-        return redirect('goodbye')
+        return redirect("goodbye")
 ```
 
 ### Manual Check
@@ -248,7 +252,7 @@ class DeleteAccountView(PreventWhileImpersonatingMixin, View):
 def sensitive_action(request):
     if request.is_impersonating:
         messages.error(request, "Cannot perform this action while impersonating.")
-        return redirect('dashboard')
+        return redirect("dashboard")
 
     # Proceed with sensitive action
     ...
@@ -296,9 +300,7 @@ logger.warning(
 
 ```python
 # Logged at INFO level for each request
-logger.info(
-    f"User {request.real_user.email} is impersonating {request.user.email}"
-)
+logger.info(f"User {request.real_user.email} is impersonating {request.user.email}")
 ```
 
 ### Stop Impersonation
@@ -341,63 +343,44 @@ class TestImpersonation:
     def test_staff_can_impersonate_user(self, client):
         """Test staff can impersonate regular users."""
         staff = User.objects.create_user(
-            email='staff@example.com',
-            password='testpass',
-            is_staff=True
+            email="staff@example.com", password="testpass", is_staff=True
         )
-        user = User.objects.create_user(
-            email='user@example.com',
-            password='testpass'
-        )
+        user = User.objects.create_user(email="user@example.com", password="testpass")
 
         client.force_login(staff)
-        response = client.get(
-            reverse('users:impersonate', kwargs={'user_id': user.id})
-        )
+        response = client.get(reverse("users:impersonate", kwargs={"user_id": user.id}))
 
         assert response.status_code == 302
-        assert client.session.get('impersonate_id') == user.id
+        assert client.session.get("impersonate_id") == user.id
 
     def test_staff_cannot_impersonate_superuser(self, client):
         """Test staff cannot impersonate superusers."""
         staff = User.objects.create_user(
-            email='staff@example.com',
-            password='testpass',
-            is_staff=True
+            email="staff@example.com", password="testpass", is_staff=True
         )
-        superuser = User.objects.create_superuser(
-            email='admin@example.com',
-            password='testpass'
-        )
+        superuser = User.objects.create_superuser(email="admin@example.com", password="testpass")
 
         client.force_login(staff)
-        response = client.get(
-            reverse('users:impersonate', kwargs={'user_id': superuser.id})
-        )
+        response = client.get(reverse("users:impersonate", kwargs={"user_id": superuser.id}))
 
-        assert 'impersonate_id' not in client.session
+        assert "impersonate_id" not in client.session
 
     def test_stop_impersonation(self, client):
         """Test stopping impersonation."""
         staff = User.objects.create_user(
-            email='staff@example.com',
-            password='testpass',
-            is_staff=True
+            email="staff@example.com", password="testpass", is_staff=True
         )
-        user = User.objects.create_user(
-            email='user@example.com',
-            password='testpass'
-        )
+        user = User.objects.create_user(email="user@example.com", password="testpass")
 
         client.force_login(staff)
 
         # Start impersonating
-        client.get(reverse('users:impersonate', kwargs={'user_id': user.id}))
-        assert 'impersonate_id' in client.session
+        client.get(reverse("users:impersonate", kwargs={"user_id": user.id}))
+        assert "impersonate_id" in client.session
 
         # Stop impersonating
-        client.get(reverse('users:stop_impersonate'))
-        assert 'impersonate_id' not in client.session
+        client.get(reverse("users:stop_impersonate"))
+        assert "impersonate_id" not in client.session
 ```
 
 ### Integration Tests
@@ -415,9 +398,9 @@ def test_middleware_swaps_user(rf, staff_user, regular_user):
 
     middleware = ImpersonationMiddleware(get_response)
 
-    request = rf.get('/')
+    request = rf.get("/")
     request.user = staff_user
-    request.session = {'impersonate_id': regular_user.id}
+    request.session = {"impersonate_id": regular_user.id}
 
     middleware(request)
 
@@ -434,10 +417,10 @@ def test_middleware_swaps_user(rf, staff_user, regular_user):
 def impersonate_and_view_dashboard(request, user_id):
     """Quick helper to impersonate and view user's dashboard."""
     if not request.user.is_staff:
-        return redirect('/')
+        return redirect("/")
 
-    request.session['impersonate_id'] = user_id
-    return redirect('user_dashboard')
+    request.session["impersonate_id"] = user_id
+    return redirect("user_dashboard")
 ```
 
 ### Impersonate from Support Ticket
@@ -450,12 +433,9 @@ class SupportTicketView(StaffRequiredMixin, DetailView):
         ticket = self.get_object()
 
         # Start impersonating ticket creator
-        request.session['impersonate_id'] = ticket.created_by.id
+        request.session["impersonate_id"] = ticket.created_by.id
 
-        messages.success(
-            request,
-            f"Now viewing as {ticket.created_by.email} to debug issue."
-        )
+        messages.success(request, f"Now viewing as {ticket.created_by.email} to debug issue.")
 
         # Redirect to page where issue occurs
         return redirect(ticket.problem_url)
@@ -467,28 +447,27 @@ class SupportTicketView(StaffRequiredMixin, DetailView):
 from django.utils import timezone
 from datetime import timedelta
 
+
 def start_timed_impersonation(request, user_id, minutes=30):
     """Start impersonation that expires after N minutes."""
-    request.session['impersonate_id'] = user_id
-    request.session['impersonate_expires'] = (
+    request.session["impersonate_id"] = user_id
+    request.session["impersonate_expires"] = (
         timezone.now() + timedelta(minutes=minutes)
     ).isoformat()
 
-    return redirect('/')
+    return redirect("/")
 
 
 # In middleware or view
 def check_impersonation_expiry(request):
     """Check if impersonation has expired."""
-    if 'impersonate_expires' in request.session:
-        expires = timezone.datetime.fromisoformat(
-            request.session['impersonate_expires']
-        )
+    if "impersonate_expires" in request.session:
+        expires = timezone.datetime.fromisoformat(request.session["impersonate_expires"])
 
         if timezone.now() > expires:
             # Expired, stop impersonation
-            del request.session['impersonate_id']
-            del request.session['impersonate_expires']
+            del request.session["impersonate_id"]
+            del request.session["impersonate_expires"]
             messages.warning(request, "Impersonation session expired.")
 ```
 
@@ -516,14 +495,14 @@ def check_impersonation_expiry(request):
    # config/settings/base.py
    MIDDLEWARE = [
        # ...
-       'apps.users.impersonation.ImpersonationMiddleware',
+       "apps.users.impersonation.ImpersonationMiddleware",
    ]
    ```
 
 2. Ensure sessions are enabled:
    ```python
    MIDDLEWARE = [
-       'django.contrib.sessions.middleware.SessionMiddleware',  # Required
+       "django.contrib.sessions.middleware.SessionMiddleware",  # Required
        # ...
    ]
    ```
@@ -543,6 +522,7 @@ def check_impersonation_expiry(request):
    ```python
    # In Django shell
    from django.contrib.sessions.models import Session
+
    Session.objects.all().delete()
    ```
 
@@ -565,10 +545,10 @@ def check_impersonation_expiry(request):
 # config/settings/base.py
 TEMPLATES = [
     {
-        'OPTIONS': {
-            'context_processors': [
+        "OPTIONS": {
+            "context_processors": [
                 # ...
-                'apps.users.impersonation.impersonation_context',
+                "apps.users.impersonation.impersonation_context",
             ],
         },
     },
@@ -603,9 +583,9 @@ class CustomImpersonationMiddleware(ImpersonationMiddleware):
     def __call__(self, request):
         # Add IP whitelisting
         if request.is_impersonating:
-            allowed_ips = ['192.168.1.1', '10.0.0.1']
-            if request.META.get('REMOTE_ADDR') not in allowed_ips:
-                del request.session['impersonate_id']
+            allowed_ips = ["192.168.1.1", "10.0.0.1"]
+            if request.META.get("REMOTE_ADDR") not in allowed_ips:
+                del request.session["impersonate_id"]
                 messages.error(request, "Impersonation not allowed from this IP")
 
         return super().__call__(request)

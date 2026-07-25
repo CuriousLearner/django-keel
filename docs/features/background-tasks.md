@@ -79,6 +79,7 @@ TEMPORAL_TASK_QUEUE=myproject-tasks
 ```python
 from celery import shared_task
 
+
 @shared_task
 def send_welcome_email(user_id):
     user = User.objects.get(pk=user_id)
@@ -95,6 +96,7 @@ def send_welcome_email(user_id):
 ```python
 from temporalio import workflow
 from datetime import timedelta
+
 
 @workflow.defn
 class UserOnboardingWorkflow:
