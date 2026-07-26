@@ -87,7 +87,7 @@ Update `mkdocs.yml` when adding new pages:
 nav:
   - Home: index.md
   - Getting Started:
-      - Quick Start: getting-started/quickstart.md
+      - Installation: getting-started/installation.md
       - New Page: getting-started/new-page.md  # Add here
 ```
 
