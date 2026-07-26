@@ -1,0 +1,18 @@
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api";
+
+export default function Home() {
+  return (
+    <main>
+      <h1>{{ project_name }}</h1>
+      <p>Next.js frontend for {{ project_name }}.</p>
+      <p>
+        Django API base URL: <code>{API_URL}</code>
+      </p>
+      <p>
+        Set <code>NEXT_PUBLIC_API_URL</code> in <code>.env.local</code> to point
+        at your backend, then use <code>{API_URL}</code> as the base for API
+        requests.
+      </p>
+    </main>
+  );
+}

@@ -32,12 +32,12 @@ Include the following information:
 
 Django Keel generates projects with security best practices by default:
 
-- ✅ Django's `check --deploy` runs in CI
-- ✅ HSTS, secure cookies, CSP headers enabled in production
-- ✅ Dependencies scanned with `pip-audit` and `safety`
-- ✅ Container images scanned with Trivy
+- ✅ Django's `check --deploy` runs in the Fly.io post-deploy smoke check
+- ✅ HSTS and secure cookies enabled in production (CSP headers with `security_profile=strict`)
+- ✅ `pip-audit` and `safety` shipped as dev dependencies for local dependency audits
+- ✅ Container images scanned with Trivy in CI
 - ✅ No secrets in repository (environment-based config)
-- ✅ SOPS for encrypted secrets (optional)
+- ✅ SOPS config scaffold for encrypted secrets (optional)
 
 For enhanced security, use `security_profile: strict` when generating your project.
 

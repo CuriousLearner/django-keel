@@ -259,7 +259,7 @@ services:
   - type: web
     name: your-project-staging
     branch: staging  # Deploy from staging branch
-    env: python
+    runtime: python
     plan: starter
 ```
 
