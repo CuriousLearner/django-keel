@@ -613,14 +613,10 @@ def test_teams_migration_gates_stripe_fields(generate):
     makemigrations --check wants a RemoveField.
     """
     with_stripe = generate(project_slug="teamstripe", use_teams=True, use_stripe=True)
-    without_stripe = generate(
-        project_slug="teamnostripe", use_teams=True, use_stripe=False
-    )
+    without_stripe = generate(project_slug="teamnostripe", use_teams=True, use_stripe=False)
 
     with_content = (with_stripe / "apps/teams/migrations/0001_initial.py").read_text()
-    without_content = (
-        without_stripe / "apps/teams/migrations/0001_initial.py"
-    ).read_text()
+    without_content = (without_stripe / "apps/teams/migrations/0001_initial.py").read_text()
 
     assert "stripe_customer_id" in with_content
     assert "stripe_customer_id" not in without_content
@@ -647,9 +643,7 @@ def test_advanced_billing_migration_gates_teams(generate):
     )
 
     with_content = (with_teams / "apps/billing/migrations/0001_initial.py").read_text()
-    without_content = (
-        without_teams / "apps/billing/migrations/0001_initial.py"
-    ).read_text()
+    without_content = (without_teams / "apps/billing/migrations/0001_initial.py").read_text()
 
     assert '("teams", "0001_initial")' in with_content
     assert 'to="teams.team"' in with_content
