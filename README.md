@@ -606,7 +606,7 @@ just test
 
 ### Template Documentation
 
-- [Quick Start](https://django-keel.readthedocs.io/en/latest/getting-started/quickstart/) - Get started in 5 minutes
+- [First Project](https://django-keel.readthedocs.io/en/latest/getting-started/first-project/) - Get started in 5 minutes
 - [Installation Guide](https://django-keel.readthedocs.io/en/latest/getting-started/installation/) - Detailed setup instructions
 - [Features Overview](https://django-keel.readthedocs.io/en/latest/features/overview/) - All available features
 - [API Options](https://django-keel.readthedocs.io/en/latest/features/api-options/) - DRF, GraphQL, or both
