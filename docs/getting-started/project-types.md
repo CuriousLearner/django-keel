@@ -356,7 +356,7 @@ Frontend approach? [nextjs]
 
 ## 🚀 Next Steps
 
-1. [Quick Start](quickstart.md) - Create your first project
+1. [First Project](first-project.md) - Create your first project
 2. [Features Overview](../features/overview.md) - Explore all features
 3. [SaaS Features](../saas/overview.md) - Deep dive into SaaS capabilities
 4. [Deployment Options](../deployment/overview.md) - Choose your hosting

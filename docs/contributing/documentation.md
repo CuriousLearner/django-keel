@@ -8,9 +8,9 @@ Help improve Django Keel documentation!
 docs/
 ├── index.md                    # Home page
 ├── getting-started/            # Getting started guides
-│   ├── quickstart.md
 │   ├── installation.md
-│   └── first-project.md
+│   ├── first-project.md
+│   └── project-types.md
 ├── features/                   # Feature documentation
 │   ├── overview.md
 │   ├── api-options.md
