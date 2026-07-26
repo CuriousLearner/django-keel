@@ -36,8 +36,8 @@ STORAGES["staticfiles"] = {  # noqa: F405
 }
 
 {% if frontend == 'htmx-tailwind' and frontend_bundling == 'vite' -%}
-# django-vite: dev mode in tests so {% raw %}{% vite_asset %}{% endraw %} renders
-# without a built manifest (no `npm run build` in the test env)
+# django-vite: dev mode in tests so the vite_asset tag renders without a
+# built manifest (no `npm run build` in the test env)
 DJANGO_VITE["default"]["dev_mode"] = True  # noqa: F405
 {% endif %}
 
