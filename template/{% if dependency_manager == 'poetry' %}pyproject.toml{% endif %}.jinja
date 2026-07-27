@@ -9,119 +9,119 @@ package-mode = false
 
 [tool.poetry.dependencies]
 python = "^{{ python_version }}"
-django = "^{{ django_version }}"
-django-environ = "^0.11.2"
-psycopg = {extras = ["binary"], version = "^3.2.0"}
+django = ">={{ django_version }}"
+django-environ = ">=0.11.2"
+psycopg = {extras = ["binary"], version = ">=3.2.0"}
 {% if cache == 'redis' -%}
-redis = "^5.0.0"
-django-redis = "^5.4.0"
+redis = ">=5.0.0"
+django-redis = ">=5.4.0"
 {% endif -%}
-gunicorn = "^22.0.0"
-whitenoise = {extras = ["brotli"], version = "^6.6.0"}
-python-json-logger = "^2.0.7"
+gunicorn = ">=22.0.0"
+whitenoise = {extras = ["brotli"], version = ">=6.6.0"}
+python-json-logger = ">=2.0.7"
 {% if api_style in ['drf', 'both'] -%}
-djangorestframework = "^3.15.0"
-drf-spectacular = "^0.27.0"
-django-filter = "^24.0"
-django-cors-headers = "^4.3.0"
+djangorestframework = ">=3.15.0"
+drf-spectacular = ">=0.27.0"
+django-filter = ">=24.0"
+django-cors-headers = ">=4.3.0"
 {% endif -%}
 {% if api_style in ['graphql-strawberry', 'both'] -%}
-strawberry-graphql-django = "^0.86.0"
+strawberry-graphql-django = ">=0.86.0"
 {% endif -%}
 {% if auth_backend in ['allauth', 'both'] -%}
-django-allauth = {extras = ["socialaccount"], version = "^0.63.0"}
+django-allauth = {extras = ["socialaccount"], version = ">=0.63.0"}
 {% endif -%}
 {% if auth_backend in ['jwt', 'both'] and api_style != 'none' -%}
-djangorestframework-simplejwt = "^5.3.0"
+djangorestframework-simplejwt = ">=5.3.0"
 {% endif -%}
 {% if use_2fa -%}
-django-otp = "^1.4.0"
-qrcode = "^7.4.0"
+django-otp = ">=1.4.0"
+qrcode = ">=7.4.0"
 {% endif -%}
 {% if background_tasks in ['celery', 'both'] -%}
-celery = {extras = ["redis"], version = "^5.4.0"}
-django-celery-beat = "^2.9.0"  # 2.9+ required for Django 6.0 compatibility
-django-celery-results = "^2.5.0"
-flower = "^2.0.0"
+celery = {extras = ["redis"], version = ">=5.4.0"}
+django-celery-beat = ">=2.9.0"  # 2.9+ required for Django 6.0 compatibility
+django-celery-results = ">=2.5.0"
+flower = ">=2.0.0"
 {% endif -%}
 {% if background_tasks in ['temporal', 'both'] -%}
-temporalio = "^1.6.0"
+temporalio = ">=1.6.0"
 {% endif -%}
 {% if use_channels -%}
-channels = {extras = ["daphne"], version = "^4.1.0"}
-channels-redis = "^4.2.0"
+channels = {extras = ["daphne"], version = ">=4.1.0"}
+channels-redis = ">=4.2.0"
 {% endif -%}
 {% if media_storage == 'aws-s3' -%}
-django-storages = {extras = ["s3"], version = "^1.14.0"}
-boto3 = "^1.34.0"
+django-storages = {extras = ["s3"], version = ">=1.14.0"}
+boto3 = ">=1.34.0"
 {% elif media_storage == 'gcp-gcs' -%}
-django-storages = {extras = ["google"], version = "^1.14.0"}
+django-storages = {extras = ["google"], version = ">=1.14.0"}
 {% elif media_storage == 'azure-storage' -%}
-django-storages = {extras = ["azure"], version = "^1.14.0"}
+django-storages = {extras = ["azure"], version = ">=1.14.0"}
 {% endif -%}
 {% if use_sentry -%}
-sentry-sdk = {extras = ["django"], version = "^2.0.0"}
+sentry-sdk = {extras = ["django"], version = ">=2.0.0"}
 {% endif -%}
 {% if observability_level == 'full' -%}
-opentelemetry-api = "^1.24.0"
-opentelemetry-sdk = "^1.24.0"
-opentelemetry-instrumentation-django = "^0.45b0"
-opentelemetry-instrumentation-psycopg = "^0.45b0"
+opentelemetry-api = ">=1.24.0"
+opentelemetry-sdk = ">=1.24.0"
+opentelemetry-instrumentation-django = ">=0.45b0"
+opentelemetry-instrumentation-psycopg = ">=0.45b0"
 {% if background_tasks in ['celery', 'both'] -%}
-opentelemetry-instrumentation-celery = "^0.45b0"
+opentelemetry-instrumentation-celery = ">=0.45b0"
 {% endif -%}
-opentelemetry-exporter-otlp = "^1.24.0"
-django-prometheus = "^2.3.0"
+opentelemetry-exporter-otlp = ">=1.24.0"
+django-prometheus = ">=2.3.0"
 {% endif -%}
 {% if use_stripe -%}
 {% if stripe_mode == 'basic' -%}
-stripe = "^9.0.0"
+stripe = ">=9.0.0"
 {% else -%}
-dj-stripe = "^2.8.0"
+dj-stripe = ">=2.8.0"
 {% endif -%}
 {% endif -%}
-django-waffle = "^4.1.0"
+django-waffle = ">=4.1.0"
 {% if security_profile == 'strict' -%}
-django-csp = "^4.0"
+django-csp = ">=4.0"
 {% endif -%}
 {% if use_search == 'opensearch' -%}
-opensearch-py = "^2.5.0"
-django-opensearch-dsl = "^0.6.0"
+opensearch-py = ">=2.5.0"
+django-opensearch-dsl = ">=0.6.0"
 {% endif -%}
 {% if use_i18n -%}
-django-parler = "^2.3.0"
+django-parler = ">=2.3.0"
 {% endif -%}
 {% if frontend == 'htmx-tailwind' and frontend_bundling == 'vite' -%}
-django-vite = "^3.0.0"
+django-vite = ">=3.0.0"
 {% endif -%}
-django-extensions = "^3.2.0"
-django-alive = "^1.3.0"
+django-extensions = ">=3.2.0"
+django-alive = ">=1.3.0"
 
 [tool.poetry.group.dev.dependencies]
-pytest = "^8.0.0"
-pytest-django = "^4.8.0"
-pytest-cov = "^5.0.0"
-pytest-xdist = "^3.5.0"
+pytest = ">=8.0.0"
+pytest-django = ">=4.8.0"
+pytest-cov = ">=5.0.0"
+pytest-xdist = ">=3.5.0"
 {% if use_channels -%}
-pytest-asyncio = "^0.23.0"
+pytest-asyncio = ">=0.23.0"
 {% endif -%}
-faker = "^24.0.0"
-model-bakery = "^1.17.0"
-hypothesis = "^6.100.0"
-ruff = "^0.4.0"
-mypy = "^1.10.0"
-django-stubs = {extras = ["compatible-mypy"], version = "^5.0.0"}
+faker = ">=24.0.0"
+model-bakery = ">=1.17.0"
+hypothesis = ">=6.100.0"
+ruff = ">=0.4.0"
+mypy = ">=1.10.0"
+django-stubs = {extras = ["compatible-mypy"], version = ">=5.0.0"}
 {% if api_style in ['drf', 'both'] -%}
-djangorestframework-stubs = {extras = ["compatible-mypy"], version = "^3.15.0"}
+djangorestframework-stubs = {extras = ["compatible-mypy"], version = ">=3.15.0"}
 {% endif -%}
-django-debug-toolbar = "^4.3.0"
-ipython = "^8.23.0"
-pre-commit = "^3.7.0"
-pip-audit = "^2.7.0"
-safety = "^3.1.0"
-mkdocs = "^1.5.0"
-mkdocs-material = "^9.5.0"
-mkdocstrings = {extras = ["python"], version = "^0.24.0"}
+django-debug-toolbar = ">=4.3.0"
+ipython = ">=8.23.0"
+pre-commit = ">=3.7.0"
+pip-audit = ">=2.7.0"
+safety = ">=3.1.0"
+mkdocs = ">=1.5.0"
+mkdocs-material = ">=9.5.0"
+mkdocstrings = {extras = ["python"], version = ">=0.24.0"}
 
 [build-system]
 requires = ["poetry-core"]
