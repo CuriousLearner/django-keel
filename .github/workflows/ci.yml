@@ -113,8 +113,20 @@ jobs:
       - name: Check for Jinja syntax errors
         run: |
           cd ../test_${{ matrix.project-type }}
-          ! grep -r "{{" . --include="*.py" --include="*.md" --include="*.toml"
-          ! grep -r "{%" . --include="*.py" --include="*.md" --include="*.toml"
+          # Fail on unrendered copier syntax in generated output. GitHub Actions
+          # ${{ ... }} expressions are allowed; bare copier {{ ... }} is not.
+          # (A bare `! grep ...` is a no-op under `set -e`, and only the last
+          # line would set the step's exit code, so check each explicitly.)
+          leftover_var=$(grep -rn '{{' . --include="*.py" --include="*.md" --include="*.toml" | grep -v '\${{' || true)
+          if [ -n "$leftover_var" ]; then
+            echo "::error::Unrendered Jinja {{ ... }} found in generated project:"
+            echo "$leftover_var"
+            exit 1
+          fi
+          if grep -rn '{%' . --include="*.py" --include="*.md" --include="*.toml"; then
+            echo "::error::Unrendered Jinja {% ... %} found in generated project"
+            exit 1
+          fi
 
   test-version-matrix:
     name: Test Python + Django Versions
