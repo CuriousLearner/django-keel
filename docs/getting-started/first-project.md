@@ -137,6 +137,8 @@ Your app is now running at [http://localhost:8000](http://localhost:8000).
 
 **Important:** Do NOT run `uv sync` locally when using this approach. The container manages its own virtual environment.
 
+**Poetry projects:** if you chose Poetry as the package manager, replace `uv run` with `poetry run` in the commands above (and below).
+
 **Linux users:** The docker-compose uses `${UID:-1000}:${GID:-1000}` for file permissions. Most shells export these automatically. If you encounter permission issues, set them explicitly:
 ```bash
 export UID=$(id -u)

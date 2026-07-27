@@ -130,8 +130,7 @@ deploy/flyio/
 ├── README.md
 ├── deploy.sh             # Deployment automation
 ├── setup_env.sh          # Interactive secrets setup
-├── manage_db.sh          # Database utilities
-└── health_check.py       # Health check helper
+└── manage_db.sh          # Database utilities
 fly.toml                  # App config (root)
 ```
 

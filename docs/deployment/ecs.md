@@ -182,7 +182,7 @@ The configuration is a set of flat `.tf` files (no modules):
 
 ## Environment Variables
 
-Sensitive values are set in `terraform.tfvars` and stored in AWS Secrets Manager (`security.tf`). The task definitions inject `django_secret_key` (as `SECRET_KEY`) and the database URL. The `sentry_dsn` and `stripe_secret_key` secrets are created in Secrets Manager but are not wired into the task definitions by default — add them to the task's `secrets` in `ecs.tf` if your app needs them. Non-sensitive settings (`django_debug`, `allowed_hosts`) are passed as plain environment variables from tfvars.
+Sensitive values are set in `terraform.tfvars` and stored in AWS Secrets Manager (`security.tf`). The task definitions inject `django_secret_key` (as `DJANGO_SECRET_KEY`) and the database URL (as `DATABASE_URL`). The `sentry_dsn` and `stripe_secret_key` secrets are created in Secrets Manager but are not wired into the task definitions by default; add them to the task's `secrets` in `ecs.tf` if your app needs them. Non-sensitive settings are passed as plain environment variables from tfvars: `allowed_hosts` as `DJANGO_ALLOWED_HOSTS` and `django_debug` as `DEBUG`. These names match what `config/settings` reads.
 
 ## Deploying Updates
 

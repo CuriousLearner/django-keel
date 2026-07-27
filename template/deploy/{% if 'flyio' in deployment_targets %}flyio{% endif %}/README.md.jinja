@@ -37,7 +37,6 @@ This directory contains complete deployment automation for Fly.io:
 - **`deploy.sh`** - Main deployment script with full automation
 - **`setup_env.sh`** - Interactive environment configuration
 - **`manage_db.sh`** - Database management utilities
-- **`health_check.py`** - Health check endpoints for monitoring
 - **`.github/workflows/deploy-flyio.yml`** - GitHub Actions CI/CD pipeline (automatically placed by template)
 - **`fly.toml`** - Fly.io application configuration (in project root)
 
@@ -430,29 +429,9 @@ graph LR
 
 ## Health Monitoring
 
-The deployment includes comprehensive health checks:
-
-### Endpoints
-
-- `/health/` - Main health check (database, cache, storage)
-- `/health/ready/` - Readiness check (migrations, workers)
-- `/health/live/` - Simple liveness check
-
-### Integration
-
-Add to your Django URLs:
-
-```python
-# config/urls.py
-from deploy.flyio.health_check import HealthCheckView, ReadinessCheckView, LivenessCheckView
-
-urlpatterns = [
-    # ... other patterns
-    path('health/', HealthCheckView.as_view(), name='health'),
-    path('health/ready/', ReadinessCheckView.as_view(), name='readiness'),
-    path('health/live/', LivenessCheckView.as_view(), name='liveness'),
-]
-```
+The generated project serves `/health/` and `/ready/` from `apps/core` (with
+database and cache checks), and `fly.toml` points its HTTP health check at
+`/health/`. No extra setup is needed.
 
 ## Advanced Features
 

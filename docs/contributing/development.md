@@ -159,7 +159,7 @@ copier copy . /tmp/test-basic
 copier copy . /tmp/test-full \
   --data api_style=both \
   --data background_tasks=both \
-  --data deployment_targets=kubernetes,ecs,flyio
+  --data deployment_targets=kubernetes,aws-ecs-fargate,flyio
 
 # Test the generated project
 cd /tmp/test-full

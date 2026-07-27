@@ -9,7 +9,7 @@ locals {
       value = "config.settings.prod"
     },
     {
-      name  = "ALLOWED_HOSTS"
+      name  = "DJANGO_ALLOWED_HOSTS"
       value = var.allowed_hosts
     },
     {
@@ -22,14 +22,12 @@ locals {
     }
   ]
 
-  # S3 bucket environment variables
+  # S3 bucket environment variables. Django uses a single default/media
+  # storage bucket (AWS_STORAGE_BUCKET_NAME in config/settings); the static
+  # bucket is provisioned for CDN/static asset hosting but is not read by Django.
   s3_environment = var.create_s3_buckets ? [
     {
-      name  = "AWS_STORAGE_BUCKET_NAME_STATIC"
-      value = aws_s3_bucket.static[0].id
-    },
-    {
-      name  = "AWS_STORAGE_BUCKET_NAME_MEDIA"
+      name  = "AWS_STORAGE_BUCKET_NAME"
       value = aws_s3_bucket.media[0].id
     }
   ] : []
@@ -41,7 +39,7 @@ locals {
       valueFrom = aws_secretsmanager_secret.database_url.arn
     },
     {
-      name      = "SECRET_KEY"
+      name      = "DJANGO_SECRET_KEY"
       valueFrom = aws_secretsmanager_secret.django_secret_key.arn
     }
   ]

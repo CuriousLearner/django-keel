@@ -26,7 +26,6 @@ A ready-to-use `fly.toml` at the project root, plus helper scripts in `deploy/fl
 - `deploy.sh` - deployment automation
 - `setup_env.sh` - interactive secrets setup (walks you through `fly secrets set`)
 - `manage_db.sh` - database management utilities
-- `health_check.py` - health check helper for monitoring
 
 ## Installation
 
