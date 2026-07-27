@@ -147,11 +147,11 @@ After starting the development server:
 
 - **Application**: http://localhost:8000
 - **Admin Panel**: http://localhost:8000/admin/
-{% if api_style != 'none' -%}
+{% if api_style in ['drf', 'both'] -%}
 - **API Documentation**: http://localhost:8000/api/schema/swagger/
+{% endif -%}
 {% if api_style in ['graphql-strawberry', 'both'] -%}
 - **GraphQL (GraphiQL)**: http://localhost:8000/api/graphql/
-{% endif -%}
 {% endif -%}
 - **Email Testing (Mailpit)**: http://localhost:8025
 {% if background_tasks in ['celery', 'both'] -%}

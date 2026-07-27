@@ -65,7 +65,7 @@ Before diving in, here's what's **included by default**, **optional**, or **plan
 | **Custom User Model**                  | ✅ Included | Email-based authentication               |
 | **Split Settings (dev/test/prod)**     | ✅ Included | 12-Factor App ready                      |
 | **Docker + Compose**                   | ✅ Included | Local development                        |
-| **pytest + coverage**                  | ✅ Included | Coverage gate configurable (default 80%) |
+| **pytest + coverage**                  | ✅ Included | Coverage reported to Codecov in CI       |
 | **ruff + mypy**                        | ✅ Included | Code quality enforced                    |
 | **Health/readiness endpoints**         | ✅ Included | `/health/` and `/ready/`                 |
 
@@ -346,7 +346,7 @@ The repo CI does not build Docker images or run the generated project's test sui
 ### 🎨 Frontend Options
 
 - **None** (API-only)
-- **HTMX + Tailwind CSS** (modern, minimal JS) - _Alpine.js available as optional addition_
+- **HTMX + Tailwind CSS + Alpine.js** (modern, minimal JS)
 - **Next.js** (full-stack React)
 
 ### ⚡ Async & Background Tasks
@@ -420,7 +420,7 @@ The repo CI does not build Docker images or run the generated project's test sui
   - 100-character line length
   - Modern Python 3.12+ type hints
 - **mypy + django-stubs** for type checking
-- **pytest** with coverage reporting (coverage gate configurable, default 80%)
+- **pytest** with coverage reporting (uploaded to Codecov in CI)
 - **pre-commit** hooks for automated quality checks
 - **Just** task runner with essential commands:
   ```bash

@@ -171,18 +171,19 @@ CORS_ALLOWED_ORIGINS=https://frontend.example.com,https://app.example.com
 
 ## API Versioning
 
-DRF projects are ready for versioning:
+Versioning isn't shipped, but it's a small addition. Add the versioning keys to
+the existing `REST_FRAMEWORK` dict in `config/settings/base.py`:
 
 ```python
-# config/settings/base.py
 REST_FRAMEWORK = {
+    # ... existing settings ...
     "DEFAULT_VERSIONING_CLASS": "rest_framework.versioning.URLPathVersioning",
     "DEFAULT_VERSION": "v1",
     "ALLOWED_VERSIONS": ["v1", "v2"],
 }
 ```
 
-Use in URLs:
+Then create the versioned URL modules (e.g. `apps/api/v1/urls.py`) and wire them up:
 
 ```python
 # apps/api/urls.py

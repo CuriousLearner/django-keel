@@ -37,7 +37,7 @@ Edit `terraform.tfvars`:
 # Project Configuration
 project_name = "your-project"
 environment  = "production"
-aws_region   = "us-west-2"
+aws_region   = "us-east-1"
 
 # Container Configuration
 container_cpu    = 512   # 0.5 vCPU
@@ -182,7 +182,7 @@ The configuration is a set of flat `.tf` files (no modules):
 
 ## Environment Variables
 
-Sensitive values (`django_secret_key`, `sentry_dsn`, `stripe_secret_key`) are set in `terraform.tfvars`; Terraform stores them in AWS Secrets Manager (`security.tf`) and injects them into the ECS tasks. Non-sensitive settings (`django_debug`, `allowed_hosts`) are passed as plain environment variables from tfvars.
+Sensitive values are set in `terraform.tfvars` and stored in AWS Secrets Manager (`security.tf`). The task definitions inject `django_secret_key` (as `SECRET_KEY`) and the database URL. The `sentry_dsn` and `stripe_secret_key` secrets are created in Secrets Manager but are not wired into the task definitions by default — add them to the task's `secrets` in `ecs.tf` if your app needs them. Non-sensitive settings (`django_debug`, `allowed_hosts`) are passed as plain environment variables from tfvars.
 
 ## Deploying Updates
 
@@ -190,19 +190,19 @@ Sensitive values (`django_secret_key`, `sentry_dsn`, `stripe_secret_key`) are se
 
 ```bash
 # Login to ECR
-aws ecr get-login-password --region us-west-2 | \
+aws ecr get-login-password --region us-east-1 | \
   docker login --username AWS --password-stdin \
-  123456789.dkr.ecr.us-west-2.amazonaws.com
+  123456789.dkr.ecr.us-east-1.amazonaws.com
 
 # Build image
 docker build -t your-project:latest .
 
 # Tag for ECR
 docker tag your-project:latest \
-  123456789.dkr.ecr.us-west-2.amazonaws.com/your-project:latest
+  123456789.dkr.ecr.us-east-1.amazonaws.com/your-project:latest
 
 # Push
-docker push 123456789.dkr.ecr.us-west-2.amazonaws.com/your-project:latest
+docker push 123456789.dkr.ecr.us-east-1.amazonaws.com/your-project:latest
 ```
 
 ### 2. Update ECS Service
@@ -210,8 +210,8 @@ docker push 123456789.dkr.ecr.us-west-2.amazonaws.com/your-project:latest
 ```bash
 # ECS automatically detects new image
 aws ecs update-service \
-  --cluster your-project-cluster \
-  --service your-project-service \
+  --cluster your-project-production-cluster \
+  --service your-project-production-app \
   --force-new-deployment
 ```
 
@@ -242,28 +242,24 @@ Run migrations before deploying new tasks:
 ```bash
 # Option 1: ECS Exec into running task
 aws ecs execute-command \
-  --cluster your-project-cluster \
+  --cluster your-project-production-cluster \
   --task <task-id> \
-  --container django \
+  --container your-project \
   --command "python manage.py migrate" \
   --interactive
 
-# Option 2: Run one-off task
+# Option 2: Run the dedicated migrate task (it already runs
+# `python manage.py migrate --noinput` — no command override needed).
+# Terraform exposes this task-definition name as the `ecs_migrate_task_definition` output.
 aws ecs run-task \
-  --cluster your-project-cluster \
-  --task-definition your-project-task \
+  --cluster your-project-production-cluster \
+  --task-definition your-project-production-migrate \
   --launch-type FARGATE \
   --network-configuration '{
     "awsvpcConfiguration": {
       "subnets": ["subnet-abc123"],
       "securityGroups": ["sg-abc123"]
     }
-  }' \
-  --overrides '{
-    "containerOverrides": [{
-      "name": "django",
-      "command": ["python", "manage.py", "migrate"]
-    }]
   }'
 ```
 
@@ -285,11 +281,12 @@ This creates a separate Fargate service running `celery -A config worker` using 
 View logs:
 
 ```bash
-# Web application logs
-aws logs tail /ecs/your-project --follow
+# All tasks share one log group; streams are prefixed per task
+# (app, celery-worker, celery-beat, migrate)
+aws logs tail /ecs/your-project-production --follow
 
-# Celery worker logs
-aws logs tail /ecs/your-project-celery --follow
+# Filter to just the celery worker streams
+aws logs tail /ecs/your-project-production --log-stream-name-prefix celery-worker --follow
 ```
 
 ### CloudWatch Metrics
@@ -323,7 +320,7 @@ terraform apply
 Terraform requests an ACM certificate and, when `create_dns_zone = true`, validates it automatically via Route53 and points DNS at the ALB. If your DNS lives elsewhere, set `create_dns_zone = false`, create the ACM validation records shown in the outputs at your DNS provider, and point your domain at the ALB:
 
 ```
-CNAME yourdomain.com your-alb-123.us-west-2.elb.amazonaws.com
+CNAME yourdomain.com your-alb-123.us-east-1.elb.amazonaws.com
 ```
 
 ## Disaster Recovery
@@ -381,11 +378,11 @@ Update Terraform to point to restored database.
 ```bash
 # Check task stopped reason
 aws ecs describe-tasks \
-  --cluster your-project-cluster \
+  --cluster your-project-production-cluster \
   --tasks <task-id>
 
 # Check logs
-aws logs tail /ecs/your-project --since 1h
+aws logs tail /ecs/your-project-production --since 1h
 ```
 
 Common causes:

@@ -36,7 +36,7 @@ Django Keel asks you what type of project you're building and configures everyth
 ### Modern Development Experience
 
 - **⚡ uv** - 10-100x faster dependency management (or Poetry)
-- **🧪 pytest** - Comprehensive test suite (80% code coverage minimum)
+- **🧪 pytest** - Comprehensive test suite with coverage reporting
 - **✨ ruff** - Lightning-fast linting and formatting
 - **🔍 mypy** - Type safety with django-stubs
 - **🪝 pre-commit** - Automated quality checks
@@ -230,7 +230,7 @@ Visit:
 
 - **ruff** - 10-100x faster linting (13+ rule categories)
 - **mypy + django-stubs** - Type checking
-- **pytest** - 80% coverage requirement
+- **pytest** - Coverage reporting via Codecov
 - **pre-commit** - Automated quality checks
 - **Just** - Task runner recipes for everyday workflows
 - **Docker Compose** - Complete dev environment
