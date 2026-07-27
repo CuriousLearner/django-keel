@@ -4,6 +4,8 @@
 exclude = [
     'http://localhost:*',
     'http://127.0.0.1:*',
+    # StackOverflow returns 403 to automated link checkers
+    'https://stackoverflow.com/.*',
 ]
 
 # Accept 200-299 status codes as valid
