@@ -229,6 +229,8 @@ jobs:
     runs-on: ubuntu-latest
     needs: build-and-push
     if: github.ref == 'refs/heads/production' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'production')
+    env:
+      SLACK_WEBHOOK: {% raw %}${{ secrets.SLACK_WEBHOOK }}{% endraw %}
     environment:
       name: production
       url: https://{{ project_slug }}.{% raw %}${{ env.AWS_REGION }}{% endraw %}.elb.amazonaws.com
@@ -394,7 +396,7 @@ jobs:
       {% endif %}
 
       - name: Notify deployment
-        if: always()
+        if: always() && env.SLACK_WEBHOOK != ''
         uses: 8398a7/action-slack@v3
         with:
           status: {% raw %}${{ job.status }}{% endraw %}
@@ -402,14 +404,13 @@ jobs:
             Production deployment {% raw %}${{ job.status }}{% endraw %}
             Commit: {% raw %}${{ github.sha }}{% endraw %}
             Image: {% raw %}${{ needs.build-and-push.outputs.image }}{% endraw %}
-          webhook_url: {% raw %}${{ secrets.SLACK_WEBHOOK }}{% endraw %}
-        if: {% raw %}${{ secrets.SLACK_WEBHOOK != '' }}{% endraw %}
+          webhook_url: {% raw %}${{ env.SLACK_WEBHOOK }}{% endraw %}
 
   cleanup:
     name: Cleanup Old Resources
     runs-on: ubuntu-latest
     needs: [deploy-staging, deploy-production]
-    if: always()
+    if: always() && github.event_name != 'pull_request'
 
     steps:
       - name: Configure AWS credentials
