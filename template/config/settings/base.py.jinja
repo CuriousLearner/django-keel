@@ -329,7 +329,9 @@ ACCOUNT_USER_MODEL_USERNAME_FIELD = None
 
 {% if api_style in ['drf', 'both'] -%}
 # Django REST Framework
-REST_FRAMEWORK = {
+from typing import Any
+
+REST_FRAMEWORK: dict[str, Any] = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
 {% if auth_backend in ['allauth', 'both'] -%}
         "rest_framework.authentication.SessionAuthentication",

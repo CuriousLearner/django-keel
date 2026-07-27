@@ -1,6 +1,7 @@
 """Feature flags using django-waffle."""
 import logging
 from functools import wraps
+from typing import Any
 from django.shortcuts import redirect
 from django.contrib import messages
 from django.http import JsonResponse, Http404
@@ -47,7 +48,7 @@ def is_switch_enabled(switch_name):
 
 def is_in_sample(sample_name, request):
     """Check if request is in a sample (percentage rollout)."""
-    return sample_is_active(sample_name, request)
+    return sample_is_active(sample_name)
 
 
 # Decorators for function-based views
@@ -154,7 +155,7 @@ def feature_sample(
     def decorator(view_func):
         @wraps(view_func)
         def wrapper(request, *args, **kwargs):
-            if sample_is_active(sample_name, request):
+            if sample_is_active(sample_name):
                 return view_func(request, *args, **kwargs)
 
             # Not in sample
@@ -238,7 +239,7 @@ class FeatureSampleMixin:
         if not self.feature_sample_name:
             raise ValueError("feature_sample_name must be set")
 
-        if not sample_is_active(self.feature_sample_name, request):
+        if not sample_is_active(self.feature_sample_name):
             return redirect(self.feature_redirect_url)
 
         return super().dispatch(request, *args, **kwargs)
@@ -271,7 +272,7 @@ def create_default_flags():
     """
     from waffle.models import Flag
 
-    default_flags = [
+    default_flags: list[dict[str, Any]] = [
         {
             "name": "beta_features",
             "everyone": False,
@@ -314,7 +315,7 @@ def create_default_switches():
     """Create default switches."""
     from waffle.models import Switch
 
-    default_switches = [
+    default_switches: list[dict[str, Any]] = [
         {
             "name": "maintenance_mode",
             "active": False,
@@ -350,7 +351,7 @@ def create_default_samples():
     """Create default samples for A/B testing."""
     from waffle.models import Sample
 
-    default_samples = [
+    default_samples: list[dict[str, Any]] = [
         {
             "name": "new_ui_rollout",
             "percent": 10.0,  # 10% of users

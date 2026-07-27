@@ -2,9 +2,9 @@
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
-from django.urls import path, include
+from django.urls import URLPattern, URLResolver, include, path
 
-urlpatterns = [
+urlpatterns: list[URLPattern | URLResolver] = [
     path("admin/", admin.site.urls),
     # Health checks - django-alive provides standardized endpoints
     path("health/", include("django_alive.urls")),
@@ -33,4 +33,4 @@ if settings.DEBUG:
 
     if "debug_toolbar" in settings.INSTALLED_APPS:
         import debug_toolbar
-        urlpatterns = [path("__debug__/", include(debug_toolbar.urls))] + urlpatterns
+        urlpatterns.insert(0, path("__debug__/", include(debug_toolbar.urls)))

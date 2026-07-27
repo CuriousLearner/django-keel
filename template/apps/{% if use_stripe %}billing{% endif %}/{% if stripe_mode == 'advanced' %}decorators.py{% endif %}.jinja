@@ -285,7 +285,7 @@ class FeatureRequiredMixin:
 class PlanRequiredMixin:
     """Mixin to require specific plan for class-based views."""
 
-    required_plans = []
+    required_plans: list[str] = []
     plan_redirect_url = "/billing/upgrade/"
     plan_message = _("This feature requires a higher tier plan.")
 

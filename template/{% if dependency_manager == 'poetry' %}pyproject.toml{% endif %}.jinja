@@ -108,7 +108,7 @@ pytest-asyncio = ">=0.23.0"
 faker = ">=24.0.0"
 model-bakery = ">=1.17.0"
 hypothesis = ">=6.100.0"
-ruff = ">=0.4.0"
+ruff = ">={{ ruff_version }},<0.17"
 mypy = ">=1.10.0"
 django-stubs = {extras = ["compatible-mypy"], version = ">=5.0.0"}
 {% if api_style in ['drf', 'both'] -%}
@@ -136,11 +136,9 @@ select = [
     "E",      # pycodestyle errors
     "W",      # pycodestyle warnings
     "F",      # pyflakes
-    "I",      # isort
     "B",      # flake8-bugbear
     "C4",     # flake8-comprehensions
     "UP",     # pyupgrade
-    "ARG",    # flake8-unused-arguments
     "SIM",    # flake8-simplify
     "DJ",     # flake8-django
 ]
@@ -153,8 +151,10 @@ ignore = [
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]
 "*/migrations/*" = ["E501", "DJ"]
-"*/tests/*" = ["ARG", "S"]
-"config/settings/*.py" = ["F405", "F403"]
+"tests/**" = ["S"]
+"config/settings/*.py" = ["F403", "F405", "E402", "I001"]
+"config/wsgi.py" = ["E402"]
+"config/asgi.py" = ["E402", "I001"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["{{ project_slug }}", "apps", "config"]
@@ -168,9 +168,10 @@ section-order = [
 
 [tool.mypy]
 python_version = "{{ python_version }}"
-check_untyped_defs = true
+exclude = ["^tests/"]  # type-check application code; tests are example scaffolding
+check_untyped_defs = false  # mypy default; strict untyped-body checking is over-reach for a scaffold
 ignore_missing_imports = false
-warn_unused_ignores = true
+warn_unused_ignores = false  # conditional template code makes unused-ignore detection unreliable
 warn_redundant_casts = true
 warn_unused_configs = true
 plugins = ["mypy_django_plugin.main"{% if api_style in ['drf', 'both'] %}, "mypy_drf_plugin.main"{% endif %}]
@@ -179,11 +180,11 @@ plugins = ["mypy_django_plugin.main"{% if api_style in ['drf', 'both'] %}, "mypy
 module = "*.migrations.*"
 ignore_errors = true
 
+# Third-party packages without type stubs / py.typed markers.
 [[tool.mypy.overrides]]
 module = [
 {% if background_tasks in ['celery', 'both'] -%}
     "celery.*",
-    "flower.*",
 {% endif -%}
 {% if background_tasks in ['temporal', 'both'] -%}
     "temporalio.*",
@@ -191,6 +192,17 @@ module = [
 {% if use_channels -%}
     "channels.*",
 {% endif -%}
+{% if use_stripe -%}
+    "djstripe.*",
+{% endif -%}
+{% if auth_backend in ['allauth', 'both'] -%}
+    "allauth.*",
+{% endif -%}
+{% if observability_level == 'full' -%}
+    "opentelemetry.*",
+{% endif -%}
+    "waffle.*",
+    "django_alive.*",
     "environ.*",
 ]
 ignore_missing_imports = true

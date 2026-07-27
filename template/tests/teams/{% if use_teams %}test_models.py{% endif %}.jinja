@@ -1,6 +1,7 @@
 """Tests for teams models."""
 import pytest
 from django.contrib.auth import get_user_model
+from django.db import IntegrityError
 from django.utils import timezone
 from datetime import timedelta
 
@@ -218,7 +219,7 @@ class TestTeamMemberModel:
             role="member"
         )
 
-        with pytest.raises(Exception):  # IntegrityError
+        with pytest.raises(IntegrityError):
             TeamMember.objects.create(
                 team=team,
                 user=user,

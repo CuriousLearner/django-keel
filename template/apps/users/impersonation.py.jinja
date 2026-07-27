@@ -2,7 +2,7 @@
 import logging
 from functools import wraps
 
-from django.contrib import messages
+from django.contrib import admin, messages
 from django.contrib.auth import get_user_model
 from django.shortcuts import redirect, get_object_or_404
 from django.urls import reverse
@@ -136,6 +136,7 @@ def impersonation_context(request):
 
 
 # Admin action to impersonate from user list
+@admin.action(description=_("Impersonate selected user"))
 def impersonate_user_admin_action(modeladmin, request, queryset):
     """Admin action to impersonate a user."""
     if queryset.count() != 1:
@@ -172,9 +173,6 @@ def impersonate_user_admin_action(modeladmin, request, queryset):
             url=reverse("users:stop_impersonate")
         )
     )
-
-
-impersonate_user_admin_action.short_description = _("Impersonate selected user")
 
 
 # Decorator to prevent actions while impersonating

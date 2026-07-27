@@ -2,6 +2,22 @@ _templates_suffix: .jinja
 _subdirectory: template
 _min_copier_version: "9.0.0"
 
+# Single source of truth for the ruff version, referenced by the generated
+# pyproject pin, the pre-commit hook rev, and the post-generation format task
+# below so they can never drift. Not a prompt (when: false).
+ruff_version:
+  type: str
+  default: "0.16.0"
+  when: false
+
+# Post-generation: format and auto-fix the generated project with the same ruff
+# it pins, so it satisfies its own pre-commit/CI on first commit. Best-effort
+# (via uvx, `|| true`) so a missing uv or offline generation never aborts
+# project creation.
+_tasks:
+  - "uvx --from 'ruff=={{ ruff_version }}' ruff check --fix --exit-zero . || true"
+  - "uvx --from 'ruff=={{ ruff_version }}' ruff format . || true"
+
 # Metadata
 _metadata:
   version: "0.1.0"

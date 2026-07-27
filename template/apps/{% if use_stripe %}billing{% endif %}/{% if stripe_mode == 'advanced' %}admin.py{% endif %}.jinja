@@ -32,10 +32,10 @@ class SubscriptionMetadataAdmin(admin.ModelAdmin):
     list_filter = ["team"]
     {% endif -%}
 
+    @admin.display(description="Features Enabled")
     def feature_count(self, obj):
         """Count enabled features."""
         return len([k for k, v in obj.features.items() if v])
-    feature_count.short_description = "Features Enabled"
 
 
 @admin.register(PlanConfiguration)
@@ -110,14 +110,14 @@ class PaymentIntentAdmin(admin.ModelAdmin):
     ]
     readonly_fields = ["created_at", "updated_at", "stripe_payment_intent_id"]
 
+    @admin.display(description="Amount")
     def amount_display(self, obj):
         """Display formatted amount."""
         return f"{obj.amount} {obj.currency.upper()}"
-    amount_display.short_description = "Amount"
 
+    @admin.display(description="Description")
     def description_short(self, obj):
         """Show truncated description."""
         if len(obj.description) > 50:
             return obj.description[:50] + "..."
         return obj.description
-    description_short.short_description = "Description"
