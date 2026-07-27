@@ -1,5 +1,5 @@
 """GraphQL schema."""
-from typing import Optional
+from typing import cast
 
 import strawberry
 import strawberry_django
@@ -20,10 +20,7 @@ class UserType:
 @strawberry.type
 class Query:
     users: list[UserType] = strawberry_django.field()
-
-    @strawberry_django.field
-    def user(self, id: int) -> Optional[UserType]:
-        return User.objects.filter(pk=id).first()
+    user: UserType = strawberry_django.field()
 
 
 @strawberry.type
@@ -34,7 +31,7 @@ class Mutation:
         user.first_name = first_name
         user.last_name = last_name
         user.save()
-        return user
+        return cast(UserType, user)
 
 
 schema = strawberry.Schema(query=Query, mutation=Mutation)

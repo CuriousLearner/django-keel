@@ -88,6 +88,7 @@ class TeamAdmin(admin.ModelAdmin):
         ),
     ]
 
+    @admin.display(description="Members")
     def member_count(self, obj):
         """Display member count."""
         count = obj.get_member_count()
@@ -95,8 +96,6 @@ class TeamAdmin(admin.ModelAdmin):
             '<span style="font-weight: bold;">{}</span>',
             count
         )
-
-    member_count.short_description = "Members"
 
 
 @admin.register(TeamMember)

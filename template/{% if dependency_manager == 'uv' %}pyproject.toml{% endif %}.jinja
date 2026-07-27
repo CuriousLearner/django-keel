@@ -187,6 +187,7 @@ section-order = [
 
 [tool.mypy]
 python_version = "{{ python_version }}"
+exclude = ["^tests/"]  # type-check application code; tests are example scaffolding
 check_untyped_defs = false  # mypy default; strict untyped-body checking is over-reach for a scaffold
 ignore_missing_imports = false
 warn_unused_ignores = false  # conditional template code makes unused-ignore detection unreliable

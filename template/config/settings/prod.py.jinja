@@ -125,7 +125,8 @@ from opentelemetry.instrumentation.celery import CeleryInstrumentor
 {% endif %}
 
 # Set up tracer provider
-trace.set_tracer_provider(TracerProvider())
+tracer_provider = TracerProvider()
+trace.set_tracer_provider(tracer_provider)
 tracer = trace.get_tracer(__name__)
 
 # Configure OTLP exporter
@@ -133,7 +134,7 @@ otlp_exporter = OTLPSpanExporter(
     endpoint=env("OTEL_EXPORTER_OTLP_ENDPOINT", default="http://localhost:4317"),  # noqa: F405
 )
 span_processor = BatchSpanProcessor(otlp_exporter)
-trace.get_tracer_provider().add_span_processor(span_processor)
+tracer_provider.add_span_processor(span_processor)
 
 # Auto-instrument
 DjangoInstrumentor().instrument()

@@ -18,8 +18,7 @@ if "django_debug_toolbar" in INSTALLED_APPS:  # noqa: F405
     INTERNAL_IPS = ["127.0.0.1", "localhost"]
 
 # Allow all hosts in development
-if not ALLOWED_HOSTS:  # noqa: F405
-    ALLOWED_HOSTS = ["*"]  # noqa: F405
+ALLOWED_HOSTS = ALLOWED_HOSTS or ["*"]  # noqa: F405
 
 # Disable HTTPS redirects in development
 SECURE_SSL_REDIRECT = False
