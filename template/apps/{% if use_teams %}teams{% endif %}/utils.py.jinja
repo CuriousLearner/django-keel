@@ -12,15 +12,14 @@ def send_team_invitation_email(invitation):
         kwargs={"token": invitation.token}
     )
 
+    subject = f"You've been invited to join {invitation.team.name}"
+    {% if frontend == 'none' or frontend == 'htmx-tailwind' -%}
     context = {
         "invitation": invitation,
         "team": invitation.team,
         "invited_by": invitation.invited_by,
         "accept_url": accept_url,
     }
-
-    subject = f"You've been invited to join {invitation.team.name}"
-    {% if frontend == 'none' or frontend == 'htmx-tailwind' -%}
     message = render_to_string("teams/emails/invitation.txt", context)
     html_message = render_to_string("teams/emails/invitation.html", context)
     {% else -%}
