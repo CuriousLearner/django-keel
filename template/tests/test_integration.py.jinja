@@ -104,10 +104,10 @@ class TestTeamSubscriptionIntegration:
             stripe_data={"status": "active"}
         )
 
-        metadata = SubscriptionMetadata.objects.create(
+        SubscriptionMetadata.objects.create(
             subscription=subscription,
             team=team,
-            usage_limits={"team_members": 2}  # Only 2 members allowed
+            usage_limits={"team_members": 2},  # Only 2 members allowed
         )
 
         # Owner already exists, so we can add 1 more

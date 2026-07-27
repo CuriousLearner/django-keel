@@ -19,7 +19,7 @@ def test_celery_task_always_eager_in_tests():
     from django.conf import settings
 
     # In test environment, tasks should run eagerly
-    assert hasattr(settings, "CELERY_TASK_ALWAYS_EAGER") or True
+    assert hasattr(settings, "CELERY_TASK_ALWAYS_EAGER")
 
 
 # Task Definition Tests
@@ -73,7 +73,7 @@ def test_celery_beat_schedule_configured():
     from config.celery import app
 
     # Beat schedule might not be configured, that's OK
-    assert hasattr(app.conf, "beat_schedule") or True
+    assert hasattr(app.conf, "beat_schedule")
 
 
 # Task Result Tests
@@ -96,7 +96,7 @@ def test_task_routes_configured():
     from config.celery import app
 
     # Task routes might not be configured, that's OK
-    assert hasattr(app.conf, "task_routes") or True
+    assert hasattr(app.conf, "task_routes")
 
 
 # Error Handling Tests
@@ -132,9 +132,9 @@ def test_celery_timezone_configured():
     from django.conf import settings
 
     # Celery should use Django's timezone
-    assert hasattr(app.conf, "timezone") or True
+    assert hasattr(app.conf, "timezone")
     if hasattr(app.conf, "timezone"):
-        assert app.conf.timezone == settings.TIME_ZONE or True
+        assert app.conf.timezone == settings.TIME_ZONE
 
 
 # Task Serialization Tests
@@ -156,4 +156,4 @@ def test_celery_imports_configured():
     from config.celery import app
 
     # Celery should know which tasks to import
-    assert hasattr(app.conf, "imports") or True
+    assert hasattr(app.conf, "imports")

@@ -1,4 +1,6 @@
 """Tests for Django Channels WebSocket functionality."""
+import contextlib
+
 import pytest
 from channels.testing import WebsocketCommunicator
 from channels.layers import get_channel_layer
@@ -204,12 +206,9 @@ async def test_websocket_error_handling():
         connected, _ = await communicator.connect()
 
         if connected:
-            # Send invalid data
-            try:
+            # Send invalid data; the consumer should handle it gracefully
+            with contextlib.suppress(Exception):
                 await communicator.send_to(text_data="invalid")
-                # Consumer should handle gracefully
-            except Exception:
-                pass
 
             await communicator.disconnect()
     except ImportError:

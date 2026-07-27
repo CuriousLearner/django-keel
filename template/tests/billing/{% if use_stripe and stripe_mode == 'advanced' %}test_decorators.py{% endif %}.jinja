@@ -135,9 +135,11 @@ class TestPlanRequiredDecorator:
         mock_subscription = Mock()
         mock_plan_config = Mock(slug="pro")
 
-        with patch("apps.billing.decorators.get_active_subscription", return_value=mock_subscription):
-            with patch("apps.billing.models.PlanConfiguration.objects.get", return_value=mock_plan_config):
-                response = view(request)
+        with (
+            patch("apps.billing.decorators.get_active_subscription", return_value=mock_subscription),
+            patch("apps.billing.models.PlanConfiguration.objects.get", return_value=mock_plan_config),
+        ):
+            response = view(request)
         {% else -%}
         mock_subscription = Mock(plan_name="Pro")
 
@@ -160,9 +162,11 @@ class TestPlanRequiredDecorator:
         mock_subscription = Mock()
         mock_plan_config = Mock(slug="basic")
 
-        with patch("apps.billing.decorators.get_active_subscription", return_value=mock_subscription):
-            with patch("apps.billing.models.PlanConfiguration.objects.get", return_value=mock_plan_config):
-                response = view(request)
+        with (
+            patch("apps.billing.decorators.get_active_subscription", return_value=mock_subscription),
+            patch("apps.billing.models.PlanConfiguration.objects.get", return_value=mock_plan_config),
+        ):
+            response = view(request)
         {% else -%}
         mock_subscription = Mock(plan_name="Basic")
 
