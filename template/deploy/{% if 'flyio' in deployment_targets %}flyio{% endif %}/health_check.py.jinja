@@ -68,10 +68,7 @@ class HealthCheckView(View):
         {% endif %}
 
         # Determine HTTP status
-        if checks['status'] == 'unhealthy':
-            status_code = 503
-        else:
-            status_code = 200
+        status_code = 503 if checks['status'] == 'unhealthy' else 200
 
         return JsonResponse(checks, status=status_code)
 
