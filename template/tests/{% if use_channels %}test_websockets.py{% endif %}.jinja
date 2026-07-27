@@ -21,14 +21,12 @@ def test_channel_layer_works():
     assert channel_layer is not None
 
 
-{% if cache == 'redis' -%}
-def test_redis_channel_layer_configured():
-    """Test that Redis channel layer is configured."""
+def test_test_channel_layer_is_in_memory():
+    """Test settings use the in-memory channel layer (no Redis required)."""
     from django.conf import settings
 
     backend = settings.CHANNEL_LAYERS["default"]["BACKEND"]
-    assert "redis" in backend.lower()
-{% endif -%}
+    assert backend == "channels.layers.InMemoryChannelLayer"
 
 
 # ASGI Configuration Tests

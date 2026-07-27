@@ -35,7 +35,7 @@ def create_stripe_customer(user):
         return None
 
 
-def create_checkout_session(user, price_id, success_url, cancel_url):
+def create_checkout_session(user, price_id, success_url, cancel_url, metadata=None):
     """Create a Stripe Checkout session."""
     from .models import StripeCustomer
 
@@ -58,6 +58,7 @@ def create_checkout_session(user, price_id, success_url, cancel_url):
             mode="subscription",
             success_url=success_url,
             cancel_url=cancel_url,
+            metadata=metadata or {},
         )
 
         return session
