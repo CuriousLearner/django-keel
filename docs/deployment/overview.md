@@ -190,6 +190,10 @@ deploy/k8s/
 │       └── prod/
 ├── operators/
 │   └── postgresql-cluster.yaml
+├── monitoring/                    # observability_level: full
+│   ├── grafana-dashboard.json
+│   └── prometheus-servicemonitor.yaml
+├── DEPLOYMENT.md
 └── README.md
 ```
 

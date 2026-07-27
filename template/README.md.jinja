@@ -192,17 +192,31 @@ just shell               # Open Django shell
 │   ├── core/                 # Core app (health checks, utils)
 │   ├── users/                # User model and authentication
 {% if api_style != 'none' -%}
-│   └── api/                  # API endpoints
+│   ├── api/                  # API endpoints
+{% endif -%}
+{% if use_teams -%}
+│   ├── teams/                # Teams / organizations
+{% endif -%}
+{% if use_stripe -%}
+│   ├── billing/              # Stripe billing
 {% endif -%}
 ├── config/                    # Project configuration
 │   ├── settings/             # Split settings (base, dev, test, prod)
 │   ├── urls.py
 │   ├── asgi.py
 │   └── wsgi.py
+{% if frontend != 'none' -%}
+├── frontend/                  # Frontend assets
+{% endif -%}
+{% if background_tasks in ['temporal', 'both'] -%}
+├── temporal_app/              # Temporal workflows/activities
+{% endif -%}
 ├── static/                    # Static files
 ├── media/                     # Media uploads
 ├── docs/                      # Documentation (MkDocs)
-│   └── adr/                  # Architecture Decision Records
+│   ├── getting-started/
+│   ├── architecture/
+│   └── development/
 {% if 'kubernetes' in deployment_targets -%}
 ├── deploy/
 │   └── k8s/                  # Kubernetes manifests
@@ -284,27 +298,26 @@ just celery-flower
 
 ## Deployment
 
-Detailed deployment guides are available in `docs/deployment/`:
+Each selected target ships a guide alongside its generated config:
 
 {% if 'render' in deployment_targets -%}
-- **[Render](docs/deployment/render.md)**: Zero-config PaaS with `render.yaml`
+- **[Render](deploy/render/README.md)**: Zero-config PaaS with `render.yaml`
 {% endif -%}
 {% if 'flyio' in deployment_targets -%}
-- **[Fly.io](docs/deployment/flyio.md)**: Global edge deployment with `fly.toml`
+- **[Fly.io](deploy/flyio/README.md)**: Global edge deployment with `fly.toml`
 {% endif -%}
 {% if 'aws-ecs-fargate' in deployment_targets -%}
-- **[AWS ECS Fargate](docs/deployment/ecs.md)**: Serverless containers with Terraform
+- **[AWS ECS Fargate](deploy/ecs/README.md)**: Serverless containers with Terraform
 {% endif -%}
 {% if 'docker' in deployment_targets -%}
-- **[Docker](docs/deployment/docker.md)**: Universal containerization
+- **Docker**: `Dockerfile` + `docker-compose.yml` at the project root
 {% endif -%}
 {% if 'aws-ec2-ansible' in deployment_targets -%}
-- **[AWS EC2](docs/deployment/aws-ec2.md)**: Ansible-automated with Caddy
+- **[AWS EC2](deploy/ansible/README.md)**: Ansible-automated with Caddy
 {% endif -%}
 {% if 'kubernetes' in deployment_targets -%}
-- **[Kubernetes](docs/deployment/kubernetes.md)**: Helm + Kustomize for GitOps
+- **[Kubernetes](deploy/k8s/README.md)**: Helm + Kustomize for GitOps
 {% endif %}
-See [Deployment Overview](docs/deployment/overview.md) for platform comparison and decision guide.
 
 ## Documentation
 

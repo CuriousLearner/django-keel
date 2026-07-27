@@ -73,8 +73,11 @@ just dev
 Visit:
 - Application: http://localhost:8000
 - Admin: http://localhost:8000/admin/
-{% if api_style != 'none' -%}
+{% if api_style in ['drf', 'both'] -%}
 - API Docs: http://localhost:8000/api/schema/swagger/
+{% endif -%}
+{% if api_style in ['graphql-strawberry', 'both'] -%}
+- GraphQL: http://localhost:8000/api/graphql/
 {% endif -%}
 - Mailpit: http://localhost:8025
 

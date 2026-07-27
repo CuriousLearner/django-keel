@@ -27,7 +27,9 @@
 ├── static/                 # Static files (CSS, JS, images)
 ├── media/                  # User uploads{% if media_storage == 'aws-s3' %} (→ AWS S3){% endif %}
 ├── docs/                   # Project documentation
-│   └── adr/               # Architecture Decision Records
+│   ├── getting-started/   # Setup and first steps
+│   ├── architecture/      # This overview
+│   └── development/       # Testing and workflow
 ├── tests/                  # Test suite
 {% if 'render' in deployment_targets or 'flyio' in deployment_targets or 'aws-ecs-fargate' in deployment_targets or 'aws-ec2-ansible' in deployment_targets or 'kubernetes' in deployment_targets -%}
 ├── deploy/                 # Deployment configurations
@@ -284,7 +286,7 @@ Stripe Checkout session created
      ↓
 User completes payment on Stripe
      ↓
-Stripe sends webhook → `/{% if stripe_mode == 'advanced' %}djstripe{% else %}billing{% endif %}/webhook/`
+Stripe sends webhook → `/billing/webhook/stripe/`
      ↓
 Webhook handler processes event
      ├─ Create/update subscription
@@ -475,18 +477,7 @@ Feature gating allows access to premium features
 - **Together**: Best of both worlds (templating + patching)
 {% endif -%}
 
-## Architecture Decision Records
-
-For detailed explanations of key architectural choices, see:
-
-- [ADR Directory](../adr/)
-- Each ADR documents: Context, Decision, Consequences, Alternatives
-
 ## Further Reading
 
 - [Getting Started](../getting-started/installation.md)
 - [Development Guide](../development/testing.md)
-{% if use_teams or use_stripe -%}
-- [SaaS Features](../saas/)
-{% endif -%}
-- [Deployment Guides](../deployment/)

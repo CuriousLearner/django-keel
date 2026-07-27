@@ -119,7 +119,7 @@ django-keel/
 │   ├── test_django_integration.py
 │   ├── test_features.py
 │   └── test_generation.py
-├── template/           # Copier template files (80+ files)
+├── template/           # Copier template files
 ├── CHANGELOG.md        # Version history
 ├── pyproject.toml      # Dependencies, tool config (ruff, pytest)
 └── copier.yml         # Template configuration

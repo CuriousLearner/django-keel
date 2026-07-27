@@ -177,7 +177,7 @@ observability_level:
   help: Observability level
   choices:
     Minimal (JSON logs + health): minimal
-    Standard (Minimal + structured JSON logging): standard
+    Standard (Minimal + request logging & enriched fields): standard
     Full (Standard + Prometheus + OpenTelemetry): full
   default: "standard"
 
