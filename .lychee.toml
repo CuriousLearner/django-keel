@@ -11,8 +11,11 @@ exclude = [
 # Accept 200-299 status codes as valid
 accept = [200, 204, 206, 301, 302, 307, 308, 429]
 
-# Retry failed requests
+# Retry failed requests, and give slow external sites room before treating a
+# request as failed, so a transient timeout does not fail the docs build.
 max_retries = 3
+retry_wait_time = 2
+timeout = 30
 
 # User agent
 user_agent = "Mozilla/5.0 (compatible; Lychee/1.0)"
