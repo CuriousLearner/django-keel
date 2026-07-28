@@ -107,9 +107,11 @@ just dev
 
 ### Observability Levels
 
-- **`minimal`**: Basic structured logging
-- **`standard`**: Logging + Sentry
-- **`full`**: OpenTelemetry + Prometheus + Grafana + Sentry
+- **`minimal`**: Structured JSON logging and health endpoints
+- **`standard`**: Adds production request logging with enriched fields
+- **`full`**: Adds Prometheus metrics and OpenTelemetry tracing (plus a Grafana dashboard with the Kubernetes target)
+
+Sentry error tracking is a separate option (`use_sentry`), independent of the level.
 
 ### Deployment Targets
 

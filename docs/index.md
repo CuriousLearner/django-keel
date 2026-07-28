@@ -216,13 +216,13 @@ Visit:
 ### 📊 Observability (3 Levels)
 
 === "Minimal"
-    Basic logging for hobby projects
+    Structured JSON logging and health endpoints
 
 === "Standard"
-    Structured JSON logging + Sentry error tracking
+    Adds request logging with enriched fields
 
 === "Full"
-    OpenTelemetry + Prometheus + distributed tracing + custom metrics
+    Adds Prometheus metrics and OpenTelemetry distributed tracing
 
 [Learn more about Observability →](features/observability.md)
 
