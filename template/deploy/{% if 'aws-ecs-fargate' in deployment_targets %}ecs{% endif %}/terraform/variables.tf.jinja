@@ -174,9 +174,9 @@ variable "stripe_publishable_key" {
 }
 {% endif %}
 
-# S3 configuration for static/media files
+# S3 configuration for media files
 variable "create_s3_buckets" {
-  description = "Create S3 buckets for static and media files"
+  description = "Create the S3 bucket for media files"
   type        = bool
   default     = true
 }

@@ -41,11 +41,6 @@ output "database_name" {
   value       = local.db_name
 }
 
-output "static_bucket_name" {
-  description = "Name of the S3 bucket for static files"
-  value       = var.create_s3_buckets ? aws_s3_bucket.static[0].id : null
-}
-
 output "media_bucket_name" {
   description = "Name of the S3 bucket for media files"
   value       = var.create_s3_buckets ? aws_s3_bucket.media[0].id : null

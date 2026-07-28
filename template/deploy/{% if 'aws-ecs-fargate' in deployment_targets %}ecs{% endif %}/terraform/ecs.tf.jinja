@@ -23,8 +23,8 @@ locals {
   ]
 
   # S3 bucket environment variables. Django uses a single default/media
-  # storage bucket (AWS_STORAGE_BUCKET_NAME in config/settings); the static
-  # bucket is provisioned for CDN/static asset hosting but is not read by Django.
+  # storage bucket (AWS_STORAGE_BUCKET_NAME in config/settings); static files
+  # are served by WhiteNoise from the container, so no static bucket is created.
   s3_environment = var.create_s3_buckets ? [
     {
       name  = "AWS_STORAGE_BUCKET_NAME"
@@ -187,8 +187,6 @@ resource "aws_iam_role_policy" "task_s3" {
           "s3:ListBucket"
         ]
         Resource = [
-          aws_s3_bucket.static[0].arn,
-          "${aws_s3_bucket.static[0].arn}/*",
           aws_s3_bucket.media[0].arn,
           "${aws_s3_bucket.media[0].arn}/*"
         ]

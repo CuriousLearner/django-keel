@@ -37,7 +37,7 @@ resource "aws_security_group" "app" {
 # Django Secret Key in Secrets Manager
 resource "aws_secretsmanager_secret" "django_secret_key" {
   name                         = "${local.name_prefix}-django-secret-key"
-  name_recovery_window_in_days = var.environment == "production" ? 30 : 0
+  recovery_window_in_days      = var.environment == "production" ? 30 : 0
 
   tags = merge(
     local.common_tags,
@@ -58,7 +58,7 @@ resource "aws_secretsmanager_secret" "stripe_secret_key" {
   count = var.stripe_secret_key != "" ? 1 : 0
 
   name                         = "${local.name_prefix}-stripe-secret-key"
-  name_recovery_window_in_days = var.environment == "production" ? 30 : 0
+  recovery_window_in_days      = var.environment == "production" ? 30 : 0
 
   tags = merge(
     local.common_tags,
@@ -82,7 +82,7 @@ resource "aws_secretsmanager_secret" "sentry_dsn" {
   count = var.sentry_dsn != "" ? 1 : 0
 
   name                         = "${local.name_prefix}-sentry-dsn"
-  name_recovery_window_in_days = var.environment == "production" ? 30 : 0
+  recovery_window_in_days      = var.environment == "production" ? 30 : 0
 
   tags = merge(
     local.common_tags,
