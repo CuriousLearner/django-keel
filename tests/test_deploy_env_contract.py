@@ -11,6 +11,7 @@ secret key. Every other target already used the ``DJANGO_``-prefixed names.
 
 import pytest
 
+
 # Names config/settings reads from the environment for core prod config.
 REQUIRED_ENV_NAMES = ["DJANGO_SECRET_KEY", "DJANGO_ALLOWED_HOSTS"]
 
