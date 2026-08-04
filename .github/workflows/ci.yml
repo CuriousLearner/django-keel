@@ -288,7 +288,7 @@ jobs:
       - name: Install Copier and Ansible
         run: |
           python -m pip install --upgrade pip
-          pip install 'copier>=9.14.3,<10' ansible-core
+          pip install 'copier>=9.14.3,<10' 'ansible-core>=2.16,<2.22'
 
       - name: Set up Terraform
         uses: hashicorp/setup-terraform@v3
@@ -300,11 +300,11 @@ jobs:
 
       - name: Set up Kustomize
         run: |
-          curl -sLo kustomize.tar.gz \
+          curl -fsSLo kustomize.tar.gz \
             https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv5.4.3/kustomize_v5.4.3_linux_amd64.tar.gz
           tar xzf kustomize.tar.gz
-          sudo mv kustomize /usr/local/bin/
-          rm kustomize.tar.gz
+          sudo install -m 0755 kustomize /usr/local/bin/kustomize
+          rm kustomize.tar.gz kustomize
 
       - name: Validate ECS Terraform
         run: |
