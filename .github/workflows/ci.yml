@@ -291,7 +291,7 @@ jobs:
           pip install 'copier>=9.14.3,<10' 'ansible-core>=2.16,<2.22'
 
       - name: Set up Terraform
-        uses: hashicorp/setup-terraform@v3
+        uses: hashicorp/setup-terraform@v4
         with:
           terraform_wrapper: false
 
