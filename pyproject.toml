@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=82.0.1"]
+requires = ["setuptools>=84.0.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -31,17 +31,17 @@ dependencies = []
 
 [project.optional-dependencies]
 dev = [
-    "pytest>=8.0.0",
+    "pytest>=9.1.1",
     "pytest-cov>=7.1.0",
     "pytest-xdist>=3.8.0",
     "pytest-timeout>=2.4.0",
-    "copier>=9.14.3",
+    "copier>=9.18.2",
     "pyyaml>=6.0.3",
-    "types-PyYAML>=6.0.12.20260408",
-    "ruff>=0.16.0,<0.17",
-    "mypy>=1.20.1",
-    "plumbum>=1.8.0",
-    "pre-commit>=4.5.1",
+    "types-PyYAML>=6.0.12.20260906",
+    "ruff>=0.16.9,<0.17",
+    "mypy>=2.3.1",
+    "plumbum>=2.0.2",
+    "pre-commit>=4.6.2",
 ]
 
 [project.urls]
