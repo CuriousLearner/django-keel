@@ -185,6 +185,8 @@ ignore_errors = true
 module = [
 {% if background_tasks in ['celery', 'both'] -%}
     "celery.*",
+    "django_celery_beat.*",
+    "django_celery_results.*",
 {% endif -%}
 {% if background_tasks in ['temporal', 'both'] -%}
     "temporalio.*",
