@@ -235,7 +235,7 @@ jobs:
           fetch-depth: 0
 
       - name: Check for secrets
-        uses: trufflesecurity/trufflehog@v3.97.9
+        uses: trufflesecurity/trufflehog@v3.99.2
         with:
           path: ./
           # Only set on pull_request events; empty on push so the action
