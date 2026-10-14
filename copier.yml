@@ -7,7 +7,7 @@ _min_copier_version: "9.0.0"
 # below so they can never drift. Not a prompt (when: false).
 ruff_version:
   type: str
-  default: "0.16.0"
+  default: "0.17.0"
   when: false
 
 # Post-generation: format and auto-fix the generated project with the same ruff
