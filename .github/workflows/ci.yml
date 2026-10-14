@@ -46,7 +46,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: astral-sh/setup-uv@v10.2.0  # boot test runs uv inside generated projects
+      - uses: astral-sh/setup-uv@v10.3.0  # boot test runs uv inside generated projects
 
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v7
@@ -84,7 +84,7 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@v10.2.0
+        uses: astral-sh/setup-uv@v10.3.0
 
       - name: Set up Python
         uses: actions/setup-python@v7
@@ -94,7 +94,7 @@ jobs:
       - name: Install Copier
         run: |
           python -m pip install --upgrade pip
-          pip install 'copier>=9.18.2,<10'
+          pip install 'copier>=9.19.1,<10'
 
       - name: Generate ${{ matrix.project-type }} project
         run: |
@@ -181,7 +181,7 @@ jobs:
       - name: Install Copier
         run: |
           python -m pip install --upgrade pip
-          pip install 'copier>=9.18.2,<10'
+          pip install 'copier>=9.19.1,<10'
 
       - name: Generate project with Python ${{ matrix.python-version }} + Django ${{ matrix.django-version }}
         run: |
@@ -235,7 +235,7 @@ jobs:
           fetch-depth: 0
 
       - name: Check for secrets
-        uses: trufflesecurity/trufflehog@v3.97.9
+        uses: trufflesecurity/trufflehog@v3.99.2
         with:
           path: ./
           # Only set on pull_request events; empty on push so the action
@@ -288,7 +288,7 @@ jobs:
       - name: Install Copier and Ansible
         run: |
           python -m pip install --upgrade pip
-          pip install 'copier>=9.18.2,<10' 'ansible-core>=2.16,<2.22'
+          pip install 'copier>=9.19.1,<10' 'ansible-core>=2.16,<2.22'
 
       - name: Set up Terraform
         uses: hashicorp/setup-terraform@v4
