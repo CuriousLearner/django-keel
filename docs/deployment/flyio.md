@@ -461,9 +461,9 @@ fly certs create yourdomain.com
 
 ## Further Reading
 
-- [Fly.io Documentation](https://fly.io/docs/)
-- [Fly.io Pricing](https://fly.io/docs/about/pricing/)
-- [Fly.io CLI Reference](https://fly.io/docs/flyctl/)
+- [Fly.io Documentation](https://docs.fly.io/)
+- [Fly.io Pricing](https://docs.fly.io/about/pricing)
+- [Fly.io CLI Reference](https://docs.fly.io/flyctl)
 
 ## Support
 

@@ -585,8 +585,8 @@ class NewCheckoutView(FeatureSampleMixin, View):
 ## Further Reading
 
 - [django-waffle Documentation](https://waffle.readthedocs.io/)
-- [Feature Flag Best Practices](https://www.optimizely.com/optimization-glossary/feature-flags/)
-- [A/B Testing Guide](https://vwo.com/ab-testing/)
+- [Feature Flag Best Practices](https://www.optimizely.com/optimization-glossary/feature-flags)
+- [A/B Testing Guide](https://wingify.com/ab-testing/)
 
 ## Related Documentation
 
