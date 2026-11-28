@@ -10,10 +10,10 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 {% if dependency_manager == 'uv' %}
       - name: Install uv
-        uses: astral-sh/setup-uv@v2
+        uses: astral-sh/setup-uv@v10.4.0
         with:
           enable-cache: true
 
@@ -33,7 +33,7 @@ jobs:
         run: uv run mypy .
 {% else %}
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: "{{ python_version }}"
 
@@ -82,10 +82,10 @@ jobs:
 {% endif %}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 {% if dependency_manager == 'uv' %}
       - name: Install uv
-        uses: astral-sh/setup-uv@v2
+        uses: astral-sh/setup-uv@v10.4.0
         with:
           enable-cache: true
 
@@ -112,7 +112,7 @@ jobs:
         run: uv run pytest --cov --cov-report=xml
 {% else %}
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: "{{ python_version }}"
 
@@ -140,9 +140,9 @@ jobs:
 {% endif %}
 
       - name: Upload coverage
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v7
         with:
-          file: ./coverage.xml
+          files: ./coverage.xml
           fail_ci_if_error: false
 
   build:
@@ -150,13 +150,13 @@ jobs:
     needs: [lint, test]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Build Docker image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           context: .
           push: false
@@ -170,13 +170,13 @@ jobs:
           image: {{ project_slug }}:{% raw %}${{ github.sha }}{% endraw %}
 
       - name: Scan image with Trivy
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: {{ project_slug }}:{% raw %}${{ github.sha }}{% endraw %}
           format: "sarif"
           output: "trivy-results.sarif"
 
       - name: Upload Trivy results
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: "trivy-results.sarif"

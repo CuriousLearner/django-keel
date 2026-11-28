@@ -29,16 +29,16 @@ jobs:
     if: github.event_name == 'pull_request'
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v7
         with:
           python-version: {% raw %}${{ env.PYTHON_VERSION }}{% endraw %}
 
       {% if dependency_manager == 'uv' -%}
       - name: Install uv
-        uses: astral-sh/setup-uv@v2
+        uses: astral-sh/setup-uv@v10.4.0
 
       - name: Install dependencies
         run: |
@@ -74,7 +74,7 @@ jobs:
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Setup Fly.io CLI
         uses: superfly/flyctl-actions/setup-flyctl@master
@@ -101,7 +101,7 @@ jobs:
 
       - name: Notify deployment
         if: always()
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const jobStatus = '{% raw %}${{ job.status }}{% endraw %}';
@@ -130,7 +130,7 @@ jobs:
       url: https://{{ project_slug }}.fly.dev
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Setup Fly.io CLI
         uses: superfly/flyctl-actions/setup-flyctl@master
@@ -181,19 +181,19 @@ jobs:
       {% if use_sentry -%}
       - name: Create Sentry release
         if: success()
-        uses: getsentry/action-release@v1
+        uses: getsentry/action-release@v3
         env:
           SENTRY_AUTH_TOKEN: {% raw %}${{ secrets.SENTRY_AUTH_TOKEN }}{% endraw %}
           SENTRY_ORG: {% raw %}${{ secrets.SENTRY_ORG }}{% endraw %}
           SENTRY_PROJECT: {{ project_slug }}
         with:
           environment: production
-          version: {% raw %}${{ github.sha }}{% endraw %}
+          release: {% raw %}${{ github.sha }}{% endraw %}
       {% endif %}
 
       - name: Notify deployment
         if: always()
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const jobStatus = '{% raw %}${{ job.status }}{% endraw %}';
@@ -220,7 +220,7 @@ jobs:
       url: https://{{ project_slug }}-pr-{% raw %}${{ github.event.number }}{% endraw %}.fly.dev
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Setup Fly.io CLI
         uses: superfly/flyctl-actions/setup-flyctl@master
@@ -267,7 +267,7 @@ jobs:
             --strategy immediate
 
       - name: Comment on PR
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const url = 'https://{% raw %}${{ steps.app-name.outputs.name }}{% endraw %}.fly.dev';
@@ -327,7 +327,7 @@ jobs:
           flyctl postgres destroy $APP_NAME-db --yes || true
 
       - name: Comment on PR
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const body = `### 🧹 Preview Deployment Cleaned Up\n\n` +
