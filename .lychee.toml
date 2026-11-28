@@ -8,8 +8,10 @@ exclude = [
     'https://stackoverflow.com/.*',
 ]
 
-# Accept 200-299 status codes as valid
-accept = [200, 204, 206, 301, 302, 307, 308, 429]
+# Accept success and redirect codes. 429 and 503 mean the server is busy, not
+# that the link is broken; lychee 0.24 does not retry a 503, so a single one
+# from github.com would otherwise fail the build.
+accept = [200, 204, 206, 301, 302, 307, 308, 429, 503]
 
 # Retry failed requests, and give slow external sites room before treating a
 # request as failed, so a transient timeout does not fail the docs build.
