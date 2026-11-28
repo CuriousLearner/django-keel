@@ -5,7 +5,7 @@
 Build **SaaS applications**, **API backends**, **web apps**, or **internal tools** with one template.
 
 [![CI](https://github.com/CuriousLearner/django-keel/actions/workflows/ci.yml/badge.svg)](https://github.com/CuriousLearner/django-keel/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/license/MIT)
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
 [![Django 6.0](https://img.shields.io/badge/django-6.0-green.svg)](https://www.djangoproject.com/)
 [![Documentation](https://readthedocs.org/projects/django-keel/badge/?version=latest)](https://django-keel.readthedocs.io/en/latest/?badge=latest)
@@ -760,7 +760,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 Django Keel is inspired by:
 
 - [django-init](https://github.com/fueled/django-init) - 10+ years of Django best practices
-- [scaf](https://github.com/sixfeetup/scaf) - Copier-based approach and K8s patterns
+- [scaf](https://github.com/getscaf/scaf) - Copier-based approach and K8s patterns
 - [cookiecutter-django](https://github.com/cookiecutter/cookiecutter-django) - Production-ready defaults
 - [wemake-django-template](https://github.com/wemake-services/wemake-django-template) - Code quality focus
 

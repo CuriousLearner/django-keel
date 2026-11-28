@@ -464,10 +464,10 @@ Before deploying to production, ensure:
 
 ### Platform Documentation
 - [Render Docs](https://render.com/docs)
-- [Fly.io Docs](https://fly.io/docs)
+- [Fly.io Docs](https://docs.fly.io/)
 - [Docker Docs](https://docs.docker.com/)
 - [AWS ECS Docs](https://docs.aws.amazon.com/ecs/)
-- [Kubernetes Docs](https://kubernetes.io/docs/)
+- [Kubernetes Docs](https://kubernetes.io/docs/home/)
 
 ### Community
 - [Django Keel Discussions](https://github.com/CuriousLearner/django-keel/discussions)

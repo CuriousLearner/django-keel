@@ -2,7 +2,7 @@
 
 **A versatile, production-ready Django project template for any use case**
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/license/MIT)
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
 [![Django 6.0](https://img.shields.io/badge/django-6.0-green.svg)](https://www.djangoproject.com/)
 [![Documentation Status](https://readthedocs.org/projects/django-keel/badge/?version=latest)](https://django-keel.readthedocs.io/en/latest/?badge=latest)
@@ -362,7 +362,7 @@ MIT License - see [LICENSE](https://github.com/CuriousLearner/django-keel/blob/m
 Django Keel is inspired by:
 
 - [django-init](https://github.com/fueled/django-init) - 10+ years of Django best practices
-- [scaf](https://github.com/sixfeetup/scaf) - Copier-based approach and K8s patterns
+- [scaf](https://github.com/getscaf/scaf) - Copier-based approach and K8s patterns
 - [cookiecutter-django](https://github.com/cookiecutter/cookiecutter-django) - Production-ready defaults
 - [wemake-django-template](https://github.com/wemake-services/wemake-django-template) - Code quality focus
 

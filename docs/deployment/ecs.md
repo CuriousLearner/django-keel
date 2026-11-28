@@ -448,9 +448,9 @@ Check:
 ## Further Reading
 
 - [AWS ECS Documentation](https://docs.aws.amazon.com/ecs/)
-- [Terraform AWS Provider](https://registry.terraform.io/providers/hashicorp/aws/)
+- [Terraform AWS Provider](https://registry.terraform.io/providers/hashicorp/aws)
 - [AWS Well-Architected Framework](https://aws.amazon.com/architecture/well-architected/)
-- [ECS Best Practices](https://docs.aws.amazon.com/AmazonECS/latest/bestpracticesguide/)
+- [ECS Best Practices](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-best-practices.html)
 
 ## Support
 

@@ -883,11 +883,11 @@ stripe.Subscription.modify(
 
 ## Further Reading
 
-- [Stripe Documentation](https://stripe.com/docs)
+- [Stripe Documentation](https://docs.stripe.com/)
 - [dj-stripe Documentation](https://dj-stripe.dev/)
-- [Stripe API Reference](https://stripe.com/docs/api)
-- [Stripe Testing Guide](https://stripe.com/docs/testing)
-- [Stripe Webhooks Best Practices](https://stripe.com/docs/webhooks/best-practices)
+- [Stripe API Reference](https://docs.stripe.com/api)
+- [Stripe Testing Guide](https://docs.stripe.com/testing)
+- [Stripe Webhooks Best Practices](https://docs.stripe.com/webhooks)
 
 ## Related Documentation
 
