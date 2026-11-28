@@ -108,7 +108,28 @@ sentry_sdk.init(
     ],
     environment=env("SENTRY_ENVIRONMENT", default="production"),  # noqa: F405
     traces_sample_rate=env.float("SENTRY_TRACES_SAMPLE_RATE", default=0.1),  # noqa: F405
-    send_default_pii=False,
+    # SDK 3.x defaults collect user identity, bodies and cookies; this restores
+    # the previous send_default_pii=False behaviour (from the SDK migration guide).
+    data_collection={
+        "user_info": False,
+        "http_bodies": [],
+        "graphql": {"document": False, "variables": False},
+        "gen_ai": {"inputs": False, "outputs": False},
+        "mcp": {"inputs": False, "outputs": False},
+        "database_query_data": False,
+        "queues": False,
+        "http_headers": {
+            "request": {
+                "mode": "denylist",
+                "terms": ["forwarded", "-ip", "remote-", "via", "-user"],
+            },
+        },
+        "cookies": {"mode": "denylist", "terms": ["forwarded", "-ip", "remote-", "via", "-user"]},
+        "url_query_params": {
+            "mode": "denylist",
+            "terms": ["forwarded", "-ip", "remote-", "via", "-user"],
+        },
+    },
 )
 {% endif %}
 
